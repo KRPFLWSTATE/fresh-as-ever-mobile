@@ -1,0 +1,202 @@
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+  Platform,
+  Pressable,
+  StyleSheet,
+  View,
+} from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { isoLocalRounded } from '@/lib/merchantBagForm';
+import { useStitchTheme } from '@/theme/StitchThemeContext';
+import { StitchText } from '@/ui/stitch/StitchText';
+
+type Props = {
+  label: string;
+  /** `YYYY-MM-DDTHH:mm` in local time */
+  value: string;
+  onChange: (next: string) => void;
+};
+
+function parseLocal(value: string): Date {
+  const d = new Date(value);
+  if (!Number.isNaN(d.getTime())) {
+    return d;
+  }
+  return new Date();
+}
+
+type FieldStylesArgs = {
+  spacing: ReturnType<typeof useStitchTheme>['spacing'];
+  radii: ReturnType<typeof useStitchTheme>['radii'];
+};
+
+function createFieldStyles({ spacing, radii }: FieldStylesArgs) {
+  return StyleSheet.create({
+    wrap: { marginTop: spacing.xs },
+    iosPick: {
+      marginTop: spacing.sm,
+      borderWidth: 1,
+      borderRadius: radii.xl,
+      minHeight: 252,
+      width: '100%',
+      alignSelf: 'stretch',
+      zIndex: 2,
+    },
+    iosPicker: {
+      width: '100%',
+      height: 216,
+    },
+    doneBtn: {
+      paddingVertical: spacing.md,
+      alignItems: 'center',
+      borderTopWidth: StyleSheet.hairlineWidth,
+    },
+  });
+}
+
+export function PickupDateTimeField({ label, value, onChange }: Props) {
+  const { colors, spacing, radii } = useStitchTheme();
+  const styles = useMemo(
+    () => createFieldStyles({ spacing, radii }),
+    [spacing, radii],
+  );
+
+  const [iosOpen, setIosOpen] = useState(false);
+  const [androidStep, setAndroidStep] = useState<'date' | 'time' | null>(
+    null,
+  );
+  const [pending, setPending] = useState(() => parseLocal(value));
+
+  useEffect(() => {
+    setPending(parseLocal(value));
+  }, [value]);
+
+  const inputChrome = useMemo(
+    () => ({
+      borderWidth: 1,
+      borderColor: colors.outlineVariant,
+      borderRadius: radii.lg,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.md,
+      backgroundColor: colors.surfaceBright,
+    }),
+    [colors.outlineVariant, colors.surfaceBright, radii.lg, spacing.md],
+  );
+
+  function openPicker() {
+    setPending(parseLocal(value));
+    if (Platform.OS === 'android') {
+      setAndroidStep('date');
+    } else {
+      setIosOpen(true);
+    }
+  }
+
+  return (
+    <View style={styles.wrap}>
+      <StitchText
+        variant="label"
+        colorKey="onBackground"
+        style={{ marginBottom: spacing.xs, marginTop: spacing.sm }}
+      >
+        {label}
+      </StitchText>
+      <Pressable
+        onPress={openPicker}
+        style={({ pressed }) => [
+          inputChrome,
+          { opacity: pressed ? 0.92 : 1 },
+        ]}
+      >
+        <StitchText variant="body-md" colorKey={value ? 'onBackground' : 'textFaint'}>
+          {value ? value.replace('T', ' · ') : 'Tap to choose date & time'}
+        </StitchText>
+      </Pressable>
+
+      {Platform.OS === 'android' && androidStep === 'date' ? (
+        <DateTimePicker
+          value={pending}
+          mode="date"
+          display="default"
+          onChange={(ev, picked) => {
+            if (ev.type === 'dismissed') {
+              setAndroidStep(null);
+              return;
+            }
+            if (picked) {
+              const next = new Date(picked);
+              next.setHours(
+                pending.getHours(),
+                pending.getMinutes(),
+                0,
+                0,
+              );
+              setPending(next);
+              setAndroidStep('time');
+            }
+          }}
+        />
+      ) : null}
+
+      {Platform.OS === 'android' && androidStep === 'time' ? (
+        <DateTimePicker
+          value={pending}
+          mode="time"
+          display="default"
+          is24Hour
+          onChange={(ev, picked) => {
+            setAndroidStep(null);
+            if (ev.type === 'dismissed') {
+              return;
+            }
+            if (picked) {
+              const next = new Date(pending);
+              next.setHours(picked.getHours(), picked.getMinutes(), 0, 0);
+              onChange(isoLocalRounded(next));
+            }
+          }}
+        />
+      ) : null}
+
+      {iosOpen && Platform.OS === 'ios' ? (
+        <View
+          style={[
+            styles.iosPick,
+            {
+              borderColor: colors.outlineVariant,
+              backgroundColor: colors.surface,
+            },
+          ]}
+        >
+          <DateTimePicker
+            value={pending}
+            mode="datetime"
+            display="spinner"
+            style={styles.iosPicker}
+            onChange={(_ev, picked) => {
+              if (picked) {
+                const next = isoLocalRounded(picked);
+                setPending(parseLocal(next));
+                onChange(next);
+              }
+            }}
+          />
+          <Pressable
+            style={[
+              styles.doneBtn,
+              {
+                borderTopColor: colors.outlineVariant,
+                backgroundColor: colors.surfaceContainerLow,
+              },
+            ]}
+            onPress={() => setIosOpen(false)}
+          >
+            <StitchText variant="label" colorKey="primaryContainer">
+              Done
+            </StitchText>
+          </Pressable>
+        </View>
+      ) : null}
+    </View>
+  );
+}

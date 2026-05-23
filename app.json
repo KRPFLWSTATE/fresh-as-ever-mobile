@@ -1,0 +1,7 @@
+{
+  "name": "FreshAsEverMobile",
+  "displayName": "FreshAsEverMobile",
+  "plugins": [
+    "expo-web-browser"
+  ]
+}

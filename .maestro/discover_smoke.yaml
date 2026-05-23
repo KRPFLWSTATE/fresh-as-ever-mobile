@@ -1,0 +1,13 @@
+appId: com.freshasever.mobile
+---
+# Ensures clearState/clearKeychain can apply even if a prior flow left the app running.
+- stopApp
+- launchApp:
+    clearState: true
+    clearKeychain: true
+- assertVisible:
+    text: "Fresh As Ever"
+- assertVisible:
+    id: "discover.searchInput"
+- assertVisible:
+    id: "discover.locationPill"

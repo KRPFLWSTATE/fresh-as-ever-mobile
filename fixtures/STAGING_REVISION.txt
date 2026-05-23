@@ -1,0 +1,2 @@
+0
+# Bump when staging Supabase seed or Next API contract changes (plan §AO).

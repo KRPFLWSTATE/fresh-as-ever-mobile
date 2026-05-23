@@ -1,0 +1,145 @@
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { getSupabase } from '@/lib/supabase';
+import type { AppEnv } from '@/config/env';
+import { useMerchantContext } from '@/hooks/useMerchantContext';
+import {
+  type AnalyticsWindowKey,
+  aggregateHourBuckets,
+  aggregateTopBags,
+  countDistinctCustomers,
+  cutoffIsoForWindow,
+  estimateWasteKg,
+  formatLkr,
+  isCollectedOrder,
+  peakHourLabel,
+  retailToKgProxy,
+  sumRevenue,
+  type HourBucket,
+  type TopSellingBag,
+} from '@/lib/merchantAnalytics';
+import { mapSupabaseError, logSupabaseError } from '@/lib/supabaseError';
+
+export type MerchantAnalyticsSnapshot = {
+  revenue: number;
+  revenueLabel: string;
+  customerReach: number;
+  wasteKg: number;
+  co2Kg: number;
+  hourBuckets: HourBucket[];
+  peakHour: string;
+  topBags: TopSellingBag[];
+};
+
+export function useMerchantAnalytics(env: AppEnv, windowDays: AnalyticsWindowKey = 30) {
+  const { outletScopeIds, loading: ctxLoading } = useMerchantContext(env);
+  const [snapshot, setSnapshot] = useState<MerchantAnalyticsSnapshot | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const refetch = useCallback(async () => {
+    if (outletScopeIds.length === 0) {
+      setSnapshot({
+        revenue: 0,
+        revenueLabel: formatLkr(0),
+        customerReach: 0,
+        wasteKg: 0,
+        co2Kg: 0,
+        hourBuckets: Array.from({ length: 24 }, (_, hour) => ({ hour, count: 0 })),
+        peakHour: '—',
+        topBags: [],
+      });
+      setLoading(false);
+      setError(null);
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    const sb = getSupabase(env);
+    const cutoff = cutoffIsoForWindow(windowDays);
+    try {
+      const { data, error: qErr } = await sb
+        .from('orders')
+        .select(
+          `
+          id,
+          customer_id,
+          bag_id,
+          total,
+          quantity,
+          created_at,
+          order_status,
+          bag:rescue_bags(title, retail_value_estimate)
+        `,
+        )
+        .in('outlet_id', outletScopeIds)
+        .gte('created_at', cutoff)
+        .limit(5000);
+
+      if (qErr) throw qErr;
+
+      const rows = (data ?? []) as Record<string, unknown>[];
+      const collected = rows.filter((r) =>
+        isCollectedOrder(String(r.order_status ?? '')),
+      );
+      const revenue = sumRevenue(collected);
+      const reach = countDistinctCustomers(collected);
+      const hourBuckets = aggregateHourBuckets(rows);
+      const topBags = aggregateTopBags(
+        collected.map((r) => ({
+          bag_id: r.bag_id as string | null,
+          total: r.total as number | string | null,
+          quantity: r.quantity as number | null,
+          bag: r.bag as { title?: string | null } | null,
+        })),
+      );
+
+      const weightMap = new Map<string, number>();
+      for (const r of collected) {
+        const bagId = r.bag_id != null ? String(r.bag_id) : '';
+        if (!bagId || weightMap.has(bagId)) continue;
+        const bag = r.bag as { retail_value_estimate?: number | null } | null;
+        weightMap.set(bagId, retailToKgProxy(bag?.retail_value_estimate));
+      }
+      const wasteKg = estimateWasteKg(
+        collected.map((r) => ({
+          bag_id: r.bag_id as string | null,
+          quantity: r.quantity as number | null,
+        })),
+        weightMap,
+      );
+      const co2Kg = Math.round(wasteKg * 2.5 * 10) / 10;
+
+      setSnapshot({
+        revenue,
+        revenueLabel: formatLkr(revenue),
+        customerReach: reach,
+        wasteKg,
+        co2Kg,
+        hourBuckets,
+        peakHour: peakHourLabel(hourBuckets),
+        topBags,
+      });
+    } catch (e) {
+      logSupabaseError(e, 'useMerchantAnalytics');
+      setError(mapSupabaseError(e as Error, 'Could not load analytics.'));
+      setSnapshot(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [env, outletScopeIds, windowDays]);
+
+  useEffect(() => {
+    if (ctxLoading) return;
+    void refetch();
+  }, [ctxLoading, refetch]);
+
+  return useMemo(
+    () => ({
+      snapshot,
+      loading: loading || ctxLoading,
+      error,
+      refetch,
+    }),
+    [snapshot, loading, ctxLoading, error, refetch],
+  );
+}

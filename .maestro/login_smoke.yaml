@@ -1,0 +1,20 @@
+appId: com.freshasever.mobile
+---
+- runFlow: discover_smoke.yaml
+- tapOn:
+    id: "tab.profile"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible:
+      id: "profile.guestHeading"
+    timeout: 30000
+- tapOn:
+    id: "profile.guestSignIn"
+- extendedWaitUntil:
+    visible:
+      text: "Skip"
+    timeout: 20000
+- assertVisible:
+    text: "Customer"
+- assertVisible:
+    text: "Merchant"

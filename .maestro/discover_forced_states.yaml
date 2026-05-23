@@ -1,0 +1,27 @@
+appId: com.freshasever.mobile
+---
+# Cold shell: default tab is Discover so `discover?state=` is handled while that screen is mounted.
+- stopApp
+- launchApp:
+    clearState: true
+    clearKeychain: true
+- extendedWaitUntil:
+    visible:
+      id: "discover.searchInput"
+    timeout: 20000
+- openLink: freshasever:///discover?state=sold-out
+- extendedWaitUntil:
+    visible:
+      id: "discover.forcedEmptyTitle"
+    timeout: 20000
+- assertVisible:
+    text: "Missed out today"
+- tapOn:
+    id: "tab.orders"
+- openLink: freshasever:///discover?state=no-bags-nearby
+- extendedWaitUntil:
+    visible:
+      id: "discover.forcedEmptyTitle"
+    timeout: 20000
+- assertVisible:
+    text: "No bags nearby right now"

@@ -1,0 +1,10 @@
+# Template for synthetic PayHere hash probe (§ ux-synthetic-hash-staging-cron-github-action).
+# Rename → .yml once secrets + schedule approved. Keep disabled in repo default.
+# on:
+#   schedule:
+#     - cron: '15 * * * *'
+# jobs:
+#   probe:
+#     runs-on: ubuntu-latest
+#     steps:
+#       - run: curl -fsS "$API_BASE_URL/api/payhere/hash" -d '{"order_id":"fixture","amount":1}' -H 'Content-Type: application/json'

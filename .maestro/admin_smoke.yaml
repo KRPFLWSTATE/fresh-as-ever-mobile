@@ -1,0 +1,9 @@
+appId: com.freshasever.mobile
+---
+# Guests are reset to MainTabs by `AuthStackGate`; ensure Discover is focused without relying on tab testIDs.
+- openLink: freshasever:///admin/dashboard
+- openLink: freshasever:///discover
+- extendedWaitUntil:
+    visible:
+      id: "discover.searchInput"
+    timeout: 20000

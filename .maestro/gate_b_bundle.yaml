@@ -1,0 +1,7 @@
+# Gate B — bundled Maestro smoke (customer discover + login + forced discover states + admin guest redirect).
+# Run: `npm run test:maestro` with an iOS Simulator booted and the dev client installed (`npx react-native run-ios`).
+appId: com.freshasever.mobile
+---
+- runFlow: login_smoke.yaml
+- runFlow: discover_forced_states.yaml
+- runFlow: admin_smoke.yaml
