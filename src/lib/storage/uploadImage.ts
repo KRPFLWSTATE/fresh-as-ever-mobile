@@ -93,7 +93,8 @@ type PickAndUploadArgs = {
  */
 async function loadImagePicker() {
   try {
-    return await import('expo-image-picker');
+    // Sync require avoids Metro async chunks that break HMRClient.setup() in dev.
+    return Promise.resolve(require('expo-image-picker') as typeof import('expo-image-picker'));
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     throw new Error(

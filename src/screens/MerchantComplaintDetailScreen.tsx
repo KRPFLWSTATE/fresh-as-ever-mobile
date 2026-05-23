@@ -12,6 +12,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { useAuthContext } from '@/context/AuthContext';
 import { useMerchantContext } from '@/hooks/useMerchantContext';
 import { getSupabase } from '@/lib/supabase';
+import { postOrderRefund } from '@/lib/refundApi';
 import type { RootStackParamList } from '@/navigation/types';
 import { useStitchTheme } from '@/theme/StitchThemeContext';
 import {
@@ -157,7 +158,6 @@ export function MerchantComplaintDetailScreen() {
               Alert.alert('Refund failed', 'Not signed in.');
               return;
             }
-            const { postOrderRefund } = await import('@/lib/refundApi');
             const result = await postOrderRefund(env.apiBaseUrl, token, {
               order_id: complaint.order_id,
               complaint_id: complaint.id,

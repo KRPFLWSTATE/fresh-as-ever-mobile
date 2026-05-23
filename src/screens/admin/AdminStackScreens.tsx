@@ -39,6 +39,7 @@ import {
 import { FALLBACK_COORDS } from '@/lib/fallbackCoords';
 import { fetchLocationSearch } from '@/lib/locationApi';
 import { getSupabase } from '@/lib/supabase';
+import { postOrderRefund } from '@/lib/refundApi';
 import { useScrollContentBottomPad } from '@/lib/useScrollContentBottomPad';
 import { useAuthContext } from '@/context/AuthContext';
 import { useStitchTheme } from '@/theme/StitchThemeContext';
@@ -6272,7 +6273,6 @@ export function AdminComplaintDetailScreen() {
       Alert.alert('Refund failed', 'Not signed in.');
       return;
     }
-    const { postOrderRefund } = await import('@/lib/refundApi');
     const result = await postOrderRefund(env.apiBaseUrl, token, {
       order_id: String(complaint.order_id),
       complaint_id: String(complaint.id),

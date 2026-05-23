@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Platform, Pressable, View } from 'react-native';
+import * as AppleAuthentication from 'expo-apple-authentication';
 import { StitchText } from '@/ui/stitch';
 import { useStitchTheme } from '@/theme/StitchThemeContext';
 import { stitchFonts } from '@/theme/stitchTokens';
@@ -23,9 +24,9 @@ export function SocialAuthButtons({
       setShowApple(false);
       return;
     }
-    void import('expo-apple-authentication').then((mod) => {
-      mod.isAvailableAsync().then(setShowApple).catch(() => setShowApple(false));
-    });
+    void AppleAuthentication.isAvailableAsync()
+      .then(setShowApple)
+      .catch(() => setShowApple(false));
   }, []);
 
   const buttonBase = {
