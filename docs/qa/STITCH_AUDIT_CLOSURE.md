@@ -4,9 +4,9 @@ Use this checklist after deploying migrations, Edge Function, and Vercel env var
 
 ## Ops
 
-- [ ] Supabase Auth → enable leaked password protection ([SUPABASE_AUTH_CHECKLIST.md](../ops/SUPABASE_AUTH_CHECKLIST.md))
-- [ ] Apply migrations: `payhere_payment_id`, merchant complaint RLS, RPCs
-- [ ] Deploy `send-transactional-sms` + Twilio secrets
+- [ ] Supabase Auth → enable leaked password protection **after plan upgrade** ([SUPABASE_AUTH_CHECKLIST.md](../ops/SUPABASE_AUTH_CHECKLIST.md))
+- [x] Apply migrations: `payhere_payment_id`, merchant complaint RLS, RPCs (Supabase MCP 2026-05-24)
+- [x] Deploy `send-transactional-sms` — **set Twilio secrets** in Supabase Dashboard
 
 ## Refunds (PayHere + API)
 
