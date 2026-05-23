@@ -135,6 +135,7 @@ export type RootStackParamList = {
   MerchantOutletEditor: { outletId: string };
   MerchantSettings: undefined;
   MerchantDisputes: undefined;
+  MerchantComplaintDetail: { complaintId: string };
   MerchantPromotions: undefined;
   MerchantLiveMonitor: undefined;
   MerchantStaff: undefined;

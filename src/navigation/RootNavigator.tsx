@@ -38,6 +38,7 @@ import { OutletDetailScreen } from '@/screens/OutletDetailScreen';
 import { SearchResultsScreen } from '@/screens/SearchResultsScreen';
 import { MerchantSettingsScreen } from '@/screens/MerchantSettingsScreen';
 import { MerchantDisputesScreen } from '@/screens/MerchantDisputesScreen';
+import { MerchantComplaintDetailScreen } from '@/screens/MerchantComplaintDetailScreen';
 import { MerchantPromotionsScreen } from '@/screens/MerchantPromotionsScreen';
 import { MerchantLiveMonitorScreen } from '@/screens/MerchantLiveMonitorScreen';
 import { MerchantStaffScreen } from '@/screens/MerchantStaffScreen';
@@ -373,6 +374,11 @@ export function RootNavigator() {
           name="MerchantDisputes"
           component={MerchantDisputesScreen}
           options={{ title: 'Disputes' }}
+        />
+        <RootStack.Screen
+          name="MerchantComplaintDetail"
+          component={MerchantComplaintDetailScreen}
+          options={{ title: 'Dispute' }}
         />
         <RootStack.Screen
           name="MerchantPromotions"

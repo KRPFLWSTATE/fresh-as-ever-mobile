@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
@@ -20,24 +20,38 @@ export function ConnectionErrorScreen() {
   const { colors, spacing, radii } = useStitchTheme();
   const [probing, setProbing] = useState(false);
   const [probeError, setProbeError] = useState<string | null>(null);
+  const retryAttempt = useRef(0);
+  const maxRetries = 3;
 
   const tryAgain = useCallback(async () => {
+    const attempt = retryAttempt.current;
+    if (attempt >= maxRetries) {
+      setProbeError(ERROR.common.network);
+      return;
+    }
+    if (attempt > 0) {
+      const delayMs = Math.min(1000 * 2 ** (attempt - 1), 8000);
+      await new Promise<void>((resolve) => {
+        setTimeout(resolve, delayMs);
+      });
+    }
     setProbing(true);
     setProbeError(null);
     try {
-      // Cheap reachability probe: head-only count on `outlets` so we don't pay for rows.
-      // RLS allows anyone to read active outlets, so this works for guest sessions too.
       const sb = getSupabase(env);
       const { error } = await sb
         .from('outlets')
         .select('id', { count: 'exact', head: true })
         .limit(1);
       if (error) {
+        retryAttempt.current = attempt + 1;
         setProbeError(mapSupabaseError(error, ERROR.common.network));
         return;
       }
+      retryAttempt.current = 0;
       navigation.navigate('MainTabs');
     } catch (e) {
+      retryAttempt.current = attempt + 1;
       setProbeError(mapSupabaseError(e as Error, ERROR.common.network));
     } finally {
       setProbing(false);

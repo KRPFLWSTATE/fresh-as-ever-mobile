@@ -218,7 +218,9 @@ Performed a sweep of the navigation surface concurrent with the Wave 3 stub clos
 
 ### What's left
 
-> **Nothing remaining in the codebase.** The only items outside the codebase's control are the two **Operational follow-ups** above (Auth leaked-password protection toggle and PostGIS `spatial_ref_sys` RLS).
+> **Codebase backlog (May 2026 audit):** See `docs/qa/STITCH_AUDIT_CLOSURE.md` for phased closure (web profile parity, PayHere refunds, Twilio SMS, matrix doc refresh). **Celebration hero-2** resolved 2026-05-24 (Stitch URL typo `XiHfd` → `XiFfd`).
+
+> **Dashboard-only:** Enable **Auth leaked password protection** in Supabase (Operational follow-ups below). PostGIS `spatial_ref_sys` RLS remains intentionally disabled.
 
 ### New npm dependencies introduced
 
@@ -295,7 +297,7 @@ Polish-only slice — app baseline unchanged; all items wired to production data
 | 20 | Admin orders back | Ship | `fromDashboard` + `navigateToAdminHome` |
 | 21 | Complaint refund action | Ship | Admin detail updates order + complaint |
 | 25–26 | Promo `used_count` + audit FK | Ship | Trigger on paid orders; `audit_logs_actor_id_fkey` |
-| All | `npm run ci` | Ship | typecheck + lint + 53 tests green |
+| All | `npm run ci` | Ship | typecheck + lint + **86** tests green (May 2026 audit backlog pass) |
 
 | Migration | File |
 | --- | --- |

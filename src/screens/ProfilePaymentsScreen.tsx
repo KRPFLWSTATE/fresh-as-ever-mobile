@@ -340,9 +340,14 @@ export function ProfilePaymentsScreen() {
               <StitchText variant="h2" colorKey="text">
                 Recent Transactions
               </StitchText>
-              <StitchText variant="label" colorKey="primaryContainer">
-                View All
-              </StitchText>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => navigation.navigate('MainTabs', { screen: 'OrdersTab' })}
+              >
+                <StitchText variant="label" colorKey="primaryContainer">
+                  View All
+                </StitchText>
+              </Pressable>
             </View>
             {historyError ? (
               <StitchText variant="body-sm" colorKey="error">

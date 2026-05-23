@@ -5,6 +5,13 @@ import { ACTIVE_ORDER_STATUSES, normalizeOrderStatus } from '@/lib/orderStatus';
 import { useMerchantContext } from '@/hooks/useMerchantContext';
 import { logError } from '@/observability/logError';
 
+export type DashboardPopularBag = {
+  id: string;
+  title: string;
+  image_url: string | null;
+  order_count: number;
+};
+
 export type DashboardRecentRow = {
   id: string;
   customer_name: string;
@@ -43,6 +50,7 @@ export function useMerchantDashboard(env: AppEnv) {
     yesterday_pending_pickups: 0,
   });
   const [recentOrders, setRecentOrders] = useState<DashboardRecentRow[]>([]);
+  const [popularBags, setPopularBags] = useState<DashboardPopularBag[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -188,6 +196,11 @@ export function useMerchantDashboard(env: AppEnv) {
         throw recentError;
       }
 
+      const { data: popularData, error: popularError } = await supabase.rpc(
+        'merchant_popular_bags',
+        { p_outlet_ids: outletScopeIds, p_limit: 3 },
+      );
+
       const formattedRecent = ((recent ?? []) as Record<string, unknown>[]).map(
         (r) => ({
           id: String(r.id),
@@ -225,6 +238,17 @@ export function useMerchantDashboard(env: AppEnv) {
         yesterday_pending_pickups: yesterdayPendingPickups,
       });
       setRecentOrders(formattedRecent);
+      setPopularBags(
+        popularError
+          ? []
+          : ((popularData ?? []) as Record<string, unknown>[]).map((b) => ({
+              id: String(b.bag_id ?? b.id ?? ''),
+              title: String(b.title ?? 'Bag'),
+              image_url:
+                typeof b.image_url === 'string' && b.image_url.trim() ? b.image_url : null,
+              order_count: Number(b.order_count ?? 0),
+            })),
+      );
     } catch {
       setError('Could not load dashboard data.');
     } finally {
@@ -242,6 +266,7 @@ export function useMerchantDashboard(env: AppEnv) {
   return {
     stats,
     recentOrders,
+    popularBags,
     loading: loading || contextLoading,
     error,
     refetch: fetchDashboardData,

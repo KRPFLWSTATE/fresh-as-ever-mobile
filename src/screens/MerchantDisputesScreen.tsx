@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Pressable,
   RefreshControl,
   View,
   type ViewStyle,
@@ -90,6 +91,8 @@ function mapComplaintRow(r: Record<string, unknown>): MerchantComplaintRow {
 }
 
 export function MerchantDisputesScreen() {
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { env } = useAuthContext();
   const { merchant, outletScopeIds, loading: merchantLoading } = useMerchantContext(env);
   const { colors, radii, spacing } = useStitchTheme();
@@ -275,7 +278,13 @@ export function MerchantDisputesScreen() {
         </StitchSurface>
       ) : (
         rows.map((row) => (
-          <StitchSurface key={row.id} elevated padding="md" style={styles.cardBorder}>
+          <Pressable
+            key={row.id}
+            onPress={() =>
+              navigation.navigate('MerchantComplaintDetail', { complaintId: row.id })
+            }
+          >
+          <StitchSurface elevated padding="md" style={styles.cardBorder}>
             <View style={styles.chipRow}>
               <View
                 style={{
@@ -316,6 +325,7 @@ export function MerchantDisputesScreen() {
               {row.description}
             </StitchText>
           </StitchSurface>
+          </Pressable>
         ))
       )}
     </StitchScreen>

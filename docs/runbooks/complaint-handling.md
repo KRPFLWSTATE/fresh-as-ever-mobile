@@ -18,8 +18,8 @@
 ## Actions
 
 - **Resolve:** Update complaint `status`, `resolution`, and optional `admin_notes`. Do not set order to `collected` via merchant UI.
-- **Refund (admin):** Mobile admin complaint detail and web `/admin/complaints/[id]` expose **Issue refund** when `order_id` is set. This sets `orders.payment_status = refunded`, `order_status = cancelled`, then marks the complaint `resolved`. Requires admin RLS on `orders` update.
+- **Refund (admin or merchant):** `POST /api/orders/refund` with JWT. Card orders call PayHere Refund API when `orders.payhere_payment_id` is set; cash orders skip PayHere. Updates complaint to `resolved` when `complaint_id` is supplied.
 - **Dismiss:** Mark `dismissed` with documented reason in `resolution`.
 - **Escalate:** Mark `escalated`; link audit log entry.
 
-Merchant **Disputes** screen is read-only — resolution is admin/support only.
+Merchant **Disputes** list + detail allow **Refund** (outlet-scoped) and **Escalate** with `merchant_notes`. Platform admin retains dismiss and override flows.

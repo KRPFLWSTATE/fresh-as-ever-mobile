@@ -120,6 +120,10 @@ const config: NonNullable<LinkingOptions<RootStackParamList>['config']> = {
     },
     MerchantSettings: 'merchant/settings',
     MerchantDisputes: 'merchant/disputes',
+    MerchantComplaintDetail: {
+      path: 'merchant/disputes/:complaintId',
+      parse: { complaintId: (id: string) => id },
+    },
     MerchantPromotions: 'merchant/promotions',
     MerchantLiveMonitor: 'merchant/live-monitor',
     MerchantStaff: 'merchant/staff',

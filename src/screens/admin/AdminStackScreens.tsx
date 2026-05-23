@@ -2429,19 +2429,38 @@ export function AdminComplaintsScreen() {
                     }
                     style={{ gap: 6 }}
                   >
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
                       <StitchText variant="h3" colorKey="text">{c.type}</StitchText>
-                      <View
-                        style={{
-                          backgroundColor: colors.surfaceContainer,
-                          paddingHorizontal: 10,
-                          paddingVertical: 6,
-                          borderRadius: radii.default,
-                        }}
-                      >
-                        <StitchText variant="label" colorKey="textMuted">
-                          {c.order_code ? `#${c.order_code}` : '—'}
-                        </StitchText>
+                      <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
+                        <View
+                          style={{
+                            paddingHorizontal: 8,
+                            paddingVertical: 4,
+                            borderRadius: radii.full,
+                            backgroundColor: isEscalated
+                              ? colors.accentHighlight
+                              : colors.errorContainer,
+                          }}
+                        >
+                          <StitchText
+                            variant="label-caps"
+                            colorKey={isEscalated ? 'accent' : 'onErrorContainer'}
+                          >
+                            {complaintPriorityLabel(c.status)}
+                          </StitchText>
+                        </View>
+                        <View
+                          style={{
+                            backgroundColor: colors.surfaceContainer,
+                            paddingHorizontal: 10,
+                            paddingVertical: 6,
+                            borderRadius: radii.default,
+                          }}
+                        >
+                          <StitchText variant="label" colorKey="textMuted">
+                            {c.order_code ? `#${c.order_code}` : '—'}
+                          </StitchText>
+                        </View>
                       </View>
                     </View>
 
@@ -3297,86 +3316,72 @@ function OutletPhotoGrid({
   );
 }
 
-/**
- * Complaint evidence grid: 3-up tiles by default with tap-to-toggle a full-width preview of
- * the selected image. Falls back to an icon tile when an image fails to load. Uses no
- * lightbox library — just a local expandedIdx state.
- */
+function complaintPriorityLabel(status: string): string {
+  const s = String(status ?? '').trim().toLowerCase();
+  if (s === 'escalated') return 'Escalated';
+  if (s === 'unresolved' || s === 'open') return 'Unresolved';
+  return 'Open';
+}
+
 function ComplaintEvidenceGrid({ urls }: { urls: string[] }): React.ReactElement | null {
   const { spacing, colors, radii } = useStitchTheme();
-  const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
+  const [lightboxIdx, setLightboxIdx] = useState<number | null>(null);
   const [failed, setFailed] = useState<Record<number, boolean>>({});
   if (!urls || urls.length === 0) return null;
 
-  const expandedUrl = expandedIdx != null ? urls[expandedIdx] : null;
-  const expandedBad = expandedIdx != null ? failed[expandedIdx] : false;
+  const lightboxUrl = lightboxIdx != null ? urls[lightboxIdx] : null;
+  const lightboxBad = lightboxIdx != null ? failed[lightboxIdx] : false;
 
   return (
     <View style={{ gap: spacing.sm }}>
-      {expandedUrl ? (
+      <Modal
+        visible={lightboxIdx != null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setLightboxIdx(null)}
+      >
         <Pressable
-          onPress={() => setExpandedIdx(null)}
+          onPress={() => setLightboxIdx(null)}
           style={{
-            width: '100%',
-            aspectRatio: 16 / 10,
-            borderRadius: radii.default,
-            overflow: 'hidden',
-            backgroundColor: colors.surfaceContainer,
-            borderWidth: 1,
-            borderColor: colors.divider,
-            alignItems: 'center',
+            flex: 1,
+            backgroundColor: colors.scrim,
             justifyContent: 'center',
+            alignItems: 'center',
+            padding: spacing.md,
           }}
         >
-          {expandedBad || !/^https?:\/\//i.test(expandedUrl) ? (
-            <View style={{ alignItems: 'center', gap: 4 }}>
-              <StitchIcon name="image" size={32} colorKey="textMuted" />
-              <StitchText variant="body-sm" colorKey="textMuted">No preview available</StitchText>
-            </View>
-          ) : (
-            <Image
-              source={{ uri: expandedUrl }}
-              onError={() =>
-                setFailed((prev) => ({ ...prev, [expandedIdx as number]: true }))
-              }
-              resizeMode="contain"
-              style={{ width: '100%', height: '100%' }}
-              accessibilityLabel="Evidence enlarged preview"
-            />
-          )}
-          <View
-            style={{
-              position: 'absolute',
-              bottom: spacing.sm,
-              right: spacing.sm,
-              backgroundColor: colors.scrim,
-              paddingHorizontal: 8,
-              paddingVertical: 4,
-              borderRadius: radii.full,
-            }}
-          >
-            <StitchText variant="label-caps" colorKey="onPrimary">
-              Tap to close
-            </StitchText>
-          </View>
+          {lightboxUrl ? (
+            lightboxBad || !/^https?:\/\//i.test(lightboxUrl) ? (
+              <StitchIcon name="image" size={48} colorKey="onPrimary" />
+            ) : (
+              <Image
+                source={{ uri: lightboxUrl }}
+                onError={() =>
+                  setFailed((prev) => ({ ...prev, [lightboxIdx as number]: true }))
+                }
+                resizeMode="contain"
+                style={{ width: '100%', height: '80%' }}
+                accessibilityLabel="Evidence full screen"
+              />
+            )
+          ) : null}
         </Pressable>
-      ) : null}
+      </Modal>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
         {urls.map((url, idx) => {
           const isBad = failed[idx] || !/^https?:\/\//i.test(url);
-          const isExpanded = expandedIdx === idx;
           return (
             <Pressable
               key={`${idx}-${url}`}
-              onPress={() => setExpandedIdx(isExpanded ? null : idx)}
+              onPress={() => setLightboxIdx(idx)}
               style={({ pressed }) => ({
                 width: '31%',
                 aspectRatio: 1,
                 borderRadius: radii.default,
                 overflow: 'hidden',
                 backgroundColor: colors.surfaceContainer,
-                borderWidth: isExpanded ? 2 : 1,
-                borderColor: isExpanded ? colors.primary : colors.divider,
+                borderWidth: 1,
+                borderColor: colors.divider,
                 alignItems: 'center',
                 justifyContent: 'center',
                 opacity: pressed ? 0.85 : 1,
@@ -3635,18 +3640,14 @@ export function AdminMerchantsScreen() {
       const counts: Record<string, number> = {};
       if (!error && (data ?? []).length > 0) {
         const ids = (data as Record<string, unknown>[]).map((r) => String(r.id ?? ''));
-        const { data: orderRows } = await sb
-          .from('orders')
-          .select('id, outlet_id, order_status, outlets(merchant_id)')
-          .in('order_status', ['collected', 'completed'])
-          .limit(500);
-        ((orderRows ?? []) as Record<string, unknown>[]).forEach((o) => {
-          const outletAny = o.outlets as Record<string, unknown> | undefined;
-          const mid = String(outletAny?.merchant_id ?? '');
-          if (mid && ids.includes(mid)) {
-            counts[mid] = (counts[mid] ?? 0) + 1;
-          }
+        const { data: rescueRows, error: rescueErr } = await sb.rpc('merchant_rescue_counts', {
+          p_merchant_ids: ids,
         });
+        if (!rescueErr) {
+          ((rescueRows ?? []) as { merchant_id: string; rescue_count: number }[]).forEach((row) => {
+            counts[String(row.merchant_id)] = Number(row.rescue_count ?? 0);
+          });
+        }
       }
 
       if (!m) return;
@@ -6265,37 +6266,25 @@ export function AdminComplaintDetailScreen() {
       return;
     }
     setBusy(true);
-    const sb = getSupabase(env);
-    const { error: orderErr } = await sb
-      .from('orders')
-      .update({
-        order_status: 'cancelled',
-        payment_status: 'refunded',
-        cancelled_at: new Date().toISOString(),
-        cancellation_reason: 'Admin refund via complaint resolution',
-        cancelled_by: 'admin',
-      })
-      .eq('id', complaint.order_id);
-    if (orderErr) {
+    const token = (await getSupabase(env).auth.getSession()).data.session?.access_token;
+    if (!token) {
       setBusy(false);
-      Alert.alert('Refund failed', orderErr.message);
+      Alert.alert('Refund failed', 'Not signed in.');
       return;
     }
-    const { error: complaintErr } = await sb
-      .from('complaints')
-      .update({
-        status: 'resolved',
-        resolved_at: new Date().toISOString(),
-        resolved_by: user?.id ?? null,
-        resolution: resolutionDraft.trim() || 'Refunded and cancelled',
-      })
-      .eq('id', complaint.id);
+    const { postOrderRefund } = await import('@/lib/refundApi');
+    const result = await postOrderRefund(env.apiBaseUrl, token, {
+      order_id: String(complaint.order_id),
+      complaint_id: String(complaint.id),
+      reason: resolutionDraft.trim() || 'Admin refund via complaint resolution',
+    });
     setBusy(false);
-    if (complaintErr) {
-      Alert.alert('Order refunded', `Order updated but complaint status failed: ${complaintErr.message}`);
+    if (result.error) {
+      Alert.alert('Refund failed', result.error);
+      return;
     }
     setReloadKey((k) => k + 1);
-  }, [complaint, env, resolutionDraft, user?.id]);
+  }, [complaint, env, resolutionDraft]);
 
   const saveAdminNotes = useCallback(async () => {
     if (!complaint) return;

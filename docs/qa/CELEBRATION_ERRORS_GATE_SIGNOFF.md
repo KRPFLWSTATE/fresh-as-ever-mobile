@@ -32,7 +32,7 @@ Web P1 setError(e.message) on listed customer paths: 0
 
 ## Blockers / follow-ups
 
-- **hero-2.jpg**: Remote AIDA URL returned HTTP 400 on download; local file is a copy of hero-1 until a fresh export is available. Content module still keeps remote URI as fallback only (not referenced from `OnboardingScreen`).
+- **hero-2.jpg**: Fixed 2026-05-24 — bundled asset replaced; remote URI corrected (`XiFfd` in Stitch `customer_onboarding_2_3_1/code.html`, was typo `XiHfd` in content modules).
 - **expo-haptics**: Added dependency + Jest mock in `jest.setup.js` for CI stability.
 
 ## Key files touched

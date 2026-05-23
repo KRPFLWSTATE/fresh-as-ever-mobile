@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import {
   ActivityIndicator,
+  Image,
   Pressable,
   View,
   type TextStyle,
@@ -108,7 +109,7 @@ export function MerchantDashboardScreen() {
   const navigation = useNavigation<Nav>();
   const { env } = useAuthContext();
   const { activeOutlet, merchant } = useMerchantContext(env);
-  const { stats, recentOrders, loading, error, refetch } =
+  const { stats, recentOrders, popularBags, loading, error, refetch } =
     useMerchantDashboard(env);
   const { colors, spacing, radii } = useStitchTheme();
 
@@ -432,10 +433,51 @@ export function MerchantDashboardScreen() {
           </StitchText>
         </View>
         <View style={{ padding: spacing.md }}>
-          <StitchText variant="body-sm" colorKey="textMuted">
-            Bag thumbnails and live popularity metrics are not on the dashboard API yet;
-            use inventory to curate listings.
-          </StitchText>
+          {popularBags.length === 0 ? (
+            <StitchText variant="body-sm" colorKey="textMuted">
+              No live bags yet — create listings to see popularity here.
+            </StitchText>
+          ) : (
+            <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+              {popularBags.map((bag) => (
+                <View key={bag.id} style={{ flex: 1, minWidth: 0, gap: 6 }}>
+                  <View
+                    style={{
+                      aspectRatio: 1,
+                      borderRadius: radii.lg,
+                      overflow: 'hidden',
+                      backgroundColor: colors.surfaceContainer,
+                    }}
+                  >
+                    {bag.image_url ? (
+                      <Image
+                        source={{ uri: bag.image_url }}
+                        resizeMode="cover"
+                        style={{ width: '100%', height: '100%' }}
+                        accessibilityLabel={bag.title}
+                      />
+                    ) : (
+                      <View
+                        style={{
+                          flex: 1,
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        <StitchIcon name="shopping_bag" size={28} colorKey="textMuted" />
+                      </View>
+                    )}
+                  </View>
+                  <StitchText variant="label" colorKey="text" numberOfLines={1}>
+                    {bag.title}
+                  </StitchText>
+                  <StitchText variant="body-sm" colorKey="textMuted">
+                    {bag.order_count} orders
+                  </StitchText>
+                </View>
+              ))}
+            </View>
+          )}
         </View>
         <View style={{ padding: spacing.md, paddingTop: 0 }}>
           <Pressable
