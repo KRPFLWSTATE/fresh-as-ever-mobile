@@ -65,25 +65,27 @@ Refunds call PayHere’s API from the **web** app (`POST /api/orders/refund`).
 
 ---
 
-## 4. Pickup reminder SMS (optional, later)
+## 4. Pickup reminder SMS (Vercel Cron — shipped)
 
-Reservation SMS is triggered from the PayHere webhook. **Pickup reminders** need a scheduler:
+Reservation SMS is triggered from the PayHere webhook. **Pickup reminders** run on Vercel:
 
-- **Option A:** Enable `pg_net` on Supabase and schedule SQL (see `docs/supabase/pickup_sms_cron.sql`).
-- **Option B:** External cron (GitHub Action, Vercel cron) calling the edge function with service-role `Authorization: Bearer <SUPABASE_SERVICE_ROLE_KEY>`.
+1. Apply migration `pickup_reminder_sent_at_v1` (column `orders.pickup_reminder_sent_at`).
+2. Vercel env (Preview + Production):
 
-Payload example:
+| Variable | Notes |
+|----------|--------|
+| `CRON_SECRET` | Random string; cron route checks `x-vercel-cron` + this secret |
+| `SUPABASE_SERVICE_ROLE_KEY` or `SUPABASE_SECRET_KEYS` | Same as webhook/refund |
 
-```json
-{
-  "userId": "<customer uuid>",
-  "template": "pickup_reminder",
-  "orderId": "<order uuid>",
-  "payload": { "reservationCode": "ABC123", "pickupWindow": "in 30 minutes" }
-}
+3. Redeploy so `vercel.json` cron runs `GET /api/cron/pickup-reminders` every **15 minutes** (orders with bag `pickup_start` in **30–60 minutes**).
+
+**Manual test:**
+
+```bash
+curl -sS -H "Authorization: Bearer $CRON_SECRET" "https://YOUR_VERCEL_HOST/api/cron/pickup-reminders"
 ```
 
-URL: `https://odkbpeelvcdmlimdflbr.supabase.co/functions/v1/send-transactional-sms`
+**Alternative:** Enable `pg_net` on Supabase and use SQL in `docs/supabase/pickup_sms_cron.sql` (`pg_cron` is already enabled; `pg_net` is not on this project yet).
 
 ---
 

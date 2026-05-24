@@ -1,13 +1,35 @@
--- Optional pg_cron job: pickup reminder SMS ~45 minutes before pickup_start.
--- Requires pg_cron + pg_net (or invoke Edge Function from an external scheduler).
+-- Pickup reminder SMS (~30–60 minutes before rescue_bags.pickup_start)
 --
--- Replace YOUR_PROJECT and SERVICE_ROLE before running in Supabase SQL editor.
+-- **Production (recommended):** Vercel Cron → `GET /api/cron/pickup-reminders`
+--   - Schedule: every 15 minutes (`vercel.json`)
+--   - Env: `CRON_SECRET`, `SUPABASE_SERVICE_ROLE_KEY` or `SUPABASE_SECRET_KEYS`
+--   - Idempotency: `orders.pickup_reminder_sent_at` (migration `pickup_reminder_sent_at_v1`)
+--
+-- **Supabase pg_cron + pg_net (optional):** `pg_cron` is enabled on project `odkbpeelvcdmlimdflbr`;
+--   `pg_net` is NOT installed — enable via Dashboard → Database → Extensions if you prefer DB scheduling.
+--
+-- Manual test (replace SERVICE_ROLE and order customer id):
 
--- Example: select orders with pickup in the next hour and call Edge Function via http extension.
--- Prefer Supabase scheduled Edge Functions when pg_cron is unavailable.
-
--- select o.id, o.customer_id, o.reservation_code, o.pickup_start
+-- select o.id, o.customer_id, o.reservation_code, rb.pickup_start, rb.pickup_end
 -- from public.orders o
+-- join public.rescue_bags rb on rb.id = o.bag_id
 -- where o.order_status in ('paid', 'ready_for_pickup')
---   and o.pickup_start is not null
---   and o.pickup_start between now() + interval '30 minutes' and now() + interval '60 minutes';
+--   and o.payment_status = 'paid'
+--   and o.pickup_reminder_sent_at is null
+--   and rb.pickup_start between now() + interval '30 minutes' and now() + interval '60 minutes';
+
+-- Example pg_net POST (after enabling pg_net and storing secrets in vault):
+--
+-- select net.http_post(
+--   url := 'https://odkbpeelvcdmlimdflbr.supabase.co/functions/v1/send-transactional-sms',
+--   headers := jsonb_build_object(
+--     'Content-Type', 'application/json',
+--     'Authorization', 'Bearer ' || current_setting('app.settings.service_role_key', true)
+--   ),
+--   body := jsonb_build_object(
+--     'userId', '<customer uuid>',
+--     'template', 'pickup_reminder',
+--     'orderId', '<order uuid>',
+--     'payload', jsonb_build_object('reservationCode', 'ABC123', 'pickupWindow', 'Today, 6:00 PM - 7:00 PM')
+--   )
+-- );
