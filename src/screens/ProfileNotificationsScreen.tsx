@@ -10,11 +10,12 @@ import {
   View,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { RootStackParamList } from '@/navigation/types';
 import { useAuthContext } from '@/context/AuthContext';
+import { useProfileNotificationPush } from '@/hooks/useProfileNotificationPush';
 import { getSupabase } from '@/lib/supabase';
 import { useStitchTheme } from '@/theme/StitchThemeContext';
 import { stitchAmbientShadow } from '@/theme/stitchTokens';
@@ -134,6 +135,14 @@ export function ProfileNotificationsScreen() {
     })();
   }, [emailOn, env, hydrated, prefsKey, pushOn, smsOn, user?.id]);
 
+  useProfileNotificationPush({
+    env,
+    userId: user?.id,
+    pushOn,
+    setPushOn,
+    hydrated,
+  });
+
   const showNotificationsDisabledAlert = useCallback(() => {
     Alert.alert(
       'Notifications disabled',
@@ -153,38 +162,6 @@ export function ProfileNotificationsScreen() {
       ],
     );
   }, []);
-
-  const tryRegisterPushToken = useCallback(async () => {
-    if (!user?.id || !isPushNativeModuleAvailable()) {
-      return;
-    }
-
-    const token = await registerForPushNotificationsAsync();
-    if (!token) {
-      return;
-    }
-    await persistPushToken(env, user.id, token);
-  }, [env, user?.id]);
-
-  useFocusEffect(
-    useCallback(() => {
-      if (!pushOn || !user?.id || !isPushNativeModuleAvailable()) {
-        return;
-      }
-
-      void (async () => {
-        try {
-          const permission = await getPushPermissionSnapshot();
-          if (!permission?.granted) {
-            return;
-          }
-          await tryRegisterPushToken();
-        } catch (err) {
-          logError(err, { context: 'ProfileNotificationsScreen.pushFocusRegister' });
-        }
-      })();
-    }, [pushOn, tryRegisterPushToken, user?.id]),
-  );
 
   const onPushChange = useCallback(
     (next: boolean) => {
