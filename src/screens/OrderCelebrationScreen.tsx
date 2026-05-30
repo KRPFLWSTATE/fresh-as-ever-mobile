@@ -24,6 +24,7 @@ import { formatPickupLine } from '@/domain/pickupWindow';
 import { getSupabase } from '@/lib/supabase';
 import { useAuthContext } from '@/context/AuthContext';
 import { ERROR } from '@/lib/messages/errors';
+import { orderDisplayTitle, orderPickupWindow } from '@/lib/orderDisplay';
 import { useStitchTheme } from '@/theme/StitchThemeContext';
 import { CelebrationHero } from '@/ui/celebration/CelebrationHero';
 import {
@@ -46,13 +47,35 @@ type OutletJoin = {
   merchant?: { business_name?: string | null } | null;
 } | null;
 
+type GroupJoin = {
+  reservation_code?: string | null;
+  bag_count?: number | null;
+} | null;
+
 type OrderCelebrationRow = {
   id: string;
   reservation_code: string | null;
+  group_id: string | null;
+  group?: GroupJoin | GroupJoin[];
   total: number | null;
+  shelf_id?: string | null;
+  order_items?: { name_snapshot?: string | null; quantity?: number | null }[] | null;
   bag: BagJoin;
+  shelf?: { pickup_start?: string | null; pickup_end?: string | null } | null;
   outlet: OutletJoin;
 };
+
+function resolveGroupJoin(row: OrderCelebrationRow): GroupJoin {
+  const g = row.group;
+  if (Array.isArray(g)) return g[0] ?? null;
+  return g ?? null;
+}
+
+function resolveReservationCode(row: OrderCelebrationRow): string | null {
+  const direct = row.reservation_code?.trim();
+  if (direct) return direct;
+  return resolveGroupJoin(row)?.reservation_code?.trim() ?? null;
+}
 
 function formatLKR(value: number): string {
   const n = Math.round(value);
@@ -147,6 +170,7 @@ export function OrderCelebrationScreen() {
   const { colors, spacing, radii, mode } = useStitchTheme();
   const insets = useSafeAreaInsets();
   const [row, setRow] = useState<OrderCelebrationRow | null>(null);
+  const [groupBags, setGroupBags] = useState<{ id: string; title: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [reduceMotion, setReduceMotion] = useState(false);
 
@@ -189,7 +213,12 @@ export function OrderCelebrationScreen() {
         `
           id,
           reservation_code,
+          group_id,
+          group:reservation_groups(reservation_code, bag_count),
           total,
+          shelf_id,
+          order_items(name_snapshot, quantity),
+          shelf:clearance_shelves(pickup_start, pickup_end),
           bag:rescue_bags(title, pickup_start, pickup_end, retail_value_estimate, rescue_price),
           outlet:outlets(name, merchant:merchants(business_name))
         `,
@@ -197,7 +226,24 @@ export function OrderCelebrationScreen() {
       .eq('id', orderId)
       .maybeSingle();
     setLoading(false);
-    setRow(error ? null : (data as OrderCelebrationRow));
+    const nextRow = error ? null : (data as OrderCelebrationRow);
+    setRow(nextRow);
+    if (nextRow?.group_id) {
+      const { data: siblings } = await sb
+        .from('orders')
+        .select('id, bag:rescue_bags(title)')
+        .eq('group_id', nextRow.group_id)
+        .order('created_at', { ascending: true });
+      const list = (siblings ?? []).map((entry) => ({
+        id: String((entry as { id: string }).id),
+        title: String(
+          ((entry as { bag?: { title?: string } }).bag?.title ?? 'Bag'),
+        ),
+      }));
+      setGroupBags(list);
+    } else {
+      setGroupBags([]);
+    }
   }, [env, orderId]);
 
   useEffect(() => {
@@ -206,6 +252,14 @@ export function OrderCelebrationScreen() {
 
   const outlet = row?.outlet;
   const bag = row?.bag;
+  const groupJoin = row ? resolveGroupJoin(row) : null;
+  const displayReservationCode = row ? resolveReservationCode(row) : null;
+  const groupBagCount =
+    groupBags.length > 0
+      ? groupBags.length
+      : typeof groupJoin?.bag_count === 'number'
+        ? groupJoin.bag_count
+        : null;
   const venue =
     typeof outlet?.merchant?.business_name === 'string' &&
     outlet.merchant.business_name
@@ -213,7 +267,21 @@ export function OrderCelebrationScreen() {
       : typeof outlet?.name === 'string'
         ? outlet.name
         : 'Outlet';
-  const pickupLine = formatPickupLine(bag?.pickup_start, bag?.pickup_end);
+  const title = row
+    ? orderDisplayTitle({
+        shelf_id: row.shelf_id,
+        bag,
+        order_items: row.order_items,
+      })
+    : 'Rescue order';
+  const pickup = row
+    ? orderPickupWindow({
+        shelf_id: row.shelf_id,
+        bag,
+        shelf: row.shelf,
+      })
+    : { start: null, end: null };
+  const pickupLine = formatPickupLine(pickup.start, pickup.end);
   const retail =
     typeof bag?.retail_value_estimate === 'number'
       ? bag.retail_value_estimate
@@ -374,7 +442,7 @@ export function OrderCelebrationScreen() {
                   {copy.codeLabel}
                 </StitchText>
                 <StitchText variant="h2" colorKey="text" style={{ marginTop: spacing.xs }}>
-                  {formatOrderRef(row.id, row.reservation_code)}
+                  {formatOrderRef(row.id, displayReservationCode)}
                 </StitchText>
               </StitchCard>
 
@@ -404,6 +472,14 @@ export function OrderCelebrationScreen() {
                     <StitchText variant="h3" colorKey="text">
                       {venue}
                     </StitchText>
+                    <StitchText variant="body-sm" colorKey="textMuted" style={{ marginTop: spacing.xs }}>
+                      {title}
+                    </StitchText>
+                    {groupBagCount != null && groupBagCount > 1 ? (
+                      <StitchText variant="body-sm" colorKey="textMuted" style={{ marginTop: spacing.xs }}>
+                        {groupBagCount} bags in this group order
+                      </StitchText>
+                    ) : null}
                     <View
                       style={[
                         styles.pickupChip,
@@ -417,6 +493,15 @@ export function OrderCelebrationScreen() {
                     </View>
                   </View>
                 </View>
+                {groupBags.length > 1 ? (
+                  <View style={{ marginTop: spacing.sm, gap: spacing.xs }}>
+                    {groupBags.map((entry) => (
+                      <StitchText key={entry.id} variant="body-sm" colorKey="text">
+                        · {entry.title}
+                      </StitchText>
+                    ))}
+                  </View>
+                ) : null}
               </StitchCard>
             </View>
           </Animated.View>
@@ -473,7 +558,7 @@ export function OrderCelebrationScreen() {
     );
   }
 
-  const codeDisplay = formatVerificationDisplay(row.reservation_code);
+  const codeDisplay = formatVerificationDisplay(displayReservationCode);
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
@@ -525,6 +610,20 @@ export function OrderCelebrationScreen() {
             >
               {codeDisplay}
             </StitchText>
+            {groupBagCount != null && groupBagCount > 1 ? (
+              <StitchText variant="body-sm" colorKey="textMuted" style={{ textAlign: 'center', marginTop: spacing.sm }}>
+                {groupBagCount} bags · one code for pickup
+              </StitchText>
+            ) : null}
+            {groupBags.length > 1 ? (
+              <View style={{ marginTop: spacing.md, gap: spacing.xs }}>
+                {groupBags.map((entry) => (
+                  <StitchText key={entry.id} variant="body-sm" colorKey="text" style={{ textAlign: 'center' }}>
+                    {entry.title}
+                  </StitchText>
+                ))}
+              </View>
+            ) : null}
           </StitchCard>
         </Animated.View>
 

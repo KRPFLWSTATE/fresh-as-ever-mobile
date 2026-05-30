@@ -14,6 +14,12 @@ import { DiscoverScreen } from '@/screens/DiscoverScreen';
 import { OrdersScreen } from '@/screens/OrdersScreen';
 import { ProfileScreen } from '@/screens/ProfileScreen';
 import { BagDetailScreen } from '@/screens/BagDetailScreen';
+import { ClearanceShelfScreen } from '@/screens/ClearanceShelfScreen';
+import { ShelfReviewScreen } from '@/screens/ShelfReviewScreen';
+import { MerchantShelvesListScreen } from '@/screens/MerchantShelvesListScreen';
+import { MerchantShelfEditorScreen } from '@/screens/MerchantShelfEditorScreen';
+import { MerchantShelfScanItemScreen } from '@/screens/MerchantShelfScanItemScreen';
+import { MerchantShelfItemEditorScreen } from '@/screens/MerchantShelfItemEditorScreen';
 import { BagAllergensScreen } from '@/screens/BagAllergensScreen';
 import { CheckoutScreen } from '@/screens/CheckoutScreen';
 import { OrderDetailScreen } from '@/screens/OrderDetailScreen';
@@ -24,6 +30,9 @@ import { MerchantOrdersScreen } from '@/screens/MerchantOrdersScreen';
 import { MerchantBagCreateScreen } from '@/screens/MerchantBagCreateScreen';
 import { MerchantBagEditScreen } from '@/screens/MerchantBagEditScreen';
 import { MerchantBagsListScreen } from '@/screens/MerchantBagsListScreen';
+import { MerchantInventoryTabScreen } from '@/screens/MerchantInventoryTabScreen';
+import { MerchantBagsTabScreen } from '@/screens/MerchantBagsTabScreen';
+import { MerchantShelvesTabScreen } from '@/screens/MerchantShelvesTabScreen';
 import { MerchantOrderDetailScreen } from '@/screens/MerchantOrderDetailScreen';
 import { MerchantScanHandoverScreen } from '@/screens/MerchantScanHandoverScreen';
 import { MerchantOnboardingScreen } from '@/screens/MerchantOnboardingScreen';
@@ -58,6 +67,14 @@ import { SignUpScreen } from '@/screens/SignUpScreen';
 import { ForgotPasswordScreen } from '@/screens/ForgotPasswordScreen';
 import { BrandJourneyScreen } from '@/screens/BrandJourneyScreen';
 import { stitchNavigationTheme } from '@/navigation/stitchNavigationTheme';
+import { useAuthContext } from '@/context/AuthContext';
+import { useMerchantContext } from '@/hooks/useMerchantContext';
+import { merchantInventoryVisibility } from '@/lib/merchantInventoryVisibility';
+import {
+  merchantBagsTabMeta,
+  merchantInventoryTabMeta,
+  merchantShelvesTabMeta,
+} from '@/lib/merchantTabInventory';
 import { useStitchTheme } from '@/theme/StitchThemeContext';
 import { StitchIcon } from '@/ui/stitch';
 
@@ -150,10 +167,30 @@ function CustomerTabsScreen() {
   );
 }
 
+function TabMerchantShelvesIcon(props: { color: string; size: number }) {
+  return (
+    <StitchIcon name="inventory_2" size={props.size} color={props.color} />
+  );
+}
+
 function MerchantTabsScreen() {
   const { colors } = useStitchTheme();
+  const { env } = useAuthContext();
+  const { activeOutlet } = useMerchantContext(env);
+  const outletCategory =
+    typeof activeOutlet?.category === 'string' ? activeOutlet.category : '';
+  const { showShelves, showBags, isHybrid } =
+    merchantInventoryVisibility(outletCategory);
+  const showSingleInventoryTab = (showBags || showShelves) && !isHybrid;
+  const singleModeMeta = merchantInventoryTabMeta(outletCategory);
+  const bagsMeta = merchantBagsTabMeta(outletCategory);
+  const shelvesMeta = merchantShelvesTabMeta();
+
+  const tabsKey = `${String(activeOutlet?.id ?? 'none')}-${outletCategory}`;
+
   return (
     <MerchantTabsNav.Navigator
+      key={tabsKey}
       screenOptions={{
         headerTitleAlign: 'center',
         headerStyle: { backgroundColor: colors.background },
@@ -183,14 +220,32 @@ function MerchantTabsScreen() {
           tabBarIcon: TabOrdersIcon,
         }}
       />
-      <MerchantTabsNav.Screen
-        name="MerchantBagsTab"
-        component={MerchantBagsListScreen}
-        options={{
-          title: 'Bags',
-          tabBarIcon: TabMerchantBagsIcon,
-        }}
-      />
+      {showSingleInventoryTab || (isHybrid && showBags) ? (
+        <MerchantTabsNav.Screen
+          name="MerchantBagsTab"
+          component={isHybrid ? MerchantBagsTabScreen : MerchantInventoryTabScreen}
+          options={{
+            title: isHybrid ? bagsMeta.headerTitle : singleModeMeta.headerTitle,
+            tabBarLabel: isHybrid ? bagsMeta.tabBarLabel : singleModeMeta.tabBarLabel,
+            tabBarIcon: isHybrid
+              ? TabMerchantBagsIcon
+              : singleModeMeta.iconName === 'inventory_2'
+                ? TabMerchantShelvesIcon
+                : TabMerchantBagsIcon,
+          }}
+        />
+      ) : null}
+      {isHybrid && showShelves ? (
+        <MerchantTabsNav.Screen
+          name="MerchantShelvesTab"
+          component={MerchantShelvesTabScreen}
+          options={{
+            title: shelvesMeta.headerTitle,
+            tabBarLabel: shelvesMeta.tabBarLabel,
+            tabBarIcon: TabMerchantShelvesIcon,
+          }}
+        />
+      ) : null}
       <MerchantTabsNav.Screen
         name="MerchantSettingsTab"
         component={MerchantSettingsScreen}
@@ -238,6 +293,16 @@ export function RootNavigator() {
           options={{ headerShown: false }}
         />
         <RootStack.Screen name="BagDetail" component={BagDetailScreen} />
+        <RootStack.Screen
+          name="ClearanceShelf"
+          component={ClearanceShelfScreen}
+          options={{ title: 'Clearance shelf' }}
+        />
+        <RootStack.Screen
+          name="ShelfReview"
+          component={ShelfReviewScreen}
+          options={{ title: 'Review shelf', headerShown: false }}
+        />
         <RootStack.Screen
           name="BagAllergens"
           component={BagAllergensScreen}
@@ -314,6 +379,26 @@ export function RootNavigator() {
           name="MerchantBagsList"
           component={MerchantBagsListScreen}
           options={{ title: 'Rescue Bags' }}
+        />
+        <RootStack.Screen
+          name="MerchantShelvesList"
+          component={MerchantShelvesListScreen}
+          options={{ title: 'Clearance shelves' }}
+        />
+        <RootStack.Screen
+          name="MerchantShelfEditor"
+          component={MerchantShelfEditorScreen}
+          options={{ title: "Today's shelf", headerBackTitle: 'Shelves' }}
+        />
+        <RootStack.Screen
+          name="MerchantShelfScanItem"
+          component={MerchantShelfScanItemScreen}
+          options={{ title: 'Scan barcode', headerBackTitle: 'Shelf' }}
+        />
+        <RootStack.Screen
+          name="MerchantShelfItemEditor"
+          component={MerchantShelfItemEditorScreen}
+          options={{ title: 'Shelf item', headerBackTitle: 'Shelf' }}
         />
         <RootStack.Screen
           name="MerchantOrderDetail"

@@ -186,13 +186,25 @@ export function MerchantAnalyticsScreen() {
 
         <View style={styles.kpiCard}>
           <StitchText variant="label-caps" colorKey="textMuted">
+            Surplus recovered ({windowLabel.toLowerCase()})
+          </StitchText>
+          <StitchText variant="h2" colorKey="accent" style={{ marginTop: 4 }}>
+            {snapshot?.surplusRecoveredLabel ?? formatLkr(0)}
+          </StitchText>
+          <StitchText variant="body-sm" colorKey="textMuted" style={{ marginTop: 8 }}>
+            Retail value of food rescued from waste
+          </StitchText>
+        </View>
+
+        <View style={styles.kpiCard}>
+          <StitchText variant="label-caps" colorKey="textMuted">
             Waste prevented
           </StitchText>
           <StitchText variant="h2" colorKey="text" style={{ marginTop: 4 }}>
             {snapshot?.wasteKg ?? 0} kg
           </StitchText>
           <StitchText variant="body-sm" colorKey="textMuted" style={{ marginTop: 8 }}>
-            Est. from bag retail value × orders
+            Est. from bag weight × orders
           </StitchText>
         </View>
 

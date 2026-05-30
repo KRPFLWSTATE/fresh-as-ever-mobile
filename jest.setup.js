@@ -11,6 +11,8 @@ jest.mock(
     API_BASE_URL: 'http://localhost.test',
     PAYHERE_RETURN_URL_HOST: '',
     ENABLE_QA_ROLE_OVERRIDES: undefined,
+    EXPO_PUBLIC_GROUP_RESERVATIONS_ENABLED: undefined,
+    EXPO_PUBLIC_CLEARANCE_SHELVES_ENABLED: undefined,
   }),
   { virtual: true },
 );

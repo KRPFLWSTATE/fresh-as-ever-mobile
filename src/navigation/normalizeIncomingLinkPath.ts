@@ -36,6 +36,16 @@ export function normalizeIncomingLinkPath(path: string): string {
     return attachQuery(`bags/${bagLegacy[1]}`);
   }
 
+  const shelfLegacy = /^shelf\/([^/?#]+)$/.exec(p);
+  if (shelfLegacy) {
+    return attachQuery(`shelves/${shelfLegacy[1]}`);
+  }
+
+  const shelfAllergens = /^shelves\/([^/?#]+)\/allergens$/.exec(p);
+  if (shelfAllergens) {
+    return attachQuery(`shelves/${shelfAllergens[1]}/allergens`);
+  }
+
   const payoutLegacy =
     /^merchant\/finance\/payout\/([^/?#]+)$/.exec(p);
   if (payoutLegacy) {
@@ -51,7 +61,7 @@ export function normalizeIncomingLinkPath(path: string): string {
   }
 
   const discoverForced =
-    /^discover\/(empty-search|no-results|no-bags-nearby|sold-out)$/.exec(
+    /^discover\/(empty-search|no-results|no-bags-nearby|no-listings-nearby|no-shelves-yet|sold-out)$/.exec(
       p.toLowerCase(),
     );
   if (discoverForced) {

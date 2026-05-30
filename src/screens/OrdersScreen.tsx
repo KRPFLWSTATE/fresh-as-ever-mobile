@@ -20,6 +20,7 @@ import {
   ACTIVE_ORDER_STATUSES,
   normalizeOrderStatus,
 } from '@/lib/orderStatus';
+import { orderDisplayTitle, orderPickupWindow } from '@/lib/orderDisplay';
 import { useStitchTheme } from '@/theme/StitchThemeContext';
 import { stitchFonts } from '@/theme/stitchTokens';
 import { StitchCard, StitchIcon, StitchText } from '@/ui/stitch';
@@ -35,6 +36,16 @@ type OutletJoin = {
   merchant?: { business_name?: string | null } | null;
 } | null;
 
+type OrderItemRow = {
+  name_snapshot?: string | null;
+  quantity?: number | null;
+};
+
+type ShelfJoin = {
+  pickup_start?: string | null;
+  pickup_end?: string | null;
+} | null;
+
 type OrderRow = {
   id: string;
   order_status: string | null;
@@ -42,7 +53,10 @@ type OrderRow = {
   created_at: string | null;
   reservation_code: string | null;
   customer_arrived_at: string | null;
+  shelf_id: string | null;
+  order_items: OrderItemRow[] | null;
   bag: BagJoin;
+  shelf: ShelfJoin;
   outlet: OutletJoin;
 };
 
@@ -140,6 +154,9 @@ export function OrdersScreen() {
           created_at,
           reservation_code,
           customer_arrived_at,
+          shelf_id,
+          order_items(name_snapshot, quantity),
+          shelf:clearance_shelves(pickup_start, pickup_end),
           bag:rescue_bags(title, pickup_start, pickup_end),
           outlet:outlets(name, merchant:merchants(business_name))
         `,
@@ -181,9 +198,17 @@ export function OrdersScreen() {
         : typeof outlet?.name === 'string'
           ? outlet.name
           : '';
-    const title =
-      typeof bag?.title === 'string' && bag.title ? bag.title : 'Rescue bag';
-    const pickupLine = formatPickupWindow(bag?.pickup_start, bag?.pickup_end);
+    const title = orderDisplayTitle({
+      shelf_id: item.shelf_id,
+      bag,
+      order_items: item.order_items,
+    });
+    const pickup = orderPickupWindow({
+      shelf_id: item.shelf_id,
+      bag,
+      shelf: item.shelf,
+    });
+    const pickupLine = formatPickupWindow(pickup.start, pickup.end);
     const normalized = normalizeOrderStatus(item.order_status);
     const stat = statusPresentation(normalized);
     const badgeBg =
@@ -286,8 +311,11 @@ export function OrdersScreen() {
         : typeof outlet?.name === 'string'
           ? outlet.name
           : 'Store';
-    const title =
-      typeof bag?.title === 'string' && bag.title ? bag.title : 'Rescue bag';
+    const title = orderDisplayTitle({
+      shelf_id: item.shelf_id,
+      bag,
+      order_items: item.order_items,
+    });
     const when = formatHistoryDate(item.created_at);
     const normalized = normalizeOrderStatus(item.order_status);
     const statusLabel =

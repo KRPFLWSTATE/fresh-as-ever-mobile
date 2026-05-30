@@ -15,6 +15,9 @@ describe('messages rpc mappers', () => {
 
   it('maps checkout sold out', () => {
     expect(mapCheckoutError('bag sold out')).toBe(ERROR.checkout.soldOut);
+    expect(mapCheckoutError('clearance_item_sold_out', ERROR.checkout.reserveFailed, 'shelf')).toBe(
+      ERROR.checkout.shelfSoldOut,
+    );
     expect(mapCheckoutError('fetch failed')).toBe(ERROR.common.network);
   });
 });

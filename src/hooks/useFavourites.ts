@@ -9,6 +9,7 @@ import {
   haversineKm,
   parseOutletLatLng,
 } from '@/lib/geoDistance';
+import { canPublishClearanceShelves, canPublishRescueBags } from '@/lib/outletListingMode';
 
 const DEFAULT_VENUE_RATING = 0;
 
@@ -16,6 +17,12 @@ export type FavouriteOutlet = {
   id: string;
   name: string;
   rating: number;
+  trustScore: number | null;
+  averageRating: number | null;
+  totalReviews: number | null;
+  collectionRatePct: number | null;
+  complaintRatePct: number | null;
+  noShowRatePct: number | null;
   distanceLabel: string;
   image: string | null;
   /**
@@ -26,7 +33,7 @@ export type FavouriteOutlet = {
    */
   status: 'selling_fast' | 'sold_out_today' | 'sold_out';
   bagsAvailable: number;
-  /** outlets.category — `bakery | cafe | restaurant | supermarket | hotel | other`. */
+  /** outlets.category — `bakery | cafe | restaurant | supermarket | other` (legacy `hotel`). */
   category: string | null;
 };
 
@@ -39,7 +46,12 @@ function mapOutletRow(
     return null;
   }
 
-  const bags = (out.rescue_bags as Record<string, unknown>[] | undefined) ?? [];
+  const outletCategory = typeof out.category === 'string' ? out.category : '';
+  const bagMode = canPublishRescueBags(outletCategory);
+  const shelfMode = canPublishClearanceShelves(outletCategory);
+  const bags = bagMode
+    ? ((out.rescue_bags as Record<string, unknown>[] | undefined) ?? [])
+    : [];
   const liveBags = bags.filter((b) => {
     const s = String(b.status ?? '').toLowerCase();
     return s === 'live' || s === 'draft';
@@ -50,11 +62,35 @@ function mapOutletRow(
     return sum + q;
   }, 0);
 
+  const today = new Date().toISOString().slice(0, 10);
+  const shelves = shelfMode
+    ? ((out.clearance_shelves as Record<string, unknown>[] | undefined) ?? [])
+    : [];
+  const todayPublishedShelves = shelves.filter(
+    (s) =>
+      String(s.status ?? '').toLowerCase() === 'published' &&
+      String(s.shelf_date ?? '') === today,
+  );
+  let shelfItemsAvailable = 0;
+  let shelfListingsToday = 0;
+  for (const shelf of todayPublishedShelves) {
+    const items = (shelf.items as Record<string, unknown>[] | undefined) ?? [];
+    const liveItems = items.filter(
+      (i) => String(i.status ?? '').toLowerCase() === 'live',
+    );
+    if (liveItems.length > 0) shelfListingsToday += 1;
+    shelfItemsAvailable += liveItems.reduce(
+      (sum, i) => sum + Number(i.quantity_remaining ?? 0),
+      0,
+    );
+  }
+
+  const totalAvailable = bagsAvailable + shelfItemsAvailable;
+
   let status: FavouriteOutlet['status'];
-  if (bagsAvailable > 0) {
+  if (totalAvailable > 0) {
     status = 'selling_fast';
-  } else if (liveBags.length > 0) {
-    // Outlet listed bags today, but every live row is at qty 0 — sold out today.
+  } else if (liveBags.length > 0 || shelfListingsToday > 0) {
     status = 'sold_out_today';
   } else {
     status = 'sold_out';
@@ -67,6 +103,34 @@ function mapOutletRow(
       typeof out.average_rating === 'number' && out.average_rating > 0
         ? out.average_rating
         : DEFAULT_VENUE_RATING,
+    trustScore:
+      typeof out.trust_score === 'number'
+        ? out.trust_score
+        : out.trust_score != null
+          ? Number(out.trust_score)
+          : null,
+    averageRating:
+      typeof out.average_rating === 'number' ? out.average_rating : null,
+    totalReviews:
+      typeof out.total_reviews === 'number' ? out.total_reviews : null,
+    collectionRatePct:
+      typeof out.collection_rate_pct === 'number'
+        ? out.collection_rate_pct
+        : out.collection_rate_pct != null
+          ? Number(out.collection_rate_pct)
+          : null,
+    complaintRatePct:
+      typeof out.complaint_rate_pct === 'number'
+        ? out.complaint_rate_pct
+        : out.complaint_rate_pct != null
+          ? Number(out.complaint_rate_pct)
+          : null,
+    noShowRatePct:
+      typeof out.no_show_rate_pct === 'number'
+        ? out.no_show_rate_pct
+        : out.no_show_rate_pct != null
+          ? Number(out.no_show_rate_pct)
+          : null,
     distanceLabel: (() => {
       if (!userCoords) return 'Distance unavailable';
       const outletCoords = parseOutletLatLng(out.location);
@@ -83,7 +147,7 @@ function mapOutletRow(
     image:
       typeof out.cover_image_url === 'string' ? out.cover_image_url : null,
     status,
-    bagsAvailable,
+    bagsAvailable: totalAvailable,
     category: typeof out.category === 'string' ? out.category : null,
   };
 }
@@ -120,11 +184,24 @@ export function useFavourites(
             name,
             category,
             average_rating,
+            total_reviews,
+            trust_score,
+            collection_rate_pct,
+            complaint_rate_pct,
+            no_show_rate_pct,
             cover_image_url,
             location,
             rescue_bags (
               quantity_remaining,
               status
+            ),
+            clearance_shelves (
+              shelf_date,
+              status,
+              items:clearance_shelf_items (
+                quantity_remaining,
+                status
+              )
             )
           )
         `,
@@ -194,6 +271,12 @@ export function useFavourites(
         id: outletId,
         name: 'Outlet',
         rating: DEFAULT_VENUE_RATING,
+        trustScore: null,
+        averageRating: null,
+        totalReviews: null,
+        collectionRatePct: null,
+        complaintRatePct: null,
+        noShowRatePct: null,
         distanceLabel: 'Nearby',
         image: null,
         status: 'selling_fast',

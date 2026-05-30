@@ -1,7 +1,9 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Image,
   Pressable,
+  ScrollView,
+  StyleSheet,
   View,
   type ImageStyle,
   type ViewStyle,
@@ -42,9 +44,14 @@ export function OnboardingScreen() {
     ? Math.min(ONBOARDING_TOTAL_STEPS, Math.max(1, parsed.data.step ?? 1))
     : 1;
   const [step, setStep] = useState(initial);
+  const [heroFailed, setHeroFailed] = useState(false);
 
   const meta = getOnboardingStep(step);
   const heroSource = getOnboardingHeroSource(step);
+
+  useEffect(() => {
+    setHeroFailed(false);
+  }, [step]);
 
   const layoutStyles = useMemo(() => {
     const pagePad = spacing.pageMarginMobile;
@@ -191,14 +198,21 @@ export function OnboardingScreen() {
 
   const hero = (
     <View style={layoutStyles.heroWrap}>
-      <Image
-        accessibilityRole="image"
-        accessibilityLabel={meta.heroAlt}
-        source={heroSource}
-        style={layoutStyles.heroImage}
-        resizeMode="cover"
-      />
-      {step === 1 ? (
+      {heroFailed ? (
+        <View style={[layoutStyles.heroImage, layoutStyles.fallbackHero]}>
+          <StitchIcon name="eco" size={48} colorKey="primaryContainer" />
+        </View>
+      ) : (
+        <Image
+          accessibilityRole="image"
+          accessibilityLabel={meta.heroAlt}
+          source={heroSource}
+          style={layoutStyles.heroImage}
+          resizeMode="cover"
+          onError={() => setHeroFailed(true)}
+        />
+      )}
+      {step === 1 && !heroFailed ? (
         <View
           pointerEvents="none"
           style={{
@@ -219,9 +233,8 @@ export function OnboardingScreen() {
   const copyBlock = (
     <View
       style={{
-        flexGrow: 1,
-        justifyContent:
-          meta.layout === 'hero-copy-dots' ? 'flex-end' : 'center',
+        marginTop: spacing.md,
+        marginBottom: spacing.md,
       }}
     >
       <StitchText
@@ -361,7 +374,17 @@ export function OnboardingScreen() {
       </View>
 
       <View style={{ flex: 1 }}>
-        <View style={layoutStyles.main}>
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{
+            flexGrow: 1,
+            paddingHorizontal: spacing.pageMarginMobile,
+            paddingTop: spacing.lg,
+            paddingBottom: spacing.md,
+          }}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
           {meta.layout === 'hero-copy-dots' ? (
             <>
               {hero}
@@ -390,13 +413,16 @@ export function OnboardingScreen() {
               {copyBlock}
             </>
           ) : null}
-        </View>
+        </ScrollView>
 
         <View
           style={{
             paddingHorizontal: spacing.pageMarginMobile,
+            paddingTop: spacing.sm,
             paddingBottom: spacing.lg,
-            gap: spacing.sm,
+            borderTopWidth: StyleSheet.hairlineWidth,
+            borderTopColor: colors.divider,
+            backgroundColor: colors.background,
           }}
         >
           <StitchButton title={ctaTitle} onPress={() => next()} />

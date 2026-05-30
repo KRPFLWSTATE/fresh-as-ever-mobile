@@ -30,6 +30,9 @@ import { useFavourites } from '@/hooks/useFavourites';
 import { resolveBagAllergensFromBag } from '@/lib/bagAllergens';
 import { useStitchTheme } from '@/theme/StitchThemeContext';
 import { stitchColorsDark } from '@/theme/stitchTokens';
+import { OutletTrustBadge } from '@/components/OutletTrustBadge';
+import { isGroupReservationsEnabled } from '@/config/groupReservations';
+import { useReservationCart } from '@/hooks/useReservationCart';
 import { StitchButton, StitchCard, StitchIcon, StitchText } from '@/ui/stitch';
 
 function formatLKR(value: number): string {
@@ -73,6 +76,8 @@ export function BagDetailScreen() {
     env,
     customerId,
   );
+  const cart = useReservationCart();
+  const groupReservationsEnabled = isGroupReservationsEnabled();
   const { colors, spacing, radii, mode } = useStitchTheme();
   const insets = useSafeAreaInsets();
   const { width: screenW } = Dimensions.get('window');
@@ -108,7 +113,7 @@ export function BagDetailScreen() {
       const { data, error } = await sb
         .from('rescue_bags')
         .select(
-          `*, outlet:outlets ( id, name, address, landmark, location, is_halal_certified, merchant:merchants(business_name) )`,
+          `*, outlet:outlets ( id, name, address, landmark, location, is_halal_certified, average_rating, total_reviews, trust_score, collection_rate_pct, complaint_rate_pct, no_show_rate_pct, merchant:merchants(business_name) )`,
         )
         .eq('id', id)
         .single();
@@ -520,6 +525,53 @@ export function BagDetailScreen() {
                   <StitchText variant="body-md" colorKey="onSurface">
                     {outlet?.name ? String(outlet.name) : 'Outlet'}
                   </StitchText>
+                  <View style={{ marginTop: 6, alignSelf: 'flex-start' }}>
+                    <OutletTrustBadge
+                      size="sm"
+                      trustScore={
+                        typeof outlet?.trust_score === 'number'
+                          ? outlet.trust_score
+                          : outlet?.trust_score != null
+                            ? Number(outlet.trust_score)
+                            : null
+                      }
+                      averageRating={
+                        typeof outlet?.average_rating === 'number'
+                          ? outlet.average_rating
+                          : outlet?.average_rating != null
+                            ? Number(outlet.average_rating)
+                            : null
+                      }
+                      totalReviews={
+                        typeof outlet?.total_reviews === 'number'
+                          ? outlet.total_reviews
+                          : outlet?.total_reviews != null
+                            ? Number(outlet.total_reviews)
+                            : null
+                      }
+                      collectionRatePct={
+                        typeof outlet?.collection_rate_pct === 'number'
+                          ? outlet.collection_rate_pct
+                          : outlet?.collection_rate_pct != null
+                            ? Number(outlet.collection_rate_pct)
+                            : null
+                      }
+                      complaintRatePct={
+                        typeof outlet?.complaint_rate_pct === 'number'
+                          ? outlet.complaint_rate_pct
+                          : outlet?.complaint_rate_pct != null
+                            ? Number(outlet.complaint_rate_pct)
+                            : null
+                      }
+                      noShowRatePct={
+                        typeof outlet?.no_show_rate_pct === 'number'
+                          ? outlet.no_show_rate_pct
+                          : outlet?.no_show_rate_pct != null
+                            ? Number(outlet.no_show_rate_pct)
+                            : null
+                      }
+                    />
+                  </View>
                   {addressLine ? (
                     <StitchText variant="body-sm" colorKey="textMuted" style={{ marginTop: 4 }}>
                       {addressLine}
@@ -609,7 +661,7 @@ export function BagDetailScreen() {
         ]}
       >
         <View style={styles.bottomInner}>
-          <View>
+          <View style={{ flex: 1 }}>
             {retail != null && retail > rescuePrice ? (
               <StitchText variant="price-original" colorKey="textMuted">
                 {formatLKR(retail)}
@@ -618,6 +670,34 @@ export function BagDetailScreen() {
             <StitchText variant="price" colorKey="accent">
               {formatLKR(rescuePrice)}
             </StitchText>
+            {groupReservationsEnabled && outletId ? (
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => {
+                  void cart.addBag({
+                    id,
+                    outletId,
+                    title: String(bag?.title ?? 'Bag'),
+                    rescuePrice,
+                  }).then((result) => {
+                    if (result.error === 'different_outlet') {
+                      void cart.replaceOutletCart({
+                        id,
+                        outletId,
+                        title: String(bag?.title ?? 'Bag'),
+                        rescuePrice,
+                      });
+                    }
+                    navigation.navigate('OutletDetail', { outletId });
+                  });
+                }}
+                style={{ marginTop: spacing.xs }}
+              >
+                <StitchText variant="body-sm" colorKey="primary">
+                  Add to group order
+                </StitchText>
+              </Pressable>
+            ) : null}
           </View>
           <Pressable
             accessibilityRole="button"

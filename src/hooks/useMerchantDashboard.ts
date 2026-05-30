@@ -2,6 +2,9 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getSupabase } from '@/lib/supabase';
 import type { AppEnv } from '@/config/env';
 import { ACTIVE_ORDER_STATUSES, normalizeOrderStatus } from '@/lib/orderStatus';
+import { filterOrdersForListingMode } from '@/lib/merchantOrderListingFilter';
+import { orderDisplayTitle } from '@/lib/orderDisplay';
+import { outletListingMode, type OutletListingMode } from '@/lib/outletListingMode';
 import { useMerchantContext } from '@/hooks/useMerchantContext';
 import { logError } from '@/observability/logError';
 
@@ -23,31 +26,57 @@ export type DashboardRecentRow = {
 
 export function useMerchantDashboard(env: AppEnv) {
   const supabase = useMemo(() => getSupabase(env), [env]);
-  const { outletScopeIds, loading: contextLoading } = useMerchantContext(env);
+  const { outletScopeIds, outlets, activeOutlet, loading: contextLoading } = useMerchantContext(env);
+  const listingMode = outletListingMode(
+    typeof activeOutlet?.category === 'string' ? activeOutlet.category : null,
+  );
+  const outletModeById = useMemo(() => {
+    const map = new Map<string, OutletListingMode>();
+    for (const outlet of outlets) {
+      map.set(
+        String(outlet.id),
+        outletListingMode(
+          typeof outlet.category === 'string' ? outlet.category : null,
+        ),
+      );
+    }
+    return map;
+  }, [outlets]);
+
+  const filterRowForOutletMode = useCallback(
+    (row: { outlet_id?: unknown; shelf_id?: unknown }) => {
+      const outletId = String(row.outlet_id ?? '');
+      const mode = outletModeById.get(outletId) ?? 'rescue_bag';
+      return filterOrdersForListingMode(
+        [
+          {
+            shelf_id:
+              row.shelf_id != null && String(row.shelf_id).length > 0
+                ? String(row.shelf_id)
+                : null,
+          },
+        ],
+        mode,
+      ).length > 0;
+    },
+    [outletModeById],
+  );
 
   const [stats, setStats] = useState({
     active_bags: 0,
     today_orders: 0,
     today_revenue: 0,
     pickup_rate: 100,
-    /**
-     * Real day-scoped count of pending pick-ups across all the merchant's outlets,
-     * computed from a `count: 'exact'` head query on `orders` with
-     * `order_status in ('reserved','paid','ready_for_pickup')` and
-     * `created_at >= today 00:00`. Previously this was derived from the recent-5
-     * sample; the matrix flagged it as understated. Replaces that sample.
-     */
     pending_pickups_today: 0,
-    /**
-     * Yesterday's counterpart values, used to power the day-over-day `%` delta
-     * chips on the Merchant Dashboard 2×2 KPI bento. Computed from a parallel
-     * count(*) query against `orders` and `rescue_bags` keyed on
-     * `created_at between (now - 2d) and (now - 1d)`.
-     */
     yesterday_orders: 0,
     yesterday_revenue: 0,
     yesterday_active_bags: 0,
     yesterday_pending_pickups: 0,
+    /** Today's published shelf KPIs (supermarket / hybrid). */
+    shelf_published_today: false,
+    shelf_items_live: 0,
+    shelf_items_sold_today: 0,
+    shelf_revenue_today: 0,
   });
   const [recentOrders, setRecentOrders] = useState<DashboardRecentRow[]>([]);
   const [popularBags, setPopularBags] = useState<DashboardPopularBag[]>([]);
@@ -78,7 +107,7 @@ export function useMerchantDashboard(env: AppEnv) {
         throw ordersError;
       }
 
-      const rowsToday = todayOrders ?? [];
+      const rowsToday = (todayOrders ?? []).filter(filterRowForOutletMode);
       const sales = rowsToday
         .filter(
           (o) =>
@@ -97,23 +126,84 @@ export function useMerchantDashboard(env: AppEnv) {
         return activeRoots.includes(s);
       }).length;
 
-      const { count: activeBagsCount, error: bagsError } = await supabase
-        .from('rescue_bags')
-        .select('*', { count: 'exact', head: true })
-        .in('outlet_id', outletScopeIds)
-        .eq('status', 'live');
+      let activeBagsCount = 0;
+      const todayDate = today.toISOString().slice(0, 10);
+      const listingOutletIds = activeOutlet?.id
+        ? [String(activeOutlet.id)]
+        : outletScopeIds;
 
-      if (bagsError) {
-        throw bagsError;
+      if (listingMode === 'clearance_shelf') {
+        const { data: todayShelves, error: shelfListError } = await supabase
+          .from('clearance_shelves')
+          .select('id')
+          .in('outlet_id', listingOutletIds)
+          .eq('shelf_date', todayDate)
+          .eq('status', 'published');
+        if (shelfListError) {
+          throw shelfListError;
+        }
+        const shelfIds = (todayShelves ?? []).map((s) => String(s.id));
+        if (shelfIds.length > 0) {
+          const { count, error: itemCountError } = await supabase
+            .from('clearance_shelf_items')
+            .select('*', { count: 'exact', head: true })
+            .in('shelf_id', shelfIds);
+          if (itemCountError) {
+            throw itemCountError;
+          }
+          activeBagsCount = count ?? 0;
+        }
+      } else if (listingMode === 'hybrid') {
+        const { count: bagCount, error: bagsError } = await supabase
+          .from('rescue_bags')
+          .select('*', { count: 'exact', head: true })
+          .in('outlet_id', listingOutletIds)
+          .eq('status', 'live');
+        if (bagsError) {
+          throw bagsError;
+        }
+        let shelfItemCount = 0;
+        const { data: todayShelves, error: shelfListError } = await supabase
+          .from('clearance_shelves')
+          .select('id')
+          .in('outlet_id', listingOutletIds)
+          .eq('shelf_date', todayDate)
+          .eq('status', 'published');
+        if (shelfListError) {
+          throw shelfListError;
+        }
+        const shelfIds = (todayShelves ?? []).map((s) => String(s.id));
+        if (shelfIds.length > 0) {
+          const { count, error: itemCountError } = await supabase
+            .from('clearance_shelf_items')
+            .select('*', { count: 'exact', head: true })
+            .in('shelf_id', shelfIds);
+          if (itemCountError) {
+            throw itemCountError;
+          }
+          shelfItemCount = count ?? 0;
+        }
+        activeBagsCount = (bagCount ?? 0) + shelfItemCount;
+      } else {
+        const { count, error: bagsError } = await supabase
+          .from('rescue_bags')
+          .select('*', { count: 'exact', head: true })
+          .in('outlet_id', listingOutletIds)
+          .eq('status', 'live');
+        if (bagsError) {
+          throw bagsError;
+        }
+        activeBagsCount = count ?? 0;
       }
 
-      // Full-day pending pick-ups count — not the recent-5 sample. Uses head + exact.
-      const { count: pendingPickupsCount, error: pendingError } = await supabase
+      const { data: pendingRows, error: pendingError } = await supabase
         .from('orders')
-        .select('*', { count: 'exact', head: true })
+        .select('outlet_id, shelf_id')
         .in('outlet_id', outletScopeIds)
         .in('order_status', ['reserved', 'paid', 'ready_for_pickup'])
         .gte('created_at', today.toISOString());
+      const pendingPickupsCount =
+        pendingRows?.filter(filterRowForOutletMode).length ?? 0;
 
       if (pendingError) {
         throw pendingError;
@@ -124,7 +214,7 @@ export function useMerchantDashboard(env: AppEnv) {
       // shifted back by one day, then compute the four KPI counts.
       const { data: yesterdayOrders, error: yOrdersError } = await supabase
         .from('orders')
-        .select('order_status, payment_status, total')
+        .select('order_status, payment_status, total, shelf_id, outlet_id')
         .in('outlet_id', outletScopeIds)
         .gte('created_at', yesterday.toISOString())
         .lt('created_at', today.toISOString());
@@ -133,7 +223,7 @@ export function useMerchantDashboard(env: AppEnv) {
         throw yOrdersError;
       }
 
-      const yRowsYesterday = yesterdayOrders ?? [];
+      const yRowsYesterday = (yesterdayOrders ?? []).filter(filterRowForOutletMode);
       const yesterdayRevenue = yRowsYesterday
         .filter(
           (o) =>
@@ -165,77 +255,169 @@ export function useMerchantDashboard(env: AppEnv) {
       // yesterday baseline as the row count of bags that became `live` and
       // `created_at >= yesterday < today`, which is a reasonable
       // approximation of how the inventory moved overnight.
-      const { count: yesterdayActiveBagsCount, error: yBagsError } =
-        await supabase
+      let yesterdayActiveBagsCount = 0;
+      if (listingMode === 'clearance_shelf') {
+        const yDate = yesterday.toISOString().slice(0, 10);
+        const { data: yShelves, error: yShelfErr } = await supabase
+          .from('clearance_shelves')
+          .select('id')
+          .in('outlet_id', listingOutletIds)
+          .eq('shelf_date', yDate)
+          .eq('status', 'published');
+        if (yShelfErr) throw yShelfErr;
+        const yShelfIds = (yShelves ?? []).map((s) => String(s.id));
+        if (yShelfIds.length > 0) {
+          const { count, error: yItemErr } = await supabase
+            .from('clearance_shelf_items')
+            .select('*', { count: 'exact', head: true })
+            .in('shelf_id', yShelfIds);
+          if (yItemErr) throw yItemErr;
+          yesterdayActiveBagsCount = count ?? 0;
+        }
+      } else {
+        const { count, error: yBagsError } = await supabase
           .from('rescue_bags')
           .select('*', { count: 'exact', head: true })
-          .in('outlet_id', outletScopeIds)
+          .in('outlet_id', listingOutletIds)
           .eq('status', 'live')
           .gte('created_at', yesterday.toISOString())
           .lt('created_at', today.toISOString());
-
-      if (yBagsError) {
-        throw yBagsError;
+        if (yBagsError) throw yBagsError;
+        yesterdayActiveBagsCount = count ?? 0;
       }
 
       const { data: recent, error: recentError } = await supabase
         .from('orders')
         .select(
           `
-          id, order_status, created_at,
+          id, order_status, created_at, shelf_id, outlet_id,
           customer:profiles(full_name),
           bag:rescue_bags(title),
+          order_items(name_snapshot, quantity),
           total
         `,
         )
         .in('outlet_id', outletScopeIds)
         .order('created_at', { ascending: false })
-        .limit(5);
+        .limit(20);
 
       if (recentError) {
         throw recentError;
       }
 
-      const { data: popularData, error: popularError } = await supabase.rpc(
-        'merchant_popular_bags',
-        { p_outlet_ids: outletScopeIds, p_limit: 3 },
+      const filteredRecent = (recent ?? []).filter(filterRowForOutletMode).slice(0, 5);
+
+      let popularData: Record<string, unknown>[] | null = null;
+      let popularError: Error | null = null;
+      if (listingMode !== 'clearance_shelf') {
+        const popularResult = await supabase.rpc('merchant_popular_bags', {
+          p_outlet_ids: outletScopeIds,
+          p_limit: 3,
+        });
+        popularData = (popularResult.data ?? []) as Record<string, unknown>[];
+        popularError = popularResult.error;
+      }
+
+      const formattedRecent = (filteredRecent as Record<string, unknown>[]).map(
+        (r) => {
+          const bagObj = r.bag as Record<string, unknown> | undefined;
+          const orderItems = Array.isArray(r.order_items)
+            ? (r.order_items as Record<string, unknown>[])
+            : [];
+          const shelfId =
+            r.shelf_id != null && String(r.shelf_id).length > 0
+              ? String(r.shelf_id)
+              : null;
+          return {
+            id: String(r.id),
+            customer_name:
+              String(
+                (r.customer as Record<string, unknown> | undefined)?.full_name ?? '',
+              ) || 'Customer',
+            bag_title: orderDisplayTitle({
+              shelf_id: shelfId,
+              bag: bagObj
+                ? { title: typeof bagObj.title === 'string' ? bagObj.title : null }
+                : null,
+              order_items: orderItems.map((item) => ({
+                name_snapshot:
+                  typeof item.name_snapshot === 'string' ? item.name_snapshot : null,
+                quantity: typeof item.quantity === 'number' ? item.quantity : null,
+              })),
+            }),
+            time:
+              typeof r.created_at === 'string'
+                ? new Date(r.created_at).toLocaleTimeString([], {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })
+                : '',
+            status: normalizeOrderStatus(String(r.order_status ?? '')),
+            total:
+              typeof r.total === 'number'
+                ? r.total
+                : Number(r.total ?? null) || null,
+          };
+        },
       );
 
-      const formattedRecent = ((recent ?? []) as Record<string, unknown>[]).map(
-        (r) => ({
-          id: String(r.id),
-          customer_name:
-            String(
-              (r.customer as Record<string, unknown> | undefined)?.full_name ?? '',
-            ) || 'Customer',
-          bag_title:
-            String((r.bag as Record<string, unknown> | undefined)?.title ?? '') ||
-            'Bag',
-          time:
-            typeof r.created_at === 'string'
-              ? new Date(r.created_at).toLocaleTimeString([], {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })
-              : '',
-          status: normalizeOrderStatus(String(r.order_status ?? '')),
-          total:
-            typeof r.total === 'number'
-              ? r.total
-              : Number(r.total ?? null) || null,
-        }),
-      );
+      let shelfPublishedToday = false;
+      let shelfItemsLive = 0;
+      let shelfItemsSoldToday = 0;
+      let shelfRevenueToday = 0;
+
+      if (listingMode === 'clearance_shelf' || listingMode === 'hybrid') {
+        const shelfOutletId = activeOutlet?.id
+          ? String(activeOutlet.id)
+          : listingOutletIds[0];
+        const { data: todayShelfRows, error: todayShelfErr } = await supabase
+          .from('clearance_shelves')
+          .select('id, status, items:clearance_shelf_items(quantity_total, quantity_remaining, status)')
+          .eq('outlet_id', shelfOutletId)
+          .eq('shelf_date', todayDate)
+          .maybeSingle();
+        if (todayShelfErr) throw todayShelfErr;
+        if (todayShelfRows) {
+          shelfPublishedToday =
+            String(todayShelfRows.status ?? '').toLowerCase() === 'published';
+          const shelfItems = (todayShelfRows.items ?? []) as Record<string, unknown>[];
+          for (const item of shelfItems) {
+            if (String(item.status ?? '').toLowerCase() === 'removed') continue;
+            const remaining = Number(item.quantity_remaining ?? 0);
+            const total = Number(item.quantity_total ?? 0);
+            if (remaining > 0) shelfItemsLive += remaining;
+            shelfItemsSoldToday += Math.max(0, total - remaining);
+          }
+        }
+        shelfRevenueToday = rowsToday
+          .filter((o) => {
+            const sid = (o as Record<string, unknown>).shelf_id;
+            return sid != null && String(sid).length > 0;
+          })
+          .filter(
+            (o) =>
+              String((o as Record<string, unknown>).payment_status ?? '') === 'paid' ||
+              normalizeOrderStatus(
+                String((o as Record<string, unknown>).order_status ?? ''),
+              ) === 'collected',
+          )
+          .reduce((sum, o) => sum + Number((o as Record<string, unknown>).total ?? 0), 0);
+      }
 
       setStats({
         today_revenue: sales,
-        active_bags: activeBagsCount ?? 0,
+        active_bags: activeBagsCount,
         today_orders: activeOrderCount,
         pickup_rate: 100,
         pending_pickups_today: pendingPickupsCount ?? 0,
         yesterday_orders: yesterdayActiveOrders,
         yesterday_revenue: yesterdayRevenue,
-        yesterday_active_bags: yesterdayActiveBagsCount ?? 0,
+        yesterday_active_bags: yesterdayActiveBagsCount,
         yesterday_pending_pickups: yesterdayPendingPickups,
+        shelf_published_today: shelfPublishedToday,
+        shelf_items_live: shelfItemsLive,
+        shelf_items_sold_today: shelfItemsSoldToday,
+        shelf_revenue_today: shelfRevenueToday,
       });
       setRecentOrders(formattedRecent);
       setPopularBags(
@@ -254,7 +436,7 @@ export function useMerchantDashboard(env: AppEnv) {
     } finally {
       setLoading(false);
     }
-  }, [outletScopeIds, supabase]);
+  }, [outletScopeIds, supabase, listingMode, filterRowForOutletMode, activeOutlet?.id]);
 
   useEffect(() => {
     if (contextLoading) {

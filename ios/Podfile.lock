@@ -21,7 +21,11 @@ PODS:
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
     - Yoga
+  - EXApplication (55.0.15):
+    - ExpoModulesCore
   - EXConstants (55.0.16):
+    - ExpoModulesCore
+  - ExpoAppleAuthentication (55.0.13):
     - ExpoModulesCore
   - ExpoAsset (55.0.17):
     - ExpoModulesCore
@@ -31,15 +35,23 @@ PODS:
     - ExpoCamera
     - ZXingObjC/OneD
     - ZXingObjC/PDF417
+  - ExpoCrypto (55.0.15):
+    - ExpoModulesCore
+  - ExpoDevice (55.0.17):
+    - ExpoModulesCore
   - ExpoDomWebView (55.0.6):
     - ExpoModulesCore
   - ExpoFileSystem (55.0.21):
     - ExpoModulesCore
   - ExpoFont (55.0.8):
     - ExpoModulesCore
+  - ExpoHaptics (55.0.14):
+    - ExpoModulesCore
   - ExpoImagePicker (55.0.20):
     - ExpoModulesCore
   - ExpoKeepAwake (55.0.8):
+    - ExpoModulesCore
+  - ExpoLinking (55.0.15):
     - ExpoModulesCore
   - ExpoLogBox (55.0.12):
     - React-Core
@@ -72,6 +84,10 @@ PODS:
     - React-Core
     - React-runtimescheduler
     - ReactCommon
+  - ExpoNotifications (55.0.23):
+    - ExpoModulesCore
+  - ExpoWebBrowser (55.0.16):
+    - ExpoModulesCore
   - FBLazyVector (0.85.2)
   - hermes-engine (250829098.0.10):
     - hermes-engine/Pre-built (= 250829098.0.10)
@@ -2075,6 +2091,30 @@ PODS:
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
     - Yoga
+  - RNSentry (6.22.0):
+    - hermes-engine
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-Core-prebuilt
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-hermes
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - ReactNativeDependencies
+    - Sentry/HybridSDK (= 8.56.2)
+    - Yoga
   - RNSVG (15.15.5):
     - hermes-engine
     - RCTRequired
@@ -2142,6 +2182,7 @@ PODS:
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
     - Yoga
+  - Sentry/HybridSDK (8.56.2)
   - Yoga (0.0.0)
   - ZXingObjC/Core (3.6.9)
   - ZXingObjC/OneD (3.6.9):
@@ -2151,18 +2192,26 @@ PODS:
 
 DEPENDENCIES:
   - "AsyncStorage (from `../node_modules/@react-native-async-storage/async-storage`)"
-  - EXConstants (from `../node_modules/expo/node_modules/expo-constants/ios`)
+  - EXApplication (from `../node_modules/expo-application/ios`)
+  - EXConstants (from `../node_modules/expo-constants/ios`)
+  - ExpoAppleAuthentication (from `../node_modules/expo-apple-authentication/ios`)
   - ExpoAsset (from `../node_modules/expo/node_modules/expo-asset/ios`)
   - ExpoCamera (from `../node_modules/expo-camera/ios`)
   - ExpoCameraBarcodeScanning (from `../node_modules/expo-camera/ios`)
+  - ExpoCrypto (from `../node_modules/expo-auth-session/node_modules/expo-crypto/ios`)
+  - ExpoDevice (from `../node_modules/expo-device/ios`)
   - "ExpoDomWebView (from `../node_modules/expo/node_modules/@expo/log-box/node_modules/@expo/dom-webview/ios`)"
   - ExpoFileSystem (from `../node_modules/expo/node_modules/expo-file-system/ios`)
   - ExpoFont (from `../node_modules/expo/node_modules/expo-font/ios`)
+  - ExpoHaptics (from `../node_modules/expo-haptics/ios`)
   - ExpoImagePicker (from `../node_modules/expo-image-picker/ios`)
   - ExpoKeepAwake (from `../node_modules/expo/node_modules/expo-keep-awake/ios`)
+  - ExpoLinking (from `../node_modules/expo-linking/ios`)
   - "ExpoLogBox (from `../node_modules/expo/node_modules/@expo/log-box`)"
   - ExpoModulesCore (from `../node_modules/expo-modules-core`)
   - ExpoModulesJSI (from `../node_modules/expo-modules-core`)
+  - ExpoNotifications (from `../node_modules/expo-notifications/ios`)
+  - ExpoWebBrowser (from `../node_modules/expo-web-browser/ios`)
   - FBLazyVector (from `../node_modules/react-native/Libraries/FBLazyVector`)
   - hermes-engine (from `../node_modules/react-native/sdks/hermes-engine/hermes-engine.podspec`)
   - RCTDeprecation (from `../node_modules/react-native/ReactApple/Libraries/RCTFoundation/RCTDeprecation`)
@@ -2245,41 +2294,59 @@ DEPENDENCIES:
   - "RNCClipboard (from `../node_modules/@react-native-clipboard/clipboard`)"
   - "RNDateTimePicker (from `../node_modules/@react-native-community/datetimepicker`)"
   - RNScreens (from `../node_modules/react-native-screens`)
+  - "RNSentry (from `../node_modules/@sentry/react-native`)"
   - RNSVG (from `../node_modules/react-native-svg`)
   - RNVectorIcons (from `../node_modules/react-native-vector-icons`)
   - Yoga (from `../node_modules/react-native/ReactCommon/yoga`)
 
 SPEC REPOS:
   trunk:
+    - Sentry
     - ZXingObjC
 
 EXTERNAL SOURCES:
   AsyncStorage:
     :path: "../node_modules/@react-native-async-storage/async-storage"
+  EXApplication:
+    :path: "../node_modules/expo-application/ios"
   EXConstants:
-    :path: "../node_modules/expo/node_modules/expo-constants/ios"
+    :path: "../node_modules/expo-constants/ios"
+  ExpoAppleAuthentication:
+    :path: "../node_modules/expo-apple-authentication/ios"
   ExpoAsset:
     :path: "../node_modules/expo/node_modules/expo-asset/ios"
   ExpoCamera:
     :path: "../node_modules/expo-camera/ios"
   ExpoCameraBarcodeScanning:
     :path: "../node_modules/expo-camera/ios"
+  ExpoCrypto:
+    :path: "../node_modules/expo-auth-session/node_modules/expo-crypto/ios"
+  ExpoDevice:
+    :path: "../node_modules/expo-device/ios"
   ExpoDomWebView:
     :path: "../node_modules/expo/node_modules/@expo/log-box/node_modules/@expo/dom-webview/ios"
   ExpoFileSystem:
     :path: "../node_modules/expo/node_modules/expo-file-system/ios"
   ExpoFont:
     :path: "../node_modules/expo/node_modules/expo-font/ios"
+  ExpoHaptics:
+    :path: "../node_modules/expo-haptics/ios"
   ExpoImagePicker:
     :path: "../node_modules/expo-image-picker/ios"
   ExpoKeepAwake:
     :path: "../node_modules/expo/node_modules/expo-keep-awake/ios"
+  ExpoLinking:
+    :path: "../node_modules/expo-linking/ios"
   ExpoLogBox:
     :path: "../node_modules/expo/node_modules/@expo/log-box"
   ExpoModulesCore:
     :path: "../node_modules/expo-modules-core"
   ExpoModulesJSI:
     :path: "../node_modules/expo-modules-core"
+  ExpoNotifications:
+    :path: "../node_modules/expo-notifications/ios"
+  ExpoWebBrowser:
+    :path: "../node_modules/expo-web-browser/ios"
   FBLazyVector:
     :path: "../node_modules/react-native/Libraries/FBLazyVector"
   hermes-engine:
@@ -2443,6 +2510,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/@react-native-community/datetimepicker"
   RNScreens:
     :path: "../node_modules/react-native-screens"
+  RNSentry:
+    :path: "../node_modules/@sentry/react-native"
   RNSVG:
     :path: "../node_modules/react-native-svg"
   RNVectorIcons:
@@ -2452,18 +2521,26 @@ EXTERNAL SOURCES:
 
 SPEC CHECKSUMS:
   AsyncStorage: 857a13f3c66a30d6b02efa09babba3d457e8e8ca
+  EXApplication: 82a44fa8236bb644a805ee21e64054eeb01d22ea
   EXConstants: dadbeba983acc30f855a919658a2b34fbd86615d
+  ExpoAppleAuthentication: 08b3d0e502f46731abdf4c59203769fb685f66c8
   ExpoAsset: 7721c5c4ae2a7c3c8147a046727ac6c020b05648
   ExpoCamera: 82498151f9c05cc70d116d2bf68e4c187869300c
   ExpoCameraBarcodeScanning: 66aa18c44eb8d034bdb49ea1b893fe549372ef7b
+  ExpoCrypto: e7f4a14eaa6d6a6a2196cd7391d171c84be0b1aa
+  ExpoDevice: b8a65afe42c3c5934eb6983870672fe785b39dea
   ExpoDomWebView: b2e9d601f9cb77d3c97da73234e175b64be91928
   ExpoFileSystem: 60d1020c4533ca9d8e9ca6b98d4e719c3e8185b2
   ExpoFont: a7e34a75bdfb703fa07a0e87807f836236608c76
+  ExpoHaptics: 679f09dc37d5981e619bc197732007a3334e80b8
   ExpoImagePicker: 7c75b2f076d6f45598fcbd035908aebc4c2eb257
   ExpoKeepAwake: d0eb7a0719500d2a43fbf29b6f79e84d70c75ebf
+  ExpoLinking: 40f36cf134ea6930f37867858c0643877b865d53
   ExpoLogBox: a678d36477ab9544fe63e0b5328a0716539b6774
   ExpoModulesCore: ec6a3ca1f51f23b81a7e7ff6891cdd820f11b27b
   ExpoModulesJSI: 964334271fc77832736f66ee1785761cdc778dbe
+  ExpoNotifications: 61c46aa5df088ff0ad41de0504a86a92333aec55
+  ExpoWebBrowser: 5847267c496125abe38afccae97d34cb6ecc5340
   FBLazyVector: 26fd21c75314e101f280d401e97f27d54f3f7064
   hermes-engine: 2d178adb1fde9c4563d0a161b908a00dc6586a83
   RCTDeprecation: c7a2768f905d76ca6d2cfefb26e4349eacbdfca3
@@ -2545,8 +2622,10 @@ SPEC CHECKSUMS:
   RNCClipboard: 715fa7c6c8366f17d00f05a439ee7488f390fa5f
   RNDateTimePicker: 7b2738f1e595f83c14580a11c476872755c5befc
   RNScreens: 01b065ded2dfe7987bcce770ff3a196be417ff41
+  RNSentry: fef9d315eb3400a8d633c154c4011f34108d9cb8
   RNSVG: 0e52210d4d43165e7e2cf9c890a9848b27e513ac
   RNVectorIcons: 97f26211c07d69e45b189f9dd0dbbe5e2d2b0b92
+  Sentry: b53951377b78e21a734f5dc8318e333dbfc682d7
   Yoga: 04bb4bfeb02c0000b940c1e6e89e856cd8de5a71
   ZXingObjC: 8898711ab495761b2dbbdec76d90164a6d7e14c5
 

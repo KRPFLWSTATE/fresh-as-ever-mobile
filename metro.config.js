@@ -1,4 +1,5 @@
 const { getDefaultConfig, mergeConfig } = require('@react-native/metro-config');
+const { withSentryConfig } = require('@sentry/react-native/metro');
 
 /**
  * Metro configuration
@@ -9,4 +10,6 @@ const { getDefaultConfig, mergeConfig } = require('@react-native/metro-config');
 /** Default Metro config; sibling Next.js tree can be symlinked — add watchFolders once shared packages land. §p1-metrobundler */
 const config = {};
 
-module.exports = mergeConfig(getDefaultConfig(__dirname), config);
+module.exports = withSentryConfig(
+  mergeConfig(getDefaultConfig(__dirname), config),
+);

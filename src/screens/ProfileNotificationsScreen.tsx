@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useLayoutEffect, useMemo, useState } fro
 import {
   Alert,
   Image,
+  Linking,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -9,7 +10,7 @@ import {
   View,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { RootStackParamList } from '@/navigation/types';
@@ -19,6 +20,15 @@ import { useStitchTheme } from '@/theme/StitchThemeContext';
 import { stitchAmbientShadow } from '@/theme/stitchTokens';
 import { StitchCard, StitchIcon, StitchText } from '@/ui/stitch';
 import { logError } from '@/observability/logError';
+import {
+  isPushNativeModuleAvailable,
+  PUSH_REBUILD_MESSAGE,
+} from '@/lib/pushNativeModule';
+import {
+  getPushPermissionSnapshot,
+  persistPushToken,
+  registerForPushNotificationsAsync,
+} from '@/lib/pushNotifications';
 
 /**
  * Storage key for the notification preferences. The keys here are deliberately scoped per
@@ -123,6 +133,107 @@ export function ProfileNotificationsScreen() {
       }
     })();
   }, [emailOn, env, hydrated, prefsKey, pushOn, smsOn, user?.id]);
+
+  const showNotificationsDisabledAlert = useCallback(() => {
+    Alert.alert(
+      'Notifications disabled',
+      'Allow notifications in iOS Settings to receive clearance shelf alerts.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+          onPress: () => setPushOn(false),
+        },
+        {
+          text: 'Open Settings',
+          onPress: () => {
+            void Linking.openSettings();
+          },
+        },
+      ],
+    );
+  }, []);
+
+  const tryRegisterPushToken = useCallback(async () => {
+    if (!user?.id || !isPushNativeModuleAvailable()) {
+      return;
+    }
+
+    const token = await registerForPushNotificationsAsync();
+    if (!token) {
+      return;
+    }
+    await persistPushToken(env, user.id, token);
+  }, [env, user?.id]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!pushOn || !user?.id || !isPushNativeModuleAvailable()) {
+        return;
+      }
+
+      void (async () => {
+        try {
+          const permission = await getPushPermissionSnapshot();
+          if (!permission?.granted) {
+            return;
+          }
+          await tryRegisterPushToken();
+        } catch (err) {
+          logError(err, { context: 'ProfileNotificationsScreen.pushFocusRegister' });
+        }
+      })();
+    }, [pushOn, tryRegisterPushToken, user?.id]),
+  );
+
+  const onPushChange = useCallback(
+    (next: boolean) => {
+      setPushOn(next);
+      if (!next || !user?.id) return;
+
+      if (!isPushNativeModuleAvailable()) {
+        Alert.alert('Rebuild required for push', PUSH_REBUILD_MESSAGE);
+        setPushOn(false);
+        return;
+      }
+
+      void (async () => {
+        try {
+          const permission = await getPushPermissionSnapshot();
+          if (
+            permission &&
+            !permission.granted &&
+            permission.status === 'denied' &&
+            !permission.canAskAgain
+          ) {
+            await Linking.openSettings();
+            return;
+          }
+
+          const token = await registerForPushNotificationsAsync();
+          if (!token) {
+            const afterRequest = await getPushPermissionSnapshot();
+            if (
+              afterRequest &&
+              !afterRequest.granted &&
+              !afterRequest.canAskAgain
+            ) {
+              await Linking.openSettings();
+              return;
+            }
+            showNotificationsDisabledAlert();
+            return;
+          }
+          await persistPushToken(env, user.id, token);
+        } catch (err) {
+          logError(err, { context: 'ProfileNotificationsScreen.pushRegister' });
+          Alert.alert('Could not enable push', 'Try again from Settings.');
+          setPushOn(false);
+        }
+      })();
+    },
+    [env, showNotificationsDisabledAlert, user?.id],
+  );
 
   const onSmsChange = useCallback(
     (next: boolean) => {
@@ -306,7 +417,7 @@ export function ProfileNotificationsScreen() {
               </View>
               <Switch
                 value={pushOn}
-                onValueChange={setPushOn}
+                onValueChange={onPushChange}
                 trackColor={trackColor}
                 thumbColor={colors.surface}
               />

@@ -15,6 +15,7 @@ import type { RootStackParamList } from '@/navigation/types';
 import { useAuthContext } from '@/context/AuthContext';
 import { getSupabase } from '@/lib/supabase';
 import { useMerchantContext } from '@/hooks/useMerchantContext';
+import { useMerchantShelves } from '@/hooks/useMerchantShelves';
 import { useMerchantOrders } from '@/hooks/useMerchantOrders';
 import { isOrderCollectible } from '@/domain/merchantOrderFilters';
 import {
@@ -31,9 +32,19 @@ import {
   StitchText,
 } from '@/ui/stitch';
 import { logError } from '@/observability/logError';
+import { orderDisplayTitle, orderPickupWindow } from '@/lib/orderDisplay';
+
+type OrderLineItem = {
+  name_snapshot: string;
+  quantity: number;
+  shelf_item_id: string | null;
+};
 
 type OrderDetail = {
   id: string;
+  group_id: string | null;
+  shelf_id: string | null;
+  order_items: OrderLineItem[];
   order_status: string | null;
   payment_status: string | null;
   total: number | null;
@@ -157,10 +168,12 @@ export function MerchantOrderDetailScreen() {
   const { env } = useAuthContext();
   const { outletScopeIds, loading: ctxLoading } = useMerchantContext(env);
   const { collectOrder } = useMerchantOrders(env);
+  const { markShelfItemSoldOut } = useMerchantShelves(env, outletScopeIds[0] ?? null);
   const { colors, spacing, radii } = useStitchTheme();
   const styles = useMemo(() => createStyles({ spacing, radii }), [spacing, radii]);
 
   const [row, setRow] = useState<OrderDetail | null>(null);
+  const [groupBags, setGroupBags] = useState<{ id: string; title: string }[]>([]);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -178,11 +191,15 @@ export function MerchantOrderDetailScreen() {
       .select(
         `
         id,
+        group_id,
         order_status,
         payment_status,
         total,
         reservation_code,
         created_at,
+        shelf_id,
+        order_items(name_snapshot, quantity, shelf_item_id),
+        shelf:clearance_shelves(pickup_start, pickup_end),
         customer:profiles(full_name, phone),
         bag:rescue_bags(title, image_url, pickup_start, pickup_end),
         outlet:outlets(name)
@@ -202,10 +219,46 @@ export function MerchantOrderDetailScreen() {
 
     const o = data as Record<string, unknown>;
     const bag = o.bag as Record<string, unknown> | undefined;
-    const outlet = o.outlet as Record<string, unknown> | undefined;
+    const shelf = o.shelf as Record<string, unknown> | undefined;
+    const orderItems = Array.isArray(o.order_items)
+      ? (o.order_items as Record<string, unknown>[])
+      : [];
+    const shelfId =
+      o.shelf_id != null && String(o.shelf_id).length > 0
+        ? String(o.shelf_id)
+        : null;
+    const pickup = orderPickupWindow({
+      shelf_id: shelfId,
+      bag: bag
+        ? {
+            pickup_start:
+              typeof bag.pickup_start === 'string' ? bag.pickup_start : null,
+            pickup_end:
+              typeof bag.pickup_end === 'string' ? bag.pickup_end : null,
+          }
+        : null,
+      shelf: shelf
+        ? {
+            pickup_start:
+              typeof shelf.pickup_start === 'string' ? shelf.pickup_start : null,
+            pickup_end:
+              typeof shelf.pickup_end === 'string' ? shelf.pickup_end : null,
+          }
+        : null,
+    });
     setErr(null);
     setRow({
       id: String(o.id),
+      group_id: typeof o.group_id === 'string' ? o.group_id : null,
+      shelf_id: shelfId,
+      order_items: orderItems.map((item) => ({
+        name_snapshot: String(item.name_snapshot ?? 'Item'),
+        quantity: Number(item.quantity ?? 1),
+        shelf_item_id:
+          item.shelf_item_id != null && String(item.shelf_item_id).length > 0
+            ? String(item.shelf_item_id)
+            : null,
+      })),
       order_status:
         typeof o.order_status === 'string' ? o.order_status : null,
       payment_status:
@@ -213,12 +266,10 @@ export function MerchantOrderDetailScreen() {
       total: typeof o.total === 'number' ? o.total : Number(o.total ?? null),
       reservation_code:
         typeof o.reservation_code === 'string' ? o.reservation_code : null,
-      pickup_start:
-        typeof bag?.pickup_start === 'string' ? bag.pickup_start : null,
-      pickup_end:
-        typeof bag?.pickup_end === 'string' ? bag.pickup_end : null,
+      pickup_start: pickup.start,
+      pickup_end: pickup.end,
       bag_image_url:
-        typeof bag?.image_url === 'string' ? bag.image_url : null,
+        shelfId ? null : typeof bag?.image_url === 'string' ? bag.image_url : null,
       customer_name:
         String(
           (o.customer as Record<string, unknown> | undefined)?.full_name ?? '',
@@ -227,11 +278,38 @@ export function MerchantOrderDetailScreen() {
         const v = (o.customer as Record<string, unknown> | undefined)?.phone;
         return typeof v === 'string' && v.trim().length > 0 ? v.trim() : null;
       })(),
-      bag_title: String(bag?.title ?? '') || 'Bag',
-      outlet_name: String(outlet?.name ?? '') || 'Outlet',
+      bag_title: orderDisplayTitle({
+        shelf_id: shelfId,
+        bag: bag ? { title: typeof bag.title === 'string' ? bag.title : null } : null,
+        order_items: orderItems.map((item) => ({
+          name_snapshot:
+            typeof item.name_snapshot === 'string' ? item.name_snapshot : null,
+          quantity: typeof item.quantity === 'number' ? item.quantity : null,
+        })),
+      }),
+      outlet_name: String((o.outlet as Record<string, unknown> | undefined)?.name ?? '') || 'Outlet',
       created_at:
         typeof o.created_at === 'string' ? o.created_at : null,
     });
+
+    const groupId = typeof o.group_id === 'string' ? o.group_id : null;
+    if (groupId) {
+      const { data: siblings } = await sb
+        .from('orders')
+        .select('id, bag:rescue_bags(title)')
+        .eq('group_id', groupId)
+        .order('created_at', { ascending: true });
+      setGroupBags(
+        (siblings ?? []).map((entry) => ({
+          id: String((entry as { id: string }).id),
+          title: String(
+            ((entry as { bag?: { title?: string } }).bag?.title ?? 'Bag'),
+          ),
+        })),
+      );
+    } else {
+      setGroupBags([]);
+    }
   }, [env, orderId, outletScopeIds]);
 
   useEffect(() => {
@@ -419,6 +497,86 @@ export function MerchantOrderDetailScreen() {
           <StitchText variant="body-sm" colorKey="textMuted">
             Customer: {row.customer_name}
           </StitchText>
+          {row.shelf_id && row.order_items.length > 0 ? (
+            <View style={{ marginTop: spacing.md, gap: spacing.sm }}>
+              <StitchText variant="label-caps" colorKey="textMuted">
+                Pick list
+              </StitchText>
+              {row.order_items.map((line, idx) => (
+                <View
+                  key={`${line.name_snapshot}-${idx}`}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: spacing.sm,
+                    paddingVertical: spacing.xs,
+                  }}
+                >
+                  <View
+                    style={{
+                      width: 28,
+                      height: 28,
+                      borderRadius: radii.full,
+                      backgroundColor: colors.primaryHighlight,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <StitchText variant="label" colorKey="primaryContainer">
+                      {line.quantity}
+                    </StitchText>
+                  </View>
+                  <StitchText variant="body-md" colorKey="onBackground" style={{ flex: 1 }}>
+                    {line.name_snapshot}
+                  </StitchText>
+                  {line.shelf_item_id ? (
+                    <Pressable
+                      accessibilityRole="button"
+                      disabled={busy}
+                      onPress={() => {
+                        Alert.alert(
+                          'Mark sold out',
+                          `Mark "${line.name_snapshot}" as sold out on today's shelf?`,
+                          [
+                            { text: 'Cancel', style: 'cancel' },
+                            {
+                              text: 'Sold out',
+                              style: 'destructive',
+                              onPress: () => {
+                                setBusy(true);
+                                void markShelfItemSoldOut(line.shelf_item_id!)
+                                  .then(() => Alert.alert('Updated', 'Item marked sold out.'))
+                                  .catch((e) =>
+                                    setErr(e instanceof Error ? e.message : 'Could not update.'),
+                                  )
+                                  .finally(() => setBusy(false));
+                              },
+                            },
+                          ],
+                        );
+                      }}
+                    >
+                      <StitchText variant="label" colorKey="error">
+                        Sold out
+                      </StitchText>
+                    </Pressable>
+                  ) : null}
+                </View>
+              ))}
+            </View>
+          ) : null}
+          {groupBags.length > 1 ? (
+            <View style={{ marginTop: spacing.sm, gap: 4 }}>
+              <StitchText variant="label-caps" colorKey="textMuted">
+                Group order · {groupBags.length} bags
+              </StitchText>
+              {groupBags.map((bag) => (
+                <StitchText key={bag.id} variant="body-sm" colorKey="text">
+                  · {bag.title}
+                </StitchText>
+              ))}
+            </View>
+          ) : null}
           {row.customer_phone ? (
             <Pressable
               accessibilityRole="button"

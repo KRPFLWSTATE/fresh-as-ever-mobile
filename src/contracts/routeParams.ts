@@ -13,6 +13,10 @@ export const customerBagDetailParams = z.object({
 
 export const checkoutParams = z.object({
   draft: z.string().optional(),
+  /** Comma-separated bag ids for group checkout (same outlet, max 5). */
+  group: z.string().optional(),
+  shelf: z.string().optional(),
+  shelfItems: z.string().optional(),
 });
 
 export const discoverParams = z.object({

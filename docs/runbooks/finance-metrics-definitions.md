@@ -30,3 +30,21 @@ Withdrawable balance is **not** shown until `payout_requests` is modelled — co
 | Orders today | `orders.created_at >= start of day` |
 | Revenue 7d | Sum `orders.total` for collected/completed in 7-day buckets |
 | Open complaints | `complaints` not in resolved/dismissed/closed |
+
+## Outlet trust (customer-facing)
+
+| Field | Source | Meaning |
+|-------|--------|---------|
+| `trust_score` | Denormalized on `outlets`, recomputed by `recompute_outlet_trust` | 0–5 composite score |
+| Window | Last 90 days of terminal orders | `collected`, `no_show`, merchant/admin `cancelled` |
+| Minimum data | `trust_orders_window >= 5` | Below this, UI shows **New outlet** (`trust_score` null) |
+| Formula | 60% star average + 20% collection rate + 10% (1 − complaint rate) + 10% (1 − no-show rate) | Each rate scaled to 0–5 before weighting |
+
+## Surplus recovered (merchant-facing)
+
+| Label | Formula |
+|-------|---------|
+| Surplus recovered (calendar month) | Sum `rescue_bags.retail_value_estimate × orders.quantity` for `collected`/`completed` orders in the current calendar month |
+| Trend | Month-over-month % vs previous calendar month |
+
+Uses bag snapshot retail value at time of analytics query — not `orders.total` (which is rescue price paid).

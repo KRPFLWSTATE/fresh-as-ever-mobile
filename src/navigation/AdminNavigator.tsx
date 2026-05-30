@@ -23,6 +23,8 @@ import {
   AdminSettlementsScreen,
   AdminSystemSettingsScreen,
 } from '@/screens/admin/AdminStackScreens';
+import { AdminClearanceShelvesScreen } from '@/screens/admin/AdminClearanceShelvesScreen';
+import { AdminProductCatalogScreen } from '@/screens/admin/AdminProductCatalogScreen';
 
 const Tabs = createBottomTabNavigator<AdminTabParamList>();
 const DashStack = createNativeStackNavigator<AdminStackParamList>();
@@ -90,6 +92,16 @@ function AdminDashStackScreen() {
         name="AdminPromosAdmin"
         component={AdminPromosAdminScreen}
         options={{ title: 'Promo management' }}
+      />
+      <DashStack.Screen
+        name="AdminClearanceShelves"
+        component={AdminClearanceShelvesScreen}
+        options={{ title: 'Clearance shelves' }}
+      />
+      <DashStack.Screen
+        name="AdminProductCatalog"
+        component={AdminProductCatalogScreen}
+        options={{ title: 'Product catalog' }}
       />
     </DashStack.Navigator>
   );

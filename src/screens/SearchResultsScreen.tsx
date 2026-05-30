@@ -28,6 +28,8 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '@/navigation/types';
 import { useAuthContext } from '@/context/AuthContext';
 import { getSupabase } from '@/lib/supabase';
+import { canPublishRescueBags } from '@/lib/outletListingMode';
+import { isClearanceShelvesEnabled } from '@/config/clearanceShelves';
 import { ERROR } from '@/lib/messages/errors';
 import { mapSupabaseError } from '@/lib/supabaseError';
 import { useStitchTheme, type StitchTheme } from '@/theme/StitchThemeContext';
@@ -89,6 +91,7 @@ type Row = {
   pickup_end: string | null;
   outlet_name: string | null;
   outlet_id: string | null;
+  outlet_category: string | null;
 };
 
 function formatLkr(n: number): string {
@@ -195,6 +198,7 @@ function mapRow(raw: Record<string, unknown>): Row {
       typeof raw.pickup_end === 'string' ? raw.pickup_end : null,
     outlet_name: outlet?.name != null ? String(outlet.name) : null,
     outlet_id: outlet?.id != null ? String(outlet.id) : null,
+    outlet_category: outlet?.category != null ? String(outlet.category) : null,
   };
 }
 
@@ -247,7 +251,7 @@ export function SearchResultsScreen(): React.ReactElement {
           image_url,
           quantity_remaining,
           status,
-          outlet:outlets ( id, name )
+          outlet:outlets ( id, name, category )
         `,
           { count: 'exact' },
         )
@@ -268,7 +272,12 @@ export function SearchResultsScreen(): React.ReactElement {
         setLoading(false);
         return;
       }
-      const mapped = ((data ?? []) as Record<string, unknown>[]).map(mapRow);
+      const mapped = ((data ?? []) as Record<string, unknown>[])
+        .map(mapRow)
+        .filter(
+          (row) =>
+            canPublishRescueBags(row.outlet_category),
+        );
       setRows((prev) => (reset ? mapped : [...prev, ...mapped]));
       setHasMore(mapped.length === PAGE_SIZE);
       setPage(nextPage);

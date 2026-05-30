@@ -11,7 +11,8 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
+import { useMerchantRescueBagGuard } from '@/hooks/useMerchantRescueBagGuard';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '@/navigation/types';
 import { useAuthContext } from '@/context/AuthContext';
@@ -23,6 +24,10 @@ import {
   bagImagePath,
   pickAndUploadImage,
 } from '@/lib/storage/uploadImage';
+import {
+  BagWeightField,
+  resolveFormBagWeightKg,
+} from '@/components/merchant/BagWeightField';
 import { PickupDateTimeField } from '@/components/PickupDateTimeField';
 import { useStitchTheme } from '@/theme/StitchThemeContext';
 import {
@@ -96,8 +101,18 @@ export function MerchantBagCreateScreen() {
   const route = useRoute<RouteProp<RootStackParamList, 'MerchantBagCreate'>>();
   const prefill = route.params?.prefill;
   const { env } = useAuthContext();
+  const { allowed: bagsAllowed, goToShelves } = useMerchantRescueBagGuard();
   const { createBag, activeOutlet, loading: ctxBusy } = useMerchantBags(env);
   const { colors, spacing, radii } = useStitchTheme();
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!bagsAllowed) {
+        goToShelves();
+        navigation.goBack();
+      }
+    }, [bagsAllowed, goToShelves, navigation]),
+  );
   const scrollBottomPad = useScrollContentBottomPad();
   const layout = useMemo(
     () => createLayoutStyles({ spacing, radii }),
@@ -120,6 +135,8 @@ export function MerchantBagCreateScreen() {
         prefill.quantity_remaining ?? base.quantity_remaining,
     };
   });
+  const [weightPresetKg, setWeightPresetKg] = useState<number | null>(1);
+  const [customWeightKg, setCustomWeightKg] = useState('');
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -243,6 +260,15 @@ export function MerchantBagCreateScreen() {
       Number.parseInt(String(form.quantity_remaining), 10) || 1,
     );
 
+    const estimatedWeightKg = resolveFormBagWeightKg(
+      weightPresetKg,
+      customWeightKg,
+    );
+    if (estimatedWeightKg == null) {
+      setErr('Choose or enter estimated food weight (0.1–25 kg).');
+      return;
+    }
+
     const ps = new Date(form.pickup_start);
     const pe = new Date(form.pickup_end);
     if (Number.isNaN(ps.getTime()) || Number.isNaN(pe.getTime())) {
@@ -256,6 +282,7 @@ export function MerchantBagCreateScreen() {
         title: form.title.trim(),
         notes: form.description.trim() || null,
         category: form.category,
+        estimated_weight_kg: estimatedWeightKg,
         retail_value_estimate: retail,
         rescue_price: rescue,
         quantity_total: qtyN,
@@ -587,6 +614,19 @@ export function MerchantBagCreateScreen() {
             Value & inventory
           </StitchText>
         </View>
+
+        <BagWeightField
+          selectedKg={weightPresetKg}
+          customKg={customWeightKg}
+          onSelectPreset={(kg) => {
+            setWeightPresetKg(kg);
+            setCustomWeightKg('');
+          }}
+          onCustomChange={(value) => {
+            setCustomWeightKg(value);
+            if (value.trim()) setWeightPresetKg(null);
+          }}
+        />
 
         <StitchText variant="label" colorKey="onBackground" style={{ marginBottom: spacing.xs }}>
           Estimated retail value (LKR) *

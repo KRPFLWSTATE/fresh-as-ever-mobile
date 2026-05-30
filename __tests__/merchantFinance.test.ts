@@ -32,4 +32,10 @@ describe('mapSupabaseError', () => {
       'We could not find that. It may have been removed.',
     );
   });
+
+  it('maps session errors without leaking raw JWT text', () => {
+    expect(
+      mapSupabaseError({ code: 'PGRST301', message: 'JWT expired' } as import('@supabase/supabase-js').PostgrestError),
+    ).toBe('Your session expired. Sign in again to continue.');
+  });
 });

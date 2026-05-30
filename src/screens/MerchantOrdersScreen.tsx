@@ -24,6 +24,7 @@ import { useAuthContext } from '@/context/AuthContext';
 import {
   MERCHANT_ORDERS_VIEW_LABELS,
   useMerchantOrders,
+  type HandoverLookupResult,
 } from '@/hooks/useMerchantOrders';
 import type { MerchantOrderRow } from '@/hooks/useMerchantOrders';
 import {
@@ -208,18 +209,39 @@ function createStyles({ spacing, radii }: CreateStylesArgs) {
 function VerifyHandoverCard({
   pendingCount,
   verificationTotal,
-  onAuthorize,
+  onLookup,
+  onCollectGroup,
+  onCollectOrder,
   onScanQr,
 }: {
   pendingCount: number;
   verificationTotal: number;
-  onAuthorize: (code: string) => Promise<{ error?: string }>;
+  onLookup: (code: string) => Promise<HandoverLookupResult>;
+  onCollectGroup: (groupId: string, code: string) => Promise<{ error?: string }>;
+  onCollectOrder: (orderId: string, code: string) => Promise<{ error?: string }>;
   onScanQr: () => void;
 }): React.ReactElement {
   const { colors, spacing, radii } = useStitchTheme();
   const styles = useMemo(() => createStyles({ spacing, radii }), [spacing, radii]);
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
+  const [groupPreview, setGroupPreview] = useState<Extract<
+    HandoverLookupResult,
+    { type: 'group' }
+  > | null>(null);
+
+  const finishHandover = useCallback(
+    (result: { error?: string }) => {
+      if (result.error) {
+        Alert.alert('Could not authorize', result.error);
+        return;
+      }
+      setCode('');
+      setGroupPreview(null);
+      Alert.alert('Handover complete', 'Order marked as collected.');
+    },
+    [],
+  );
 
   const submit = useCallback(() => {
     const trimmed = code.trim();
@@ -228,14 +250,20 @@ function VerifyHandoverCard({
       return;
     }
     setBusy(true);
-    onAuthorize(trimmed)
-      .then((r) => {
-        if (r.error) {
-          Alert.alert('Could not authorize', r.error);
+    onLookup(trimmed)
+      .then((lookup) => {
+        if ('error' in lookup) {
+          Alert.alert('Could not authorize', lookup.error);
           return;
         }
-        setCode('');
-        Alert.alert('Handover complete', 'Order marked as collected.');
+        if (lookup.type === 'group' && lookup.bags.length > 1) {
+          setGroupPreview(lookup);
+          return;
+        }
+        if (lookup.type === 'group') {
+          return onCollectGroup(lookup.groupId, lookup.code).then(finishHandover);
+        }
+        return onCollectOrder(lookup.orderId, lookup.code).then(finishHandover);
       })
       .catch(() => {
         Alert.alert('Could not authorize', 'Something went wrong. Try again.');
@@ -243,7 +271,20 @@ function VerifyHandoverCard({
       .finally(() => {
         setBusy(false);
       });
-  }, [code, onAuthorize]);
+  }, [code, onLookup, onCollectGroup, onCollectOrder, finishHandover]);
+
+  const confirmGroupCollect = useCallback(() => {
+    if (!groupPreview) return;
+    setBusy(true);
+    onCollectGroup(groupPreview.groupId, groupPreview.code)
+      .then(finishHandover)
+      .catch(() => {
+        Alert.alert('Could not authorize', 'Something went wrong. Try again.');
+      })
+      .finally(() => {
+        setBusy(false);
+      });
+  }, [groupPreview, onCollectGroup, finishHandover]);
 
   return (
     <StitchCard style={{ marginBottom: spacing.lg }}>
@@ -346,6 +387,72 @@ function VerifyHandoverCard({
           ) : null}
         </View>
       </View>
+      <Modal
+        visible={groupPreview != null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setGroupPreview(null)}
+      >
+        <Pressable
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.45)',
+            justifyContent: 'flex-end',
+          }}
+          onPress={() => setGroupPreview(null)}
+        >
+          <Pressable
+            style={{
+              backgroundColor: colors.surface,
+              borderTopLeftRadius: 20,
+              borderTopRightRadius: 20,
+              padding: spacing.lg,
+              paddingBottom: spacing.xxl,
+              gap: spacing.sm,
+            }}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <StitchText variant="h3" colorKey="text">
+              Group pickup ({groupPreview?.bagCount ?? 0} bags)
+            </StitchText>
+            <StitchText variant="body-sm" colorKey="textMuted">
+              {groupPreview?.customerName}
+            </StitchText>
+            {groupPreview?.bags.map((bag) => (
+              <View
+                key={bag.id}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}
+              >
+                <StitchIcon name="check_circle" size={18} colorKey="primary" />
+                <StitchText variant="body-md" colorKey="text">
+                  {bag.title}
+                </StitchText>
+              </View>
+            ))}
+            <Pressable
+              accessibilityRole="button"
+              disabled={busy}
+              onPress={confirmGroupCollect}
+              style={({ pressed }) => [
+                styles.primaryCtaInner,
+                {
+                  backgroundColor: colors.primaryContainer,
+                  marginTop: spacing.md,
+                  opacity: pressed || busy ? 0.88 : 1,
+                },
+              ]}
+            >
+              {busy ? (
+                <ActivityIndicator color={colors.onPrimary} />
+              ) : (
+                <StitchText variant="label" colorKey="onPrimary">
+                  Collect all {groupPreview?.bagCount ?? 0} bags
+                </StitchText>
+              )}
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </StitchCard>
   );
 }
@@ -364,6 +471,9 @@ export function MerchantOrdersScreen() {
     loading,
     error,
     refetch,
+    lookupHandoverByCode,
+    collectGroupHandover,
+    collectOrder,
     authorizeHandoverByCode,
     markNoShow,
   } = useMerchantOrders(env, view);
@@ -830,7 +940,9 @@ export function MerchantOrdersScreen() {
         <VerifyHandoverCard
           pendingCount={pendingHandoverCount}
           verificationTotal={verificationHandoverCount}
-          onAuthorize={authorizeHandoverByCode}
+          onLookup={lookupHandoverByCode}
+          onCollectGroup={collectGroupHandover}
+          onCollectOrder={collectOrder}
           onScanQr={() => navigation.getParent()?.navigate('MerchantScanHandover')}
         />
 

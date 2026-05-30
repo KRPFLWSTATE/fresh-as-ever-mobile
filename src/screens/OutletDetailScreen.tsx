@@ -33,6 +33,15 @@ import { openOutletDirections } from '@/lib/openOutletDirections';
 import { getSupabase } from '@/lib/supabase';
 import { useStitchTheme, type StitchTheme } from '@/theme/StitchThemeContext';
 import { stitchAmbientShadow, stitchFonts } from '@/theme/stitchTokens';
+import { OutletTrustBadge } from '@/components/OutletTrustBadge';
+import { isGroupReservationsEnabled } from '@/config/groupReservations';
+import { isClearanceShelvesEnabled } from '@/config/clearanceShelves';
+import { canPublishClearanceShelves, canPublishRescueBags } from '@/lib/outletListingMode';
+import { calcItemSavingsPercent, formatPickupByLabel } from '@/lib/shelfDisplay';
+import {
+  MAX_GROUP_BAGS,
+  useReservationCart,
+} from '@/hooks/useReservationCart';
 import {
   StitchButton,
   StitchDivider,
@@ -40,6 +49,19 @@ import {
   StitchSurface,
   StitchText,
 } from '@/ui/stitch';
+
+type Shelf = {
+  id: string;
+  title: string | null;
+  description: string | null;
+  cover_image_url: string | null;
+  pickup_start: string | null;
+  pickup_end: string | null;
+  liveItemCount: number;
+  previewItemNames: string[];
+  savingsPercentMin?: number;
+  savingsPercentMax?: number;
+};
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'OutletDetail'>;
 type R = RouteProp<RootStackParamList, 'OutletDetail'>;
@@ -76,6 +98,11 @@ type Outlet = {
   category: string | null;
   cover_image_url: string | null;
   average_rating: number | null;
+  total_reviews: number | null;
+  trust_score: number | null;
+  collection_rate_pct: number | null;
+  complaint_rate_pct: number | null;
+  no_show_rate_pct: number | null;
   business_hours: Record<string, { open?: string; close?: string }> | null;
   merchant_name: string | null;
 };
@@ -118,11 +145,21 @@ export function OutletDetailScreen(): React.ReactElement {
   const [error, setError] = useState<string | null>(null);
   const [outlet, setOutlet] = useState<Outlet | null>(null);
   const [bags, setBags] = useState<Bag[]>([]);
+  const [shelves, setShelves] = useState<Shelf[]>([]);
 
   const customerId = user?.id ?? null;
   const { isSaved, toggleFavourite } = useFavourites(env, customerId);
   const saved = isSaved(outletId);
   const [favBusy, setFavBusy] = useState(false);
+  const cart = useReservationCart();
+  const groupReservationsEnabled = isGroupReservationsEnabled();
+  const [selectedBagIds, setSelectedBagIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (cart.cart.outletId === outletId) {
+      setSelectedBagIds(cart.cart.bagIds);
+    }
+  }, [cart.cart.bagIds, cart.cart.outletId, outletId]);
 
   useEffect(() => {
     let alive = true;
@@ -136,11 +173,11 @@ export function OutletDetailScreen(): React.ReactElement {
     setLoading(true);
     (async () => {
       const sb = getSupabase(env);
-      const [outletRes, bagsRes] = await Promise.all([
+      const [outletRes, bagsRes, shelvesRes] = await Promise.all([
         sb
           .from('outlets')
           .select(
-            'id, name, address, landmark, category, cover_image_url, average_rating, business_hours, merchant:merchants(business_name)',
+            'id, name, address, landmark, category, cover_image_url, average_rating, total_reviews, trust_score, collection_rate_pct, complaint_rate_pct, no_show_rate_pct, business_hours, merchant:merchants(business_name)',
           )
           .eq('id', outletId)
           .maybeSingle(),
@@ -154,6 +191,16 @@ export function OutletDetailScreen(): React.ReactElement {
           .gt('quantity_remaining', 0)
           .order('pickup_end', { ascending: true })
           .limit(20),
+        isClearanceShelvesEnabled()
+          ? sb
+              .from('clearance_shelves')
+              .select(
+                'id, title, description, cover_image_url, pickup_start, pickup_end, status, items:clearance_shelf_items(id, status, quantity_remaining, name_snapshot, retail_price, rescue_price)',
+              )
+              .eq('outlet_id', outletId)
+              .eq('status', 'published')
+              .gt('pickup_end', new Date().toISOString())
+          : Promise.resolve({ data: [], error: null }),
       ]);
 
       if (!alive) return;
@@ -161,6 +208,7 @@ export function OutletDetailScreen(): React.ReactElement {
         setError(outletRes.error.message);
         setOutlet(null);
         setBags([]);
+        setShelves([]);
         setLoading(false);
         return;
       }
@@ -168,6 +216,7 @@ export function OutletDetailScreen(): React.ReactElement {
       if (!row) {
         setOutlet(null);
         setBags([]);
+        setShelves([]);
         setLoading(false);
         return;
       }
@@ -186,6 +235,36 @@ export function OutletDetailScreen(): React.ReactElement {
             : row.average_rating != null
               ? Number(row.average_rating)
               : null,
+        total_reviews:
+          typeof row.total_reviews === 'number'
+            ? row.total_reviews
+            : row.total_reviews != null
+              ? Number(row.total_reviews)
+              : null,
+        trust_score:
+          typeof row.trust_score === 'number'
+            ? row.trust_score
+            : row.trust_score != null
+              ? Number(row.trust_score)
+              : null,
+        collection_rate_pct:
+          typeof row.collection_rate_pct === 'number'
+            ? row.collection_rate_pct
+            : row.collection_rate_pct != null
+              ? Number(row.collection_rate_pct)
+              : null,
+        complaint_rate_pct:
+          typeof row.complaint_rate_pct === 'number'
+            ? row.complaint_rate_pct
+            : row.complaint_rate_pct != null
+              ? Number(row.complaint_rate_pct)
+              : null,
+        no_show_rate_pct:
+          typeof row.no_show_rate_pct === 'number'
+            ? row.no_show_rate_pct
+            : row.no_show_rate_pct != null
+              ? Number(row.no_show_rate_pct)
+              : null,
         business_hours:
           row.business_hours && typeof row.business_hours === 'object'
             ? (row.business_hours as Outlet['business_hours'])
@@ -196,25 +275,90 @@ export function OutletDetailScreen(): React.ReactElement {
             : null,
       });
 
-      const bagRows = ((bagsRes.data ?? []) as Record<string, unknown>[]).map((b) => ({
-        id: String(b.id),
-        title: String(b.title ?? 'Rescue bag'),
-        category: b.category != null ? String(b.category) : null,
-        rescue_price: Number(b.rescue_price ?? 0),
-        retail_value_estimate:
-          b.retail_value_estimate != null
-            ? Number(b.retail_value_estimate)
-            : null,
-        image_url: b.image_url != null ? String(b.image_url) : null,
-        pickup_start:
-          typeof b.pickup_start === 'string' ? b.pickup_start : null,
-        pickup_end: typeof b.pickup_end === 'string' ? b.pickup_end : null,
-        quantity_remaining:
-          typeof b.quantity_remaining === 'number'
-            ? b.quantity_remaining
-            : null,
-      })) as Bag[];
+      const outletCategory = row.category != null ? String(row.category) : '';
+      const showBagsForOutlet =
+        canPublishRescueBags(outletCategory);
+      const showShelvesForOutlet =
+        isClearanceShelvesEnabled() && canPublishClearanceShelves(outletCategory);
+
+      const bagRows = showBagsForOutlet
+        ? (((bagsRes.data ?? []) as Record<string, unknown>[]).map((b) => ({
+            id: String(b.id),
+            title: String(b.title ?? 'Rescue bag'),
+            category: b.category != null ? String(b.category) : null,
+            rescue_price: Number(b.rescue_price ?? 0),
+            retail_value_estimate:
+              b.retail_value_estimate != null
+                ? Number(b.retail_value_estimate)
+                : null,
+            image_url: b.image_url != null ? String(b.image_url) : null,
+            pickup_start:
+              typeof b.pickup_start === 'string' ? b.pickup_start : null,
+            pickup_end: typeof b.pickup_end === 'string' ? b.pickup_end : null,
+            quantity_remaining:
+              typeof b.quantity_remaining === 'number'
+                ? b.quantity_remaining
+                : null,
+          })) as Bag[])
+        : [];
+
+      const shelfRows = showShelvesForOutlet
+        ? ((shelvesRes.data ?? []) as Record<string, unknown>[])
+            .map((shelf) => {
+              const items = (shelf.items ?? []) as Record<string, unknown>[];
+              const liveItems = items.filter(
+                (i) =>
+                  i.status === 'live' && Number(i.quantity_remaining ?? 0) > 0,
+              );
+              const liveCount = liveItems.length;
+              if (liveCount === 0) return null;
+              const previewItemNames = liveItems
+                .slice(0, 3)
+                .map((i) => String(i.name_snapshot ?? '').trim())
+                .filter((n) => n.length > 0);
+              const savingsPercents = liveItems
+                .map((i) =>
+                  calcItemSavingsPercent(
+                    i.retail_price as string | number | null | undefined,
+                    i.rescue_price as string | number | null | undefined,
+                  ),
+                )
+                .filter((p) => p > 0);
+              return {
+                id: String(shelf.id),
+                title:
+                  typeof shelf.title === 'string' && shelf.title.trim().length > 0
+                    ? shelf.title.trim()
+                    : null,
+                description:
+                  typeof shelf.description === 'string' &&
+                  shelf.description.trim().length > 0
+                    ? shelf.description.trim()
+                    : null,
+                cover_image_url:
+                  typeof shelf.cover_image_url === 'string' &&
+                  shelf.cover_image_url.trim().length > 0
+                    ? shelf.cover_image_url.trim()
+                    : null,
+                pickup_start:
+                  typeof shelf.pickup_start === 'string' ? shelf.pickup_start : null,
+                pickup_end:
+                  typeof shelf.pickup_end === 'string' ? shelf.pickup_end : null,
+                liveItemCount: liveCount,
+                previewItemNames,
+                ...(savingsPercents.length > 0
+                  ? {
+                      savingsPercentMin: Math.min(...savingsPercents),
+                      savingsPercentMax: Math.max(...savingsPercents),
+                    }
+                  : {}),
+              } as Shelf;
+            })
+            .filter((s): s is Shelf => s != null)
+        : [];
+
       setBags(bagRows);
+      setShelves(shelfRows);
       setLoading(false);
     })().catch((e) => {
       if (!alive) return;
@@ -241,6 +385,11 @@ export function OutletDetailScreen(): React.ReactElement {
     openOutletDirections(outlet);
   }, [outlet]);
 
+  const showShelves =
+    isClearanceShelvesEnabled() && canPublishClearanceShelves(outlet?.category);
+  const showBags =
+    canPublishRescueBags(outlet?.category);
+
   if (loading) {
     return (
       <View style={styles.fill}>
@@ -266,11 +415,6 @@ export function OutletDetailScreen(): React.ReactElement {
       </View>
     );
   }
-
-  const ratingDisplay =
-    typeof outlet.average_rating === 'number'
-      ? outlet.average_rating.toFixed(1)
-      : '—';
 
   const venue = outlet.merchant_name ?? outlet.name;
 
@@ -330,12 +474,14 @@ export function OutletDetailScreen(): React.ReactElement {
               {venue}
             </StitchText>
           </View>
-          <View style={styles.ratingPill}>
-            <StitchIcon name="star" size={16} colorKey="accent" />
-            <StitchText variant="label" colorKey="text">
-              {ratingDisplay}
-            </StitchText>
-          </View>
+          <OutletTrustBadge
+            trustScore={outlet.trust_score}
+            averageRating={outlet.average_rating}
+            totalReviews={outlet.total_reviews}
+            collectionRatePct={outlet.collection_rate_pct}
+            complaintRatePct={outlet.complaint_rate_pct}
+            noShowRatePct={outlet.no_show_rate_pct}
+          />
         </View>
 
         <View style={styles.metaRow}>
@@ -354,6 +500,103 @@ export function OutletDetailScreen(): React.ReactElement {
           </View>
         </View>
 
+        {showShelves && shelves.length > 0 ? (
+          <StitchSurface elevated padding="md" style={styles.cardBorder}>
+            <View style={styles.sectionHeader}>
+              <StitchText variant="h3" colorKey="text">
+                Clearance shelves
+              </StitchText>
+              <StitchText variant="body-sm" colorKey="textMuted">
+                {shelves.length} live
+              </StitchText>
+            </View>
+            <View style={{ gap: spacing.sm }}>
+              {shelves.map((shelf) => {
+                const pickupLine = formatPickupLine(shelf.pickup_start, shelf.pickup_end);
+                const pickupBy = formatPickupByLabel(shelf.pickup_end);
+                const savingsLine =
+                  shelf.savingsPercentMin != null && shelf.savingsPercentMax != null
+                    ? shelf.savingsPercentMin === shelf.savingsPercentMax
+                      ? `Save up to ${shelf.savingsPercentMax}%`
+                      : `Save ${shelf.savingsPercentMin}–${shelf.savingsPercentMax}%`
+                    : null;
+                const previewLine =
+                  shelf.previewItemNames.length > 0
+                    ? shelf.previewItemNames.join(' · ')
+                    : null;
+                return (
+                  <Pressable
+                    key={shelf.id}
+                    accessibilityRole="button"
+                    onPress={() =>
+                      navigation.navigate('ClearanceShelf', { id: shelf.id })
+                    }
+                    style={({ pressed }) => ({
+                      padding: spacing.md,
+                      borderRadius: radii.lg,
+                      borderWidth: 1,
+                      borderColor: colors.outlineVariant,
+                      backgroundColor: pressed ? colors.surface2 : colors.surface,
+                      opacity: pressed ? 0.95 : 1,
+                      flexDirection: 'row',
+                      gap: spacing.md,
+                      alignItems: 'center',
+                    })}
+                  >
+                    {shelf.cover_image_url ? (
+                      <Image
+                        source={{ uri: shelf.cover_image_url }}
+                        style={{ width: 56, height: 56, borderRadius: radii.lg }}
+                        accessibilityLabel={`${shelf.title ?? 'Clearance shelf'} cover`}
+                      />
+                    ) : (
+                      <View
+                        style={{
+                          width: 56,
+                          height: 56,
+                          borderRadius: radii.lg,
+                          backgroundColor: colors.surfaceContainerHighest,
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        <StitchIcon name="local_mall" size={24} colorKey="textMuted" />
+                      </View>
+                    )}
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <StitchText variant="label" colorKey="text" numberOfLines={1}>
+                        {shelf.title ?? "Today's clearance shelf"}
+                      </StitchText>
+                      {shelf.description ? (
+                        <StitchText variant="body-sm" colorKey="textMuted" numberOfLines={2}>
+                          {shelf.description}
+                        </StitchText>
+                      ) : null}
+                      <StitchText variant="body-sm" colorKey="textMuted" style={{ marginTop: 4 }}>
+                        {shelf.liveItemCount} item{shelf.liveItemCount === 1 ? '' : 's'}
+                        {pickupLine ? ` · Pickup ${pickupLine}` : ''}
+                        {pickupBy ? ` · ${pickupBy}` : ''}
+                      </StitchText>
+                      {previewLine ? (
+                        <StitchText variant="body-sm" colorKey="text" numberOfLines={1} style={{ marginTop: 2 }}>
+                          {previewLine}
+                        </StitchText>
+                      ) : null}
+                      {savingsLine ? (
+                        <StitchText variant="body-sm" colorKey="secondary" style={{ marginTop: 2 }}>
+                          {savingsLine}
+                        </StitchText>
+                      ) : null}
+                    </View>
+                    <StitchIcon name="chevron_right" size={22} colorKey="textFaint" />
+                  </Pressable>
+                );
+              })}
+            </View>
+          </StitchSurface>
+        ) : null}
+
+        {showBags ? (
         <StitchSurface elevated padding="md" style={styles.cardBorder}>
           <View style={styles.sectionHeader}>
             <StitchText variant="h3" colorKey="text">
@@ -377,16 +620,66 @@ export function OutletDetailScreen(): React.ReactElement {
                 const retail = b.retail_value_estimate;
                 const showStrike =
                   typeof retail === 'number' && retail > b.rescue_price;
+                const selected = selectedBagIds.includes(b.id);
+                const showGroupToggle = groupReservationsEnabled;
                 return (
-                  <Pressable
-                    key={b.id}
-                    accessibilityRole="button"
-                    onPress={() => navigation.navigate('BagDetail', { id: b.id })}
-                    style={({ pressed }) => ({
-                      opacity: pressed ? 0.94 : 1,
-                    })}
-                  >
-                    <View style={styles.bagRow}>
+                  <View key={b.id} style={styles.bagRow}>
+                    {showGroupToggle ? (
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={selected ? 'Remove from group' : 'Add to group'}
+                      onPress={() => {
+                        void (async () => {
+                          if (selected) {
+                            await cart.removeBag(b.id);
+                            setSelectedBagIds((ids) => ids.filter((id) => id !== b.id));
+                            return;
+                          }
+                          const result = await cart.addBag({
+                            id: b.id,
+                            outletId,
+                            title: b.title,
+                            rescuePrice: b.rescue_price,
+                          });
+                          if (result.error === 'different_outlet') {
+                            await cart.replaceOutletCart({
+                              id: b.id,
+                              outletId,
+                              title: b.title,
+                              rescuePrice: b.rescue_price,
+                            });
+                            setSelectedBagIds([b.id]);
+                            return;
+                          }
+                          if (result.error === 'cart_full') return;
+                          setSelectedBagIds((ids) =>
+                            [...ids, b.id].slice(0, MAX_GROUP_BAGS),
+                          );
+                        })();
+                      }}
+                      style={({ pressed }) => ({
+                        opacity: pressed ? 0.85 : 1,
+                        marginRight: spacing.sm,
+                      })}
+                    >
+                      <StitchIcon
+                        name={selected ? 'check_circle' : 'add_circle'}
+                        size={24}
+                        colorKey={selected ? 'primary' : 'textMuted'}
+                      />
+                    </Pressable>
+                    ) : null}
+                    <Pressable
+                      accessibilityRole="button"
+                      onPress={() => navigation.navigate('BagDetail', { id: b.id })}
+                      style={({ pressed }) => ({
+                        opacity: pressed ? 0.94 : 1,
+                        flex: 1,
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                      })}
+                    >
+                    <View style={[styles.bagRow, { flex: 1, borderWidth: 0 }]}>
                       {b.image_url ? (
                         <Image
                           source={{ uri: b.image_url }}
@@ -424,13 +717,39 @@ export function OutletDetailScreen(): React.ReactElement {
                       </View>
                       <StitchIcon name="chevron_right" size={22} colorKey="textFaint" />
                     </View>
+                    </Pressable>
                     {ix < bags.length - 1 ? <StitchDivider /> : null}
-                  </Pressable>
+                  </View>
                 );
               })}
             </View>
           )}
         </StitchSurface>
+        ) : null}
+
+        {bags.length === 0 && (!showShelves || shelves.length === 0) ? (
+          <StitchSurface elevated padding="md" style={styles.cardBorder}>
+            <StitchText variant="body-sm" colorKey="textMuted" style={{ textAlign: 'center' }}>
+              Nothing live at this outlet right now.
+            </StitchText>
+          </StitchSurface>
+        ) : null}
+
+        {groupReservationsEnabled && selectedBagIds.length > 0 ? (
+          <StitchButton
+            title={
+              selectedBagIds.length === 1
+                ? 'Reserve 1 bag'
+                : `Reserve ${selectedBagIds.length} bags (card only)`
+            }
+            onPress={() =>
+              navigation.navigate('Checkout', {
+                draft: selectedBagIds[0],
+                group: selectedBagIds.join(','),
+              })
+            }
+          />
+        ) : null}
 
         <StitchSurface elevated padding="md" style={styles.cardBorder}>
           <StitchText variant="h3" colorKey="text">

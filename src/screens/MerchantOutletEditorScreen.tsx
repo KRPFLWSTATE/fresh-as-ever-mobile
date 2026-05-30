@@ -35,6 +35,10 @@ import type { RootStackParamList } from '@/navigation/types';
 import { useAuthContext } from '@/context/AuthContext';
 import { FALLBACK_COORDS } from '@/lib/fallbackCoords';
 import { parseOutletCoords } from '@/lib/parseOutletCoords';
+import { useMerchantContext } from '@/hooks/useMerchantContext';
+import { ensureOutletDemoListings } from '@/lib/ensureOutletDemoListings';
+import { MERCHANT_OUTLET_CATEGORIES } from '@/lib/outletListingMode';
+import { outletCategoryWarnings } from '@/lib/outletCategoryWarning';
 import { getSupabase } from '@/lib/supabase';
 import { mapStyleForScheme } from '@/lib/mapStyles';
 import { useStitchTheme, type StitchTheme } from '@/theme/StitchThemeContext';
@@ -50,16 +54,7 @@ import {
 type Nav = NativeStackNavigationProp<RootStackParamList, 'MerchantOutletEditor'>;
 type R = RouteProp<RootStackParamList, 'MerchantOutletEditor'>;
 
-const OUTLET_CATEGORIES = [
-  { key: 'bakery', label: 'Bakery' },
-  { key: 'cafe', label: 'Cafe' },
-  { key: 'restaurant', label: 'Restaurant' },
-  { key: 'supermarket', label: 'Supermarket' },
-  { key: 'hotel', label: 'Hotel' },
-  { key: 'other', label: 'Other' },
-] as const;
-
-type CategoryKey = (typeof OUTLET_CATEGORIES)[number]['key'];
+type CategoryKey = (typeof MERCHANT_OUTLET_CATEGORIES)[number]['key'] | 'hotel';
 
 const DAY_ORDER = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const;
 type DayKey = (typeof DAY_ORDER)[number];
@@ -121,6 +116,7 @@ export function MerchantOutletEditorScreen(): React.ReactElement {
   const navigation = useNavigation<Nav>();
   const route = useRoute<R>();
   const { env } = useAuthContext();
+  const { refetch: refetchMerchantContext } = useMerchantContext(env);
   const { colors, radii, spacing, colorScheme } = useStitchTheme();
   const customMapStyle = useMemo(
     () => mapStyleForScheme(colorScheme),
@@ -144,6 +140,10 @@ export function MerchantOutletEditorScreen(): React.ReactElement {
   const [lng, setLng] = useState<string>('');
 
   const styles = useMemo(() => createStyles({ colors, radii, spacing }), [colors, radii, spacing]);
+  const categoryWarnings = useMemo(
+    () => outletCategoryWarnings(name, category),
+    [name, category],
+  );
 
   useEffect(() => {
     let alive = true;
@@ -184,7 +184,8 @@ export function MerchantOutletEditorScreen(): React.ReactElement {
       const phoneMatch = pi.match(/^Phone:\s*([^\n]+)/i);
       setPhone(phoneMatch ? phoneMatch[1].trim() : '');
       const rawCat = String(row.category ?? 'other').toLowerCase();
-      const isKnown = OUTLET_CATEGORIES.some((c) => c.key === rawCat);
+      const isKnown =
+        MERCHANT_OUTLET_CATEGORIES.some((c) => c.key === rawCat) || rawCat === 'hotel';
       setCategory((isKnown ? rawCat : 'other') as CategoryKey);
       setIsActive(Boolean(row.is_active));
       setIsHalalCertified(Boolean(row.is_halal_certified));
@@ -287,6 +288,17 @@ export function MerchantOutletEditorScreen(): React.ReactElement {
       return;
     }
 
+    const demoEnsure = await ensureOutletDemoListings(env, outletId);
+    if (demoEnsure.error) {
+      setSaving(false);
+      Alert.alert(
+        'Outlet saved, demos not refreshed',
+        `Category saved but demo listings could not be refreshed: ${demoEnsure.error}`,
+      );
+      navigation.goBack();
+      return;
+    }
+
     if (hasLatLng) {
       // PostGIS write must use ST_SetSRID(ST_MakePoint(...), 4326)::geography. We can't get
       // PostgREST to emit that exact cast — use the existing RPC-friendly text representation
@@ -307,6 +319,7 @@ export function MerchantOutletEditorScreen(): React.ReactElement {
       }
     }
 
+    await refetchMerchantContext();
     setSaving(false);
     navigation.goBack();
   }, [
@@ -323,6 +336,7 @@ export function MerchantOutletEditorScreen(): React.ReactElement {
     parsedLat,
     parsedLng,
     phone,
+    refetchMerchantContext,
   ]);
 
   if (loading) {
@@ -431,7 +445,7 @@ export function MerchantOutletEditorScreen(): React.ReactElement {
           Category
         </StitchText>
         <View style={styles.chipRow}>
-          {OUTLET_CATEGORIES.map(({ key, label }) => {
+          {MERCHANT_OUTLET_CATEGORIES.map(({ key, label }) => {
             const on = category === key;
             return (
               <Pressable
@@ -452,6 +466,30 @@ export function MerchantOutletEditorScreen(): React.ReactElement {
             );
           })}
         </View>
+        {categoryWarnings.length > 0 ? (
+          <View style={{ marginTop: spacing.md, gap: spacing.sm }}>
+            {categoryWarnings.map((msg) => (
+              <View
+                key={msg}
+                style={{
+                  padding: spacing.md,
+                  borderRadius: radii.lg,
+                  backgroundColor: colors.accentHighlight,
+                  borderWidth: StyleSheet.hairlineWidth,
+                  borderColor: colors.outlineVariant,
+                  flexDirection: 'row',
+                  gap: spacing.sm,
+                  alignItems: 'flex-start',
+                }}
+              >
+                <StitchIcon name="info" size={20} colorKey="accent" />
+                <StitchText variant="body-sm" colorKey="onSurfaceVariant" style={{ flex: 1 }}>
+                  {msg}
+                </StitchText>
+              </View>
+            ))}
+          </View>
+        ) : null}
       </StitchSurface>
 
       <StitchSurface elevated padding="md" style={styles.cardBorder}>

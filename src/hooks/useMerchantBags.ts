@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getSupabase } from '@/lib/supabase';
 import type { AppEnv } from '@/config/env';
 import { useMerchantContext } from '@/hooks/useMerchantContext';
+import { canPublishRescueBags } from '@/lib/outletListingMode';
 import { logError } from '@/observability/logError';
 import { mapSupabaseError, logSupabaseError } from '@/lib/supabaseError';
 
@@ -22,6 +23,7 @@ export type CreateMerchantBagPayload = {
   title: string;
   notes?: string | null;
   category: string;
+  estimated_weight_kg: number;
   retail_value_estimate: number;
   rescue_price: number;
   quantity_total: number;
@@ -62,9 +64,13 @@ export function useMerchantBags(env: AppEnv) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const outletCategory =
+    typeof activeOutlet?.category === 'string' ? activeOutlet.category : '';
+  const bagsAllowed = canPublishRescueBags(outletCategory);
+
   const fetchBags = useCallback(async () => {
     const outletId = activeOutlet?.id != null ? String(activeOutlet.id) : '';
-    if (!outletId) {
+    if (!outletId || !bagsAllowed) {
       setBags([]);
       setLoading(false);
       return;
@@ -91,7 +97,7 @@ export function useMerchantBags(env: AppEnv) {
     } finally {
       setLoading(false);
     }
-  }, [activeOutlet?.id, supabase]);
+  }, [activeOutlet?.id, bagsAllowed, supabase]);
 
   useEffect(() => {
     if (contextLoading) {
@@ -123,6 +129,9 @@ export function useMerchantBags(env: AppEnv) {
       if (!outletId) {
         throw new Error('Merchant outlet is not ready yet.');
       }
+      if (!bagsAllowed) {
+        throw new Error('This outlet publishes clearance shelves only.');
+      }
 
       const { data, error: insErr } = await supabase
         .from('rescue_bags')
@@ -139,7 +148,7 @@ export function useMerchantBags(env: AppEnv) {
       await fetchBags();
       return data as Record<string, unknown>;
     },
-    [activeOutlet?.id, supabase, fetchBags],
+    [activeOutlet?.id, bagsAllowed, supabase, fetchBags],
   );
 
   const updateBag = useCallback(

@@ -184,7 +184,7 @@ export function ImpactScreen() {
                   {bagsRescued}
                 </StitchText>
                 <StitchText variant="h3" colorKey="onSurface">
-                  Bags Rescued
+                  Rescues
                 </StitchText>
               </View>
             </StitchSurface>
@@ -296,9 +296,9 @@ export function ImpactScreen() {
                   Bag Weight Estimation
                 </StitchText>
                 <StitchText variant="body-sm" colorKey="textMuted">
-                  {
-                    "For simplicity, we estimate that each 'Rescue Bag' contains an average of 1 kg of food. Actual weights may vary depending on the merchant and the specific items rescued."
-                  }
+                  Each rescue bag uses the food weight the merchant enters when listing
+                  (rough kg estimate). Your totals sum those weights across completed
+                  rescues; older bags without a weight use a conservative default.
                 </StitchText>
               </View>
             </View>

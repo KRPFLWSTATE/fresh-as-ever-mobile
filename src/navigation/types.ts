@@ -1,5 +1,6 @@
 import type { NavigatorScreenParams } from '@react-navigation/native';
 import type { MerchantOrdersView } from '@/domain/merchantOrdersView';
+import type { ShelfItemDraft } from '@/lib/merchantShelfForm';
 
 /** Nested stack under `AdminShell` (Stitch admin surface). */
 export type AdminStackParamList = {
@@ -23,6 +24,8 @@ export type AdminStackParamList = {
   AdminMerchantDetail: { merchantId: string };
   AdminApplicationReview: undefined;
   AdminPromosAdmin: undefined;
+  AdminClearanceShelves: undefined;
+  AdminProductCatalog: undefined;
 };
 
 export type CustomerTabParamList = {
@@ -47,11 +50,12 @@ export type MerchantTabParamList = {
   MerchantDashTab: undefined;
   MerchantOrdersTab: { view?: MerchantOrdersView } | undefined;
   /**
-   * Stitch `merchant_dashboard` BottomNavBar surfaces a top-level "Bags" tab that
-   * mirrors `MerchantBagsListScreen`. The stack route `MerchantBagsList` remains
-   * registered for direct pushes; both mount the same component.
+   * Rescue bags tab. Single-mode outlets mount `MerchantInventoryTabScreen`; hybrid outlets
+   * mount `MerchantBagsTabScreen` (shelves are on `MerchantShelvesTab`).
    */
   MerchantBagsTab: undefined;
+  /** Hybrid-only clearance shelves tab (`MerchantShelvesTabScreen`). */
+  MerchantShelvesTab: undefined;
   /**
    * Stitch `merchant_dashboard` BottomNavBar surfaces a top-level "Settings" tab
    * that mirrors `MerchantSettingsScreen`. The stack route `MerchantSettings`
@@ -86,7 +90,27 @@ export type RootStackParamList = {
    * Stitch `checkout_light_mode_2` renders a logo-centered header variant. Pass
    * `headerVariant: 'logo'` to switch from the default title-bar header.
    */
-  Checkout: { draft?: string; headerVariant?: 'title' | 'logo' };
+  Checkout: {
+    draft?: string;
+    group?: string;
+    shelf?: string;
+    shelfItems?: string;
+    headerVariant?: 'title' | 'logo';
+  };
+  ClearanceShelf: { id: string; preview?: boolean };
+  ShelfReview: { shelfId: string };
+  MerchantShelvesList: undefined;
+  MerchantShelfEditor: {
+    shelfId?: string;
+    savedItem?: ShelfItemDraft;
+    editIndex?: number;
+  };
+  MerchantShelfScanItem: undefined;
+  MerchantShelfItemEditor: {
+    prefill?: Partial<ShelfItemDraft>;
+    editIndex?: number;
+    returnTo?: 'scan' | 'shelf';
+  };
   /** Stitch `order_detail_light_mode_2` logo-centered header variant. */
   OrderDetail: { orderId: string; headerVariant?: 'title' | 'logo' };
   OrderReview: { orderId: string };

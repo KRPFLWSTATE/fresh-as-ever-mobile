@@ -6,6 +6,7 @@ import {
   isCollectedOrder,
   retailToKgProxy,
   sumRevenue,
+  sumSurplusRecovered,
 } from '../src/lib/merchantAnalytics';
 
 describe('merchantAnalytics', () => {
@@ -67,5 +68,21 @@ describe('merchantAnalytics', () => {
   it('isCollectedOrder', () => {
     expect(isCollectedOrder('collected')).toBe(true);
     expect(isCollectedOrder('reserved')).toBe(false);
+  });
+
+  it('sumSurplusRecovered skips null/zero retail', () => {
+    expect(
+      sumSurplusRecovered([
+        { quantity: 2, bag: { retail_value_estimate: 500 } },
+        { quantity: 1, bag: { retail_value_estimate: null } },
+        { quantity: 1, bag: { retail_value_estimate: 0 } },
+      ]),
+    ).toBe(1000);
+  });
+
+  it('sumSurplusRecovered multiplies by quantity', () => {
+    expect(
+      sumSurplusRecovered([{ quantity: 3, bag: { retail_value_estimate: 100 } }]),
+    ).toBe(300);
   });
 });

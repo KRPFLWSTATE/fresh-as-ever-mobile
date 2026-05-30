@@ -2,14 +2,9 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getSupabase } from '@/lib/supabase';
 import type { AppEnv } from '@/config/env';
 import { logError } from '@/observability/logError';
+import { co2eKgFromBagRescue, co2eKgFromShelfOrderItems } from '@/lib/co2Impact';
 
-/**
- * Stitch `your_environmental_impact` methodology copy: 1 kg of rescued food averts
- * ~2.5 kg CO2e (Bag Weight Estimation: ~1 kg of food per rescued bag, hence ~2.5 kg
- * CO2e per bag). The screen surfaces this ratio in the prose and reflects it in the
- * equivalence cards (cars / phones / trees).
- */
-export const KG_CO2_PER_RESCUED_BAG = 2.5;
+export { KG_CO2E_PER_KG_FOOD } from '@/lib/co2Impact';
 
 export function useCustomerImpact(env: AppEnv, customerId: string | null) {
   const supabase = useMemo(() => getSupabase(env), [env]);
@@ -31,7 +26,12 @@ export function useCustomerImpact(env: AppEnv, customerId: string | null) {
       const { data, error } = await supabase
         .from('orders')
         .select(
-          `quantity, total, order_status, bag:rescue_bags(retail_value_estimate, rescue_price)`,
+          `quantity, total, order_status, shelf_id,
+          bag:rescue_bags(estimated_weight_kg, retail_value_estimate, rescue_price),
+          order_items (
+            quantity, line_total, unit_price,
+            product:product_catalog (weight_grams)
+          )`,
         )
         .eq('customer_id', customerId)
         .eq('order_status', 'collected');
@@ -40,24 +40,37 @@ export function useCustomerImpact(env: AppEnv, customerId: string | null) {
         throw error;
       }
 
-      let bagUnits = 0;
+      let rescueCount = 0;
       let saved = 0;
+      let co2Total = 0;
       for (const row of (data ?? []) as Record<string, unknown>[]) {
-        const q = Math.max(1, Number(row.quantity) || 1);
-        bagUnits += q;
-        const bag =
-          typeof row.bag === 'object' && row.bag != null
-            ? (row.bag as Record<string, unknown>)
-            : {};
-        const retail = Number(bag.retail_value_estimate) || 0;
-        const rescue = Number(bag.rescue_price) || 0;
-        if (retail > 0 && rescue >= 0) {
-          saved += Math.max(0, retail - rescue) * q;
+        if (row.shelf_id) {
+          rescueCount += 1;
+          const lines = (row.order_items ?? []) as Record<string, unknown>[];
+          co2Total += co2eKgFromShelfOrderItems(lines);
+          for (const line of lines) {
+            const lineTotal = Number(line.line_total) || 0;
+            const unit = Number(line.unit_price) || 0;
+            const qty = Math.max(1, Number(line.quantity) || 1);
+            saved += lineTotal > 0 ? lineTotal : unit * qty;
+          }
+        } else {
+          const q = Math.max(1, Number(row.quantity) || 1);
+          rescueCount += q;
+          const bag =
+            typeof row.bag === 'object' && row.bag != null
+              ? (row.bag as Record<string, unknown>)
+              : {};
+          co2Total += co2eKgFromBagRescue(bag, q);
+          const retail = Number(bag.retail_value_estimate) || 0;
+          const rescue = Number(bag.rescue_price) || 0;
+          if (retail > 0 && rescue >= 0) {
+            saved += Math.max(0, retail - rescue) * q;
+          }
         }
       }
-      const roundedCo2 =
-        Math.round(bagUnits * KG_CO2_PER_RESCUED_BAG * 10) / 10;
-      setBagsRescued(bagUnits);
+      const roundedCo2 = Math.round(co2Total * 10) / 10;
+      setBagsRescued(rescueCount);
       setCo2SavedKg(roundedCo2);
       setTotalSavedRs(Math.round(saved));
     } catch {

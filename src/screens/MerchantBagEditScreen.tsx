@@ -10,7 +10,8 @@ import {
   View,
 } from 'react-native';
 import type { RouteProp } from '@react-navigation/native';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
+import { useMerchantRescueBagGuard } from '@/hooks/useMerchantRescueBagGuard';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '@/navigation/types';
 import { useAuthContext } from '@/context/AuthContext';
@@ -27,6 +28,13 @@ import {
   pickAndUploadImage,
 } from '@/lib/storage/uploadImage';
 import { useScrollContentBottomPad } from '@/lib/useScrollContentBottomPad';
+import {
+  BagWeightField,
+  resolveFormBagWeightKg,
+} from '@/components/merchant/BagWeightField';
+import { BAG_WEIGHT_PRESETS_KG } from '@/lib/co2Impact';
+import { ERROR } from '@/lib/messages/errors';
+import { mapSupabaseError } from '@/lib/supabaseError';
 import { PickupDateTimeField } from '@/components/PickupDateTimeField';
 import { useStitchTheme } from '@/theme/StitchThemeContext';
 import {
@@ -111,6 +119,7 @@ export function MerchantBagEditScreen() {
   const { bagId } = route.params;
   const { env } = useAuthContext();
   const supabase = useMemo(() => getSupabase(env), [env]);
+  const { allowed: bagsAllowed, goToShelves } = useMerchantRescueBagGuard();
   const {
     updateBag,
     deleteBag,
@@ -118,6 +127,15 @@ export function MerchantBagEditScreen() {
     loading: ctxBusy,
   } = useMerchantBags(env);
   const { colors, spacing, radii } = useStitchTheme();
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!bagsAllowed) {
+        goToShelves();
+        navigation.goBack();
+      }
+    }, [bagsAllowed, goToShelves, navigation]),
+  );
   const scrollBottomPad = useScrollContentBottomPad();
   const layout = useMemo(
     () => createLayoutStyles({ spacing, radii }),
@@ -130,6 +148,8 @@ export function MerchantBagEditScreen() {
   const [loadErr, setLoadErr] = useState<string | null>(null);
   const [loadingBag, setLoadingBag] = useState(true);
   const [outletMismatch, setOutletMismatch] = useState(false);
+  const [weightPresetKg, setWeightPresetKg] = useState<number | null>(1);
+  const [customWeightKg, setCustomWeightKg] = useState('');
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -215,7 +235,7 @@ export function MerchantBagEditScreen() {
 
         if (cancelled.current) return;
         if (qErr || !data) {
-          setLoadErr('Could not load bag details.');
+          setLoadErr(mapSupabaseError(qErr, ERROR.merchant.loadBag));
           return;
         }
 
@@ -229,6 +249,20 @@ export function MerchantBagEditScreen() {
               : '';
         if (act && bagOutlet && act !== bagOutlet) {
           setOutletMismatch(true);
+        }
+
+        const wRaw = Number(row.estimated_weight_kg);
+        if (Number.isFinite(wRaw) && wRaw > 0) {
+          const preset = (BAG_WEIGHT_PRESETS_KG as readonly number[]).find(
+            (p) => p === wRaw,
+          );
+          if (preset != null) {
+            setWeightPresetKg(preset);
+            setCustomWeightKg('');
+          } else {
+            setWeightPresetKg(null);
+            setCustomWeightKg(String(wRaw));
+          }
         }
 
         setForm({
@@ -259,9 +293,9 @@ export function MerchantBagEditScreen() {
             : [],
           isHalal: row.is_halal === true,
         });
-      } catch {
+      } catch (e) {
         if (!cancelled.current) {
-          setLoadErr('Could not load bag details.');
+          setLoadErr(mapSupabaseError(e as Error, ERROR.merchant.loadBag));
         }
       } finally {
         if (!cancelled.current) {
@@ -322,6 +356,15 @@ export function MerchantBagEditScreen() {
       Number.parseInt(String(form.quantity_remaining), 10) || 1,
     );
 
+    const estimatedWeightKg = resolveFormBagWeightKg(
+      weightPresetKg,
+      customWeightKg,
+    );
+    if (estimatedWeightKg == null) {
+      setErr('Choose or enter estimated food weight (0.1–25 kg).');
+      return;
+    }
+
     const ps = new Date(form.pickup_start);
     const pe = new Date(form.pickup_end);
     if (Number.isNaN(ps.getTime()) || Number.isNaN(pe.getTime())) {
@@ -335,6 +378,7 @@ export function MerchantBagEditScreen() {
         title: form.title.trim(),
         notes: form.description.trim() || null,
         category: form.category,
+        estimated_weight_kg: estimatedWeightKg,
         retail_value_estimate: retail,
         rescue_price: rescue,
         quantity_total: qtyN,
@@ -665,6 +709,19 @@ export function MerchantBagEditScreen() {
         <StitchText variant="h3" colorKey="onBackground" style={{ marginBottom: spacing.md, paddingBottom: spacing.sm, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.divider }}>
           Value & inventory
         </StitchText>
+
+        <BagWeightField
+          selectedKg={weightPresetKg}
+          customKg={customWeightKg}
+          onSelectPreset={(kg) => {
+            setWeightPresetKg(kg);
+            setCustomWeightKg('');
+          }}
+          onCustomChange={(value) => {
+            setCustomWeightKg(value);
+            if (value.trim()) setWeightPresetKg(null);
+          }}
+        />
 
         <StitchText variant="label" colorKey="textMuted" style={{ marginBottom: spacing.xs }}>
           Estimated retail value (LKR) *

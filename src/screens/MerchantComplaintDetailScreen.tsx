@@ -12,7 +12,9 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { useAuthContext } from '@/context/AuthContext';
 import { useMerchantContext } from '@/hooks/useMerchantContext';
 import { getSupabase } from '@/lib/supabase';
+import { ERROR } from '@/lib/messages/errors';
 import { postOrderRefund } from '@/lib/refundApi';
+import { mapSupabaseError } from '@/lib/supabaseError';
 import type { RootStackParamList } from '@/navigation/types';
 import { useStitchTheme } from '@/theme/StitchThemeContext';
 import {
@@ -130,7 +132,7 @@ export function MerchantComplaintDetailScreen() {
       .eq('id', complaint.id);
     setBusy(false);
     if (error) {
-      Alert.alert('Escalation failed', error.message);
+      Alert.alert('Escalation failed', mapSupabaseError(error, ERROR.merchant.complaintEscalate));
       return;
     }
     Alert.alert('Escalated', 'Fresh As Ever support will follow up.');
@@ -165,7 +167,13 @@ export function MerchantComplaintDetailScreen() {
             });
             setBusy(false);
             if (result.error) {
-              Alert.alert('Refund failed', result.error);
+              Alert.alert(
+                'Refund failed',
+                mapSupabaseError(
+                  { message: result.error } as Error,
+                  ERROR.merchant.complaintRefund,
+                ),
+              );
               return;
             }
             Alert.alert('Refunded', 'The customer will receive their refund per payment method.');

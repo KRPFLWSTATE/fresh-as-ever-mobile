@@ -53,7 +53,11 @@ const config: NonNullable<LinkingOptions<RootStackParamList>['config']> = {
             },
           },
         },
-        MerchantBagsTab: 'merchant/tabs/bags',
+        MerchantBagsTab: {
+          path: 'merchant/tabs/bags',
+          alias: ['merchant/tabs/inventory'],
+        },
+        MerchantShelvesTab: 'merchant/tabs/shelves',
         MerchantSettingsTab: 'merchant/tabs/settings',
       },
     },
@@ -69,6 +73,9 @@ const config: NonNullable<LinkingOptions<RootStackParamList>['config']> = {
       path: 'checkout',
       parse: {
         draft: (d: string) => d ?? undefined,
+        group: (g: string) => g ?? undefined,
+        shelf: (s: string) => s ?? undefined,
+        shelfItems: (items: string) => items ?? undefined,
         headerVariant: (v: unknown) => (v === 'logo' ? 'logo' : 'title'),
       },
     },
@@ -90,6 +97,18 @@ const config: NonNullable<LinkingOptions<RootStackParamList>['config']> = {
       parse: { bagId: (id: string) => id },
     },
     MerchantBagsList: 'merchant/bags',
+    ClearanceShelf: {
+      path: 'shelves/:id',
+      parse: { id: (id: string) => id },
+    },
+    ShelfReview: {
+      path: 'shelves/:shelfId/review',
+      parse: { shelfId: (id: string) => id },
+    },
+    MerchantShelvesList: 'merchant/shelves',
+    MerchantShelfEditor: 'merchant/shelves/today',
+    MerchantShelfScanItem: 'merchant/shelves/scan',
+    MerchantShelfItemEditor: 'merchant/shelves/item',
     MerchantOrderDetail: {
       path: 'merchant/orders/:orderId',
       parse: { orderId: (o: string) => o },

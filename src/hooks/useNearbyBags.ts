@@ -1,5 +1,6 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { parseOutletCoords } from '@/lib/parseOutletCoords';
+import { fetchPublishedShelves, mergeDiscoverFeed } from '@/lib/discoverFeed';
 import { getSupabase } from '@/lib/supabase';
 import type { AppEnv } from '@/config/env';
 import { mapSupabaseError, logSupabaseError } from '@/lib/supabaseError';
@@ -20,11 +21,88 @@ export type DiscoverBag = {
   distance_km?: number | null;
   quantity_remaining?: number | null;
   category?: string | null;
+  outlet_category?: string | null;
   image_url?: string | null;
   retail_value_estimate?: number | null;
   pickup_start?: string | null;
   pickup_end?: string | null;
+  trust_score?: number | null;
+  average_rating?: number | null;
+  total_reviews?: number | null;
+  collection_rate_pct?: number | null;
+  complaint_rate_pct?: number | null;
+  no_show_rate_pct?: number | null;
 };
+
+async function enrichBagsWithOutletTrust(
+  supabase: ReturnType<typeof getSupabase>,
+  bags: DiscoverBag[],
+): Promise<DiscoverBag[]> {
+  const outletIds = [
+    ...new Set(
+      bags.map((b) => b.outlet_id).filter((id): id is string => Boolean(id)),
+    ),
+  ];
+  if (!outletIds.length) return bags;
+
+  const { data, error } = await supabase
+    .from('outlets')
+    .select(
+      'id, trust_score, average_rating, total_reviews, collection_rate_pct, complaint_rate_pct, no_show_rate_pct',
+    )
+    .in('id', outletIds);
+
+  if (error || !data?.length) return bags;
+
+  const byId = new Map(
+    (data as Record<string, unknown>[]).map((row) => [String(row.id), row]),
+  );
+
+  return bags.map((bag) => {
+    if (!bag.outlet_id) return bag;
+    const o = byId.get(bag.outlet_id);
+    if (!o) return bag;
+    return {
+      ...bag,
+      trust_score:
+        typeof o.trust_score === 'number'
+          ? o.trust_score
+          : o.trust_score != null
+            ? Number(o.trust_score)
+            : null,
+      average_rating:
+        typeof o.average_rating === 'number'
+          ? o.average_rating
+          : o.average_rating != null
+            ? Number(o.average_rating)
+            : null,
+      total_reviews:
+        typeof o.total_reviews === 'number'
+          ? o.total_reviews
+          : o.total_reviews != null
+            ? Number(o.total_reviews)
+            : null,
+      collection_rate_pct:
+        typeof o.collection_rate_pct === 'number'
+          ? o.collection_rate_pct
+          : o.collection_rate_pct != null
+            ? Number(o.collection_rate_pct)
+            : null,
+      complaint_rate_pct:
+        typeof o.complaint_rate_pct === 'number'
+          ? o.complaint_rate_pct
+          : o.complaint_rate_pct != null
+            ? Number(o.complaint_rate_pct)
+            : null,
+      no_show_rate_pct:
+        typeof o.no_show_rate_pct === 'number'
+          ? o.no_show_rate_pct
+          : o.no_show_rate_pct != null
+            ? Number(o.no_show_rate_pct)
+            : null,
+    };
+  });
+}
 
 function finiteCoord(v: unknown): number | null {
   if (typeof v === 'number' && Number.isFinite(v)) return v;
@@ -83,6 +161,8 @@ function mapRow(row: Record<string, unknown>): DiscoverBag {
         : null,
     category:
       row.category != null ? String(row.category) : null,
+    outlet_category:
+      outlet?.category != null ? String(outlet.category) : null,
     image_url:
       row.image_url != null ? String(row.image_url) : null,
     retail_value_estimate: Number.isFinite(retail) ? retail : null,
@@ -106,6 +186,7 @@ export function useNearbyBags(
   const includeSoldOut = options?.includeSoldOut ?? false;
   const supabase = useMemo(() => getSupabase(env), [env]);
   const [bags, setBags] = useState<DiscoverBag[]>([]);
+  const [shelves, setShelves] = useState<Record<string, unknown>[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -139,7 +220,18 @@ export function useNearbyBags(
           pickup_end,
           image_url,
           quantity_remaining,
-          outlet:outlets ( id, name, location )
+          outlet:outlets (
+            id,
+            name,
+            category,
+            location,
+            trust_score,
+            average_rating,
+            total_reviews,
+            collection_rate_pct,
+            complaint_rate_pct,
+            no_show_rate_pct
+          )
         `,
           )
           .in('status', ['live', 'draft']);
@@ -154,7 +246,52 @@ export function useNearbyBags(
           throw fbErr;
         }
 
-        next = (fallback ?? []).map((raw) => mapRow(raw as Record<string, unknown>));
+        next = (fallback ?? []).map((raw) => {
+          const mapped = mapRow(raw as Record<string, unknown>);
+          const outlet = (raw as Record<string, unknown>).outlet as
+            | Record<string, unknown>
+            | undefined;
+          if (!outlet) return mapped;
+          return {
+            ...mapped,
+            trust_score:
+              typeof outlet.trust_score === 'number'
+                ? outlet.trust_score
+                : outlet.trust_score != null
+                  ? Number(outlet.trust_score)
+                  : null,
+            average_rating:
+              typeof outlet.average_rating === 'number'
+                ? outlet.average_rating
+                : outlet.average_rating != null
+                  ? Number(outlet.average_rating)
+                  : null,
+            total_reviews:
+              typeof outlet.total_reviews === 'number'
+                ? outlet.total_reviews
+                : outlet.total_reviews != null
+                  ? Number(outlet.total_reviews)
+                  : null,
+            collection_rate_pct:
+              typeof outlet.collection_rate_pct === 'number'
+                ? outlet.collection_rate_pct
+                : outlet.collection_rate_pct != null
+                  ? Number(outlet.collection_rate_pct)
+                  : null,
+            complaint_rate_pct:
+              typeof outlet.complaint_rate_pct === 'number'
+                ? outlet.complaint_rate_pct
+                : outlet.complaint_rate_pct != null
+                  ? Number(outlet.complaint_rate_pct)
+                  : null,
+            no_show_rate_pct:
+              typeof outlet.no_show_rate_pct === 'number'
+                ? outlet.no_show_rate_pct
+                : outlet.no_show_rate_pct != null
+                  ? Number(outlet.no_show_rate_pct)
+                  : null,
+          };
+        });
       } else if (!includeSoldOut) {
         next = next.filter(
           (b) =>
@@ -162,18 +299,32 @@ export function useNearbyBags(
         );
       }
 
-      setBags(next);
+      setBags(await enrichBagsWithOutletTrust(supabase, next));
+      const shelfRows = await fetchPublishedShelves(supabase);
+      setShelves(shelfRows);
     } catch (e) {
       logSupabaseError(e, 'useNearbyBags.fetchNearby');
       setError(mapSupabaseError(e as Error, ERROR.discover.loadBags));
       setBags([]);
+      setShelves([]);
     } finally {
       setLoading(false);
     }
   }, [supabase, lat, lng, includeSoldOut]);
 
+  const feedItems = useMemo(
+    () =>
+      mergeDiscoverFeed(
+        bags as unknown as Record<string, unknown>[],
+        shelves,
+      ),
+    [bags, shelves],
+  );
+
   return {
     bags,
+    shelves,
+    feedItems,
     loading,
     error,
     refetch: fetchNearby,

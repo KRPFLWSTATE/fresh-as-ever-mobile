@@ -20,6 +20,7 @@ import { readEnv } from '@/config/env';
 import { appEnvSchema } from '@/config/envSchema';
 import { RootErrorBoundary } from '@/errors/RootErrorBoundary';
 import { installReactNativeGlobalHandlers } from '@/observability/installGlobalHandlers';
+import { PushNotificationsBridge } from '@/components/PushNotificationsBridge';
 import { RootNavigator } from '@/navigation/RootNavigator';
 import { StitchThemeProvider } from '@/theme/StitchThemeContext';
 
@@ -106,6 +107,7 @@ function App(): React.ReactElement {
               barStyle={isDarkMode ? 'light-content' : 'dark-content'}
             />
             <MaintenanceBanner env={env} />
+            <PushNotificationsBridge />
             <RootNavigator />
             <AuthHydrateOverlay />
           </AuthProvider>

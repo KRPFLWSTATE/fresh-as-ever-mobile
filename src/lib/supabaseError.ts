@@ -28,6 +28,17 @@ export function mapSupabaseError(
   if (message.includes('network') || message.includes('fetch')) {
     return ERROR.common.network;
   }
+  if (
+    message.includes('jwt') ||
+    message.includes('session') ||
+    message.includes('not authenticated') ||
+    code === 'PGRST301'
+  ) {
+    return ERROR.auth.sessionExpired;
+  }
+  if (message.includes('timeout') || message.includes('timed out')) {
+    return ERROR.common.network;
+  }
   if (__DEV__ && error.message) {
     return `${fallback} (${error.message})`;
   }

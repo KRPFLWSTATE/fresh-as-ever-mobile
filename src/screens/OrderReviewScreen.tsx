@@ -16,6 +16,7 @@ import type { RootStackParamList } from '@/navigation/types';
 import { orderIdParam } from '@/contracts/routeParams';
 import { getSupabase } from '@/lib/supabase';
 import { useAuthContext } from '@/context/AuthContext';
+import { orderDisplayTitle } from '@/lib/orderDisplay';
 import { isOrderIdUuidShape } from '@/lib/orderStatus';
 import { useStitchTheme } from '@/theme/StitchThemeContext';
 import {
@@ -37,6 +38,8 @@ type OutletJoin = {
 
 type SummaryRow = {
   id: string;
+  shelf_id?: string | null;
+  order_items?: { name_snapshot?: string | null; quantity?: number | null }[] | null;
   bag: BagJoin;
   outlet: OutletJoin;
 };
@@ -103,6 +106,8 @@ export function OrderReviewScreen() {
       .select(
         `
           id,
+          shelf_id,
+          order_items(name_snapshot, quantity),
           bag:rescue_bags(title, category, image_url),
           outlet:outlets(name, merchant:merchants(business_name))
         `,
@@ -253,10 +258,17 @@ export function OrderReviewScreen() {
       : typeof outlet?.name === 'string'
         ? outlet.name
         : '';
-  const title =
-    typeof bag?.title === 'string' && bag.title ? bag.title : 'Rescue bag';
+  const title = orderDisplayTitle({
+    shelf_id: summary?.shelf_id,
+    bag,
+    order_items: summary?.order_items,
+  });
   const category =
-    bag?.category != null ? String(bag.category).replace(/_/g, ' ') : '';
+    summary?.shelf_id
+      ? 'Clearance shelf'
+      : bag?.category != null
+        ? String(bag.category).replace(/_/g, ' ')
+        : '';
 
   if (!parsed.success) {
     return (

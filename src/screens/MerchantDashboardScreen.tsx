@@ -18,6 +18,12 @@ import type {
 import { useAuthContext } from '@/context/AuthContext';
 import { useMerchantContext } from '@/hooks/useMerchantContext';
 import { useMerchantDashboard } from '@/hooks/useMerchantDashboard';
+import { useMerchantRecoveredRevenue } from '@/hooks/useMerchantRecoveredRevenue';
+import {
+  outletListingMode,
+} from '@/lib/outletListingMode';
+import { merchantListingModeLabel } from '@/lib/merchantTabInventory';
+import { merchantInventoryVisibility } from '@/lib/merchantInventoryVisibility';
 import { useStitchTheme } from '@/theme/StitchThemeContext';
 import {
   StitchCard,
@@ -111,20 +117,35 @@ export function MerchantDashboardScreen() {
   const { activeOutlet, merchant } = useMerchantContext(env);
   const { stats, recentOrders, popularBags, loading, error, refetch } =
     useMerchantDashboard(env);
+  const recovered = useMerchantRecoveredRevenue(env);
   const { colors, spacing, radii } = useStitchTheme();
 
   const venueLabel =
     String(activeOutlet?.name ?? merchant?.business_name ?? 'your outlet').trim() ||
     'your outlet';
 
+  const outletCategory =
+    typeof activeOutlet?.category === 'string' ? activeOutlet.category : '';
+  const listingMode = outletListingMode(outletCategory);
+  const { showShelves, showBags, isHybrid } =
+    merchantInventoryVisibility(outletCategory);
+
   const statsDefs: StatDef[] = useMemo(
     () => [
       {
         key: 'bags',
-        label: 'Active Bags',
-        icon: 'shopping_bag',
+        label:
+          listingMode === 'clearance_shelf'
+            ? 'Shelf items'
+            : listingMode === 'hybrid'
+              ? 'Live listings'
+              : 'Active bags',
+        icon: listingMode === 'clearance_shelf' ? 'inventory_2' : 'shopping_bag',
         value: String(stats.active_bags),
-        sub: 'Live listings',
+        sub:
+          listingMode === 'clearance_shelf'
+            ? "On today's published shelf"
+            : 'Live listings',
         subColorKey: 'textMuted',
         valueColorKey: 'text',
         delta: buildDelta(stats.active_bags, stats.yesterday_active_bags),
@@ -166,7 +187,7 @@ export function MerchantDashboardScreen() {
         ),
       },
     ],
-    [stats],
+    [stats, listingMode],
   );
 
   const styles = useMemo(() => {
@@ -281,6 +302,20 @@ export function MerchantDashboardScreen() {
         <StitchText variant="body-md" colorKey="textMuted" style={{ marginTop: 4 }}>
           {`Here's what's happening at ${venueLabel} today.`}
         </StitchText>
+        <View
+          style={{
+            marginTop: spacing.sm,
+            alignSelf: 'flex-start',
+            paddingHorizontal: spacing.sm,
+            paddingVertical: 4,
+            borderRadius: radii.full,
+            backgroundColor: colors.primaryHighlight,
+          }}
+        >
+          <StitchText variant="label-caps" colorKey="primaryContainer">
+            {merchantListingModeLabel(listingMode)}
+          </StitchText>
+        </View>
         <View style={styles.quickRow}>
           <Pressable
             accessibilityRole="button"
@@ -297,19 +332,35 @@ export function MerchantDashboardScreen() {
               Verify code
             </StitchText>
           </Pressable>
-          <Pressable
-            accessibilityRole="button"
-            style={({ pressed }) => [
-              styles.filledBtn,
-              { opacity: pressed ? 0.92 : 1 },
-            ]}
-            onPress={() => parentNav?.navigate('MerchantBagCreate')}
-          >
-            <StitchIcon name="add" size={20} colorKey="onPrimary" />
-            <StitchText variant="label" colorKey="onPrimary">
-              Create new bag
-            </StitchText>
-          </Pressable>
+          {showBags ? (
+            <Pressable
+              accessibilityRole="button"
+              style={({ pressed }) => [
+                styles.filledBtn,
+                { opacity: pressed ? 0.92 : 1 },
+              ]}
+              onPress={() => parentNav?.navigate('MerchantBagCreate')}
+            >
+              <StitchIcon name="add" size={20} colorKey="onPrimary" />
+              <StitchText variant="label" colorKey="onPrimary">
+                Create new bag
+              </StitchText>
+            </Pressable>
+          ) : showShelves ? (
+            <Pressable
+              accessibilityRole="button"
+              style={({ pressed }) => [
+                styles.filledBtn,
+                { opacity: pressed ? 0.92 : 1 },
+              ]}
+              onPress={() => parentNav?.navigate('MerchantShelfEditor', {})}
+            >
+              <StitchIcon name="inventory_2" size={20} colorKey="onPrimary" />
+              <StitchText variant="label" colorKey="onPrimary">
+                Edit today&apos;s shelf
+              </StitchText>
+            </Pressable>
+          ) : null}
         </View>
       </View>
 
@@ -331,6 +382,85 @@ export function MerchantDashboardScreen() {
           </StitchSurface>
         </View>
       </View>
+
+      {showShelves ? (
+        <StitchCard padding="md">
+          <StitchText variant="label-caps" colorKey="textMuted">
+            Today&apos;s shelf
+          </StitchText>
+          <StitchText variant="h3" colorKey="onBackground" style={{ marginTop: spacing.xs }}>
+            {stats.shelf_published_today ? 'Published' : 'Not published yet'}
+          </StitchText>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md, marginTop: spacing.md }}>
+            <View>
+              <StitchText variant="body-sm" colorKey="textMuted">
+                Items live
+              </StitchText>
+              <StitchText variant="h3" colorKey="text">
+                {stats.shelf_items_live}
+              </StitchText>
+            </View>
+            <View>
+              <StitchText variant="body-sm" colorKey="textMuted">
+                Sold today
+              </StitchText>
+              <StitchText variant="h3" colorKey="text">
+                {stats.shelf_items_sold_today}
+              </StitchText>
+            </View>
+            <View>
+              <StitchText variant="body-sm" colorKey="textMuted">
+                Shelf revenue
+              </StitchText>
+              <StitchText variant="h3" colorKey="primaryContainer">
+                LKR {Math.round(stats.shelf_revenue_today).toLocaleString()}
+              </StitchText>
+            </View>
+          </View>
+        </StitchCard>
+      ) : null}
+
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="View surplus recovered analytics"
+        onPress={() => parentNav?.navigate('MerchantAnalytics')}
+        testID="merchant-surplus-recovered-card"
+      >
+        <StitchCard padding="md">
+          <StitchText variant="label-caps" colorKey="textMuted">
+            Surplus recovered this month
+          </StitchText>
+          {recovered.loading ? (
+            <ActivityIndicator style={{ marginTop: spacing.sm }} color={colors.primary} />
+          ) : (
+            <>
+              <StitchText variant="h1" colorKey="accent" style={{ marginTop: spacing.xs }}>
+                {recovered.thisMonthLabelFormatted}
+              </StitchText>
+              <StitchText variant="body-sm" colorKey="textMuted" style={{ marginTop: spacing.xs }}>
+                Food you would have thrown away · {recovered.thisMonthLabel}
+              </StitchText>
+              {recovered.trendPercent != null ? (
+                <View
+                  style={{
+                    marginTop: spacing.sm,
+                    alignSelf: 'flex-start',
+                    paddingHorizontal: spacing.sm,
+                    paddingVertical: 4,
+                    borderRadius: radii.full,
+                    backgroundColor: colors.primaryHighlight,
+                  }}
+                >
+                  <StitchText variant="body-sm" colorKey="primary">
+                    {recovered.trendPercent >= 0 ? '+' : ''}
+                    {recovered.trendPercent}% vs last month
+                  </StitchText>
+                </View>
+              ) : null}
+            </>
+          )}
+        </StitchCard>
+      </Pressable>
 
       <StitchCard padding="none">
         <View
@@ -417,6 +547,7 @@ export function MerchantDashboardScreen() {
         )}
       </StitchCard>
 
+      {showBags ? (
       <StitchCard padding="none">
         <View
           style={{
@@ -482,7 +613,7 @@ export function MerchantDashboardScreen() {
         <View style={{ padding: spacing.md, paddingTop: 0 }}>
           <Pressable
             accessibilityRole="button"
-            onPress={() => parentNav?.navigate('MerchantBagsList')}
+            onPress={() => navigation.navigate('MerchantBagsTab')}
             style={({ pressed }) => ({
               width: '100%',
               paddingVertical: spacing.sm,
@@ -496,12 +627,79 @@ export function MerchantDashboardScreen() {
             })}
           >
             <StitchText variant="label" colorKey="primaryContainer">
-              Manage inventory
+              {showShelves && !showBags
+                ? "Manage today's shelf"
+                  : 'Manage rescue bags'}
             </StitchText>
             <StitchIcon name="arrow_forward" size={18} colorKey="primaryContainer" />
           </Pressable>
         </View>
       </StitchCard>
+      ) : showShelves ? (
+        <StitchCard padding="md">
+          <StitchText variant="h3" colorKey="text" style={{ marginBottom: spacing.sm }}>
+            Clearance shelf
+          </StitchText>
+          <StitchText variant="body-sm" colorKey="textMuted" style={{ marginBottom: spacing.md }}>
+            Supermarket outlets publish item-level clearance on a daily shelf — not rescue bags.
+          </StitchText>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() =>
+              isHybrid
+                ? navigation.navigate('MerchantShelvesTab')
+                : navigation.navigate('MerchantBagsTab')
+            }
+            style={({ pressed }) => ({
+              width: '100%',
+              paddingVertical: spacing.sm,
+              borderRadius: radii.lg,
+              backgroundColor: colors.surface2,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: spacing.sm,
+              opacity: pressed ? 0.9 : 1,
+            })}
+          >
+            <StitchText variant="label" colorKey="primaryContainer">
+              Manage today&apos;s shelf
+            </StitchText>
+            <StitchIcon name="arrow_forward" size={18} colorKey="primaryContainer" />
+          </Pressable>
+        </StitchCard>
+      ) : null}
+
+      {isHybrid && showShelves ? (
+        <StitchCard padding="md">
+          <StitchText variant="h3" colorKey="text" style={{ marginBottom: spacing.sm }}>
+            Clearance shelf
+          </StitchText>
+          <StitchText variant="body-sm" colorKey="textMuted" style={{ marginBottom: spacing.md }}>
+            Manage today&apos;s item-level markdowns alongside your rescue bags.
+          </StitchText>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => navigation.navigate('MerchantShelvesTab')}
+            style={({ pressed }) => ({
+              width: '100%',
+              paddingVertical: spacing.sm,
+              borderRadius: radii.lg,
+              backgroundColor: colors.surface2,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: spacing.sm,
+              opacity: pressed ? 0.9 : 1,
+            })}
+          >
+            <StitchText variant="label" colorKey="primaryContainer">
+              Manage today&apos;s shelf
+            </StitchText>
+            <StitchIcon name="arrow_forward" size={18} colorKey="primaryContainer" />
+          </Pressable>
+        </StitchCard>
+      ) : null}
 
       <View>
         <View
@@ -577,6 +775,29 @@ export function MerchantDashboardScreen() {
                 icon: 'storefront',
                 onPress: () => parentNav?.navigate('MerchantProfile'),
               },
+              ...(showShelves
+                ? [
+                    {
+                      key: 'shelves',
+                      label: listingMode === 'hybrid' ? "Today's shelf" : 'Clearance shelves',
+                      icon: 'inventory_2' as const,
+                      onPress: () =>
+                        isHybrid
+                          ? navigation.navigate('MerchantShelvesTab')
+                          : navigation.navigate('MerchantBagsTab'),
+                    },
+                  ]
+                : []),
+              ...(showBags
+                ? [
+                    {
+                      key: 'bags',
+                      label: 'Rescue bags',
+                      icon: 'shopping_bag' as const,
+                      onPress: () => navigation.navigate('MerchantBagsTab'),
+                    },
+                  ]
+                : []),
             ] as const
           ).map((tile) => (
             <Pressable

@@ -40,6 +40,7 @@ local.properties
 .env.local
 .env.*.local
 !.env.example
+.env.sentry-build-plugin
 
 # node.js
 #

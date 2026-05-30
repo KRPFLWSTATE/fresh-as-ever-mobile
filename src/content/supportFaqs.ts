@@ -54,6 +54,20 @@ export const SUPPORT_FAQS: SupportFaq[] = [
       'Note what was missing and your order reference (#FAE-…). Email support with photos if you can — we loop the merchant in and track it as a complaint.',
   },
   {
+    id: 'clearance-shelf',
+    category: 'order',
+    question: 'How do clearance shelves work?',
+    answer:
+      "At participating supermarkets you browse today's shelf, add discounted items to your basket, and checkout. Pick up inside the window and show your code — staff confirm each line item.",
+  },
+  {
+    id: 'clearance-missing-item',
+    category: 'order',
+    question: 'A shelf item was missing at pickup',
+    answer:
+      'Open Report a problem on the order and choose the missing-item option. List what was not handed over and we will follow up with the store.',
+  },
+  {
     id: 'payhere',
     category: 'payment',
     question: 'Card payment (PayHere)',

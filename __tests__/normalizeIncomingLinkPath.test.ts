@@ -19,6 +19,9 @@ describe('normalizeIncomingLinkPath (middleware parity)', () => {
   });
 
   test('merchant + admin shorthand', () => {
+    expect(normalizeIncomingLinkPath('shelves/abc/review')).toBe(
+      'shelves/abc/review',
+    );
     expect(normalizeIncomingLinkPath('merchant')).toBe('merchant/dashboard');
     expect(normalizeIncomingLinkPath('admin')).toBe('admin/dashboard');
   });

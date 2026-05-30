@@ -47,6 +47,8 @@ import type {
 } from '@/navigation/types';
 import { useAuthContext } from '@/context/AuthContext';
 import { useNearbyBags, type DiscoverBag } from '@/hooks/useNearbyBags';
+import type { DiscoverFeedItem } from '@/lib/discoverFeed';
+import { isClearanceShelvesEnabled } from '@/config/clearanceShelves';
 import { useUserLocation } from '@/hooks/useUserLocation';
 import { FALLBACK_COORDS } from '@/lib/fallbackCoords';
 import { haversineKm } from '@/lib/haversine';
@@ -74,6 +76,7 @@ import { useStitchTheme } from '@/theme/StitchThemeContext';
 import { stitchAmbientShadow, stitchFonts } from '@/theme/stitchTokens';
 import { formatDistance } from '@/lib/formatDistance';
 import { logError } from '@/observability/logError';
+import { OutletTrustBadge } from '@/components/OutletTrustBadge';
 import { StitchIcon, StitchSurface, StitchText } from '@/ui/stitch';
 import type { StitchIconName } from '@/ui/stitch/iconMap';
 
@@ -204,6 +207,35 @@ function bagMatchesChip(bag: DiscoverBag, chip: CategoryChipId): boolean {
         c.includes('lunch') ||
         c.includes('dinner') ||
         c.includes('food')
+      );
+    case 'groceries':
+      return c.includes('groc') || c.includes('veg') || c.includes('produce');
+    case 'supermarket':
+      return c.includes('super') || c.includes('market');
+    default:
+      return false;
+  }
+}
+
+function shelfMatchesChip(
+  item: Extract<DiscoverFeedItem, { kind: 'shelf' }>,
+  chip: CategoryChipId,
+): boolean {
+  if (chip === 'all') return true;
+  const c = (item.category ?? '').toLowerCase();
+  if (!c) return false;
+  switch (chip) {
+    case 'bakery':
+      return c.includes('bake') || c.includes('pastry');
+    case 'cafe':
+      return c.includes('cafe') || c.includes('coffee');
+    case 'meals':
+      return (
+        c.includes('meal') ||
+        c.includes('lunch') ||
+        c.includes('dinner') ||
+        c.includes('food') ||
+        c.includes('restaurant')
       );
     case 'groceries':
       return c.includes('groc') || c.includes('veg') || c.includes('produce');
@@ -673,6 +705,17 @@ function DiscoverBagCard(props: {
                 {bag.outlet_name ?? 'Local partner'}
               </StitchText>
             )}
+            <View style={{ marginTop: 6, alignSelf: 'flex-start' }}>
+              <OutletTrustBadge
+                size="sm"
+                trustScore={bag.trust_score}
+                averageRating={bag.average_rating}
+                totalReviews={bag.total_reviews}
+                collectionRatePct={bag.collection_rate_pct}
+                complaintRatePct={bag.complaint_rate_pct}
+                noShowRatePct={bag.no_show_rate_pct}
+              />
+            </View>
             <StitchText
               variant="h3"
               colorKey={soldOut ? 'textMuted' : 'text'}
@@ -763,6 +806,100 @@ function DiscoverBagCard(props: {
   );
 }
 
+function DiscoverShelfCard(props: {
+  item: Extract<DiscoverFeedItem, { kind: 'shelf' }>;
+  onOpen: (id: string) => void;
+  onOpenOutlet: (outletId: string) => void;
+  colors: StitchTheme['colors'];
+  spacing: StitchTheme['spacing'];
+  radii: StitchTheme['radii'];
+}): React.ReactElement {
+  const { item, onOpen, onOpenOutlet, colors, spacing, radii } = props;
+  const pickupLine = formatPickupLine(item.pickup_start ?? null, item.pickup_end ?? null);
+  const thumb = item.thumbnails?.[0];
+
+  return (
+    <Pressable
+      onPress={() => onOpen(item.id)}
+      style={({ pressed }) => ({
+        opacity: pressed ? 0.96 : 1,
+        marginBottom: spacing.md,
+      })}
+    >
+      <StitchSurface elevated padding="none" style={{ overflow: 'hidden', borderRadius: radii.xl }}>
+        <View style={{ position: 'relative' }}>
+          {thumb ? (
+            <Image
+              source={{ uri: thumb }}
+              style={{ width: '100%', aspectRatio: 16 / 9, backgroundColor: colors.surfaceContainerHighest }}
+              resizeMode="cover"
+            />
+          ) : (
+            <View style={{ width: '100%', aspectRatio: 16 / 9, backgroundColor: colors.surfaceContainerHighest }} />
+          )}
+          <View style={{ position: 'absolute', top: spacing.sm, left: spacing.sm, flexDirection: 'row', gap: 6 }}>
+            <View style={{ paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, backgroundColor: colors.accent }}>
+              <StitchText variant="body-sm" colorKey="onPrimary" style={{ fontFamily: stitchFonts.semiBold }}>
+                Pick your own
+              </StitchText>
+            </View>
+          </View>
+          {item.itemCount > 0 ? (
+            <View style={{ position: 'absolute', top: spacing.sm, right: spacing.sm }}>
+              <View style={{ paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, backgroundColor: colors.primaryHighlight }}>
+                <StitchText variant="body-sm" colorKey="primaryActive" style={{ fontFamily: stitchFonts.bold }}>
+                  {item.itemCount} item{item.itemCount === 1 ? '' : 's'}
+                </StitchText>
+              </View>
+            </View>
+          ) : null}
+        </View>
+        <View style={{ padding: spacing.md, gap: spacing.sm }}>
+          {item.outlet_id ? (
+            <Pressable onPress={() => onOpenOutlet(item.outlet_id!)} hitSlop={6}>
+              <StitchText variant="body-sm" colorKey="textMuted">
+                {item.outlet_name ?? 'Supermarket'}
+              </StitchText>
+            </Pressable>
+          ) : (
+            <StitchText variant="body-sm" colorKey="textMuted">
+              {item.outlet_name ?? 'Supermarket'}
+            </StitchText>
+          )}
+          <StitchText variant="h3" colorKey="text">
+            Today&apos;s clearance shelf
+          </StitchText>
+          {item.previewItemNames && item.previewItemNames.length > 0 ? (
+            <StitchText variant="body-sm" colorKey="textMuted" numberOfLines={2}>
+              {item.previewItemNames.join(' · ')}
+            </StitchText>
+          ) : null}
+          {item.savingsPercentMin != null && item.savingsPercentMax != null ? (
+            <StitchText variant="body-sm" colorKey="secondary">
+              {item.savingsPercentMin === item.savingsPercentMax
+                ? `Save up to ${item.savingsPercentMax}%`
+                : `Save ${item.savingsPercentMin}–${item.savingsPercentMax}%`}
+            </StitchText>
+          ) : null}
+          {pickupLine ? (
+            <StitchText variant="body-sm" colorKey="textMuted">
+              Pickup {pickupLine}
+            </StitchText>
+          ) : null}
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+            <StitchText variant="price" colorKey="accent">
+              From {formatLkr(item.minPrice)}
+            </StitchText>
+            <StitchText variant="label" colorKey="onPrimary">
+              Browse shelf
+            </StitchText>
+          </View>
+        </View>
+      </StitchSurface>
+    </Pressable>
+  );
+}
+
 export function DiscoverScreen() {
   const navigation = useNavigation<Nav>();
   const tabRoute =
@@ -842,7 +979,7 @@ export function DiscoverScreen() {
    */
   const discoverMapType = useMemo((): MapType => 'standard', []);
 
-  const { bags, loading, error, refetch } = useNearbyBags(
+  const { bags, feedItems, loading, error, refetch } = useNearbyBags(
     env,
     center.lat,
     center.lng,
@@ -873,6 +1010,43 @@ export function DiscoverScreen() {
         (b.outlet_name?.toLowerCase().includes(q) ?? false),
     );
   }, [filteredBags, searchQuery]);
+
+  const displayFeed = useMemo((): DiscoverFeedItem[] => {
+    if (forcedFromLink != null) return [];
+    if (feedItems?.length) return feedItems;
+    return listBags.map((b) => ({
+      kind: 'bag' as const,
+      payload: b as unknown as Record<string, unknown>,
+      ...b,
+    }));
+  }, [forcedFromLink, feedItems, listBags]);
+
+  const filteredFeed = useMemo(
+    () =>
+      displayFeed.filter((item) =>
+        item.kind === 'shelf'
+          ? shelfMatchesChip(item, selectedChip)
+          : bagMatchesChip(item as unknown as DiscoverBag, selectedChip),
+      ),
+    [displayFeed, selectedChip],
+  );
+
+  const listFeed = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return filteredFeed;
+    return filteredFeed.filter((item) => {
+      if (item.kind === 'shelf') {
+        const name = (item.outlet_name ?? '').toLowerCase();
+        return name.includes(q) || q.includes('clearance') || q.includes('shelf');
+      }
+      if (item.kind !== 'bag') return false;
+      const bag = item as unknown as DiscoverBag;
+      return (
+        bag.title?.toLowerCase().includes(q) ||
+        (bag.outlet_name?.toLowerCase().includes(q) ?? false)
+      );
+    });
+  }, [filteredFeed, searchQuery]);
 
   const bagsWithValidMapCoords = useMemo(
     () =>
@@ -1307,6 +1481,13 @@ export function DiscoverScreen() {
   const openOutlet = useCallback(
     (outletId: string) => {
       navigation.getParent()?.navigate('OutletDetail', { outletId });
+    },
+    [navigation],
+  );
+
+  const openShelf = useCallback(
+    (id: string) => {
+      navigation.getParent()?.navigate('ClearanceShelf', { id });
     },
     [navigation],
   );
@@ -2089,9 +2270,9 @@ export function DiscoverScreen() {
         </ScrollView>
       ) : (
         <FlatList
-          data={loading ? [] : listBags}
+          data={loading ? [] : listFeed}
           style={styles.list}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item) => `${item.kind}-${item.id}`}
           contentContainerStyle={styles.listContent}
           nestedScrollEnabled
           keyboardShouldPersistTaps="handled"
@@ -2113,14 +2294,14 @@ export function DiscoverScreen() {
               <View style={[styles.listRowGutter, { marginTop: spacing.sm }]}>
                 <StitchSurface elevated padding="lg">
                   <StitchText variant="h3" colorKey="text">
-                    {listBags.length === 0 && filteredBags.length > 0
+                    {listFeed.length === 0 && displayFeed.length > 0
                       ? searchQuery.trim()
                         ? 'No matches for your search'
                         : 'Nothing in this category'
-                      : 'No bags to show yet'}
+                      : 'No bags or shelves nearby'}
                   </StitchText>
                   <StitchText variant="body-sm" colorKey="textMuted" style={{ marginTop: 8 }}>
-                    {listBags.length === 0 && filteredBags.length > 0
+                    {listFeed.length === 0 && displayFeed.length > 0
                       ? searchQuery.trim()
                         ? 'Try different words or tap See all for full results.'
                         : 'Try another filter or pick All to see every rescue nearby.'
@@ -2132,14 +2313,25 @@ export function DiscoverScreen() {
           }
           renderItem={({ item }) => (
             <View style={styles.listRowGutter}>
-              <DiscoverBagCard
-                bag={item}
-                onOpen={openBag}
-                onOpenOutlet={openOutlet}
-                colors={colors}
-                spacing={spacing}
-                radii={radii}
-              />
+              {item.kind === 'shelf' && isClearanceShelvesEnabled() ? (
+                <DiscoverShelfCard
+                  item={item}
+                  onOpen={openShelf}
+                  onOpenOutlet={openOutlet}
+                  colors={colors}
+                  spacing={spacing}
+                  radii={radii}
+                />
+              ) : item.kind === 'bag' ? (
+                <DiscoverBagCard
+                  bag={item as unknown as DiscoverBag}
+                  onOpen={openBag}
+                  onOpenOutlet={openOutlet}
+                  colors={colors}
+                  spacing={spacing}
+                  radii={radii}
+                />
+              ) : null}
             </View>
           )}
         />

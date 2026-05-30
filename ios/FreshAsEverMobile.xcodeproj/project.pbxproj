@@ -229,7 +229,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "set -e\n\nWITH_ENVIRONMENT=\"$REACT_NATIVE_PATH/scripts/xcode/with-environment.sh\"\nREACT_NATIVE_XCODE=\"$REACT_NATIVE_PATH/scripts/react-native-xcode.sh\"\n\n/bin/sh -c \"\\\"$WITH_ENVIRONMENT\\\" \\\"$REACT_NATIVE_XCODE\\\"\"\n";
+			shellScript = "set -e\n\nif [ -f \"$SRCROOT/.xcode.env\" ]; then\n  source \"$SRCROOT/.xcode.env\"\nfi\nif [ -f \"$SRCROOT/.xcode.env.local\" ]; then\n  source \"$SRCROOT/.xcode.env.local\"\nfi\nexport NODE_BINARY=\"${NODE_BINARY:-$(command -v node)}\"\n\nSENTRY_XCODE=\"$REACT_NATIVE_PATH/../@sentry/react-native/scripts/sentry-xcode.sh\"\nREACT_NATIVE_XCODE=\"$REACT_NATIVE_PATH/scripts/react-native-xcode.sh\"\n\n/bin/sh \"$SENTRY_XCODE\" \"$REACT_NATIVE_XCODE\"\n";
 		};
 		00EEFC60759A1932668264C0 /* [CP] Embed Pods Frameworks */ = {
 			isa = PBXShellScriptBuildPhase;

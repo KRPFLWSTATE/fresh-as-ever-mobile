@@ -25,6 +25,12 @@ Allowed: `reserved`, `awaiting_pickup`, `paid`, `collected`, `no_show`, `cancell
 
 `reserved` + `payment_status = paid` (e.g. A00031) — handover must accept via `payment_status` until status syncs to `paid`.
 
+## Group reservations (`reservation_groups`)
+
+- `orders.group_id` → `reservation_groups.id` for multi-bag checkouts.
+- Shared `reservation_code` lives on the group row; child orders keep `reservation_code` null.
+- PayHere `order_id` may be a group UUID; webhook updates group + all children.
+
 ## RPCs (post `merchant_handover_v1`)
 
 - `mark_order_no_show(uuid)` — grace 30m after `pickup_end`

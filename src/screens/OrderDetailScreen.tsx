@@ -31,6 +31,7 @@ import { mapArrivalError } from '@/lib/messages/rpc';
 import { ERROR } from '@/lib/messages/errors';
 import { getSupabase } from '@/lib/supabase';
 import { mapSupabaseError } from '@/lib/supabaseError';
+import { orderDisplayTitle, orderPickupWindow } from '@/lib/orderDisplay';
 import { useAuthContext } from '@/context/AuthContext';
 import { FALLBACK_COORDS } from '@/lib/fallbackCoords';
 import { openOutletDirections } from '@/lib/openOutletDirections';
@@ -73,6 +74,12 @@ type OutletJoin = {
   merchant?: { business_name?: string | null } | null;
 } | null;
 
+type OrderItemRow = {
+  name_snapshot?: string | null;
+  quantity?: number | null;
+  line_total?: number | null;
+};
+
 type OrderRow = {
   id: string;
   order_status: string | null;
@@ -86,7 +93,13 @@ type OrderRow = {
   payment_status: string | null;
   reservation_code: string | null;
   customer_arrived_at: string | null;
+  shelf_id: string | null;
+  order_items: OrderItemRow[] | null;
   bag: BagJoin;
+  shelf: {
+    pickup_start?: string | null;
+    pickup_end?: string | null;
+  } | null;
   outlet: OutletJoin;
 };
 
@@ -290,6 +303,9 @@ export function OrderDetailScreen() {
           payment_status,
           reservation_code,
           customer_arrived_at,
+          shelf_id,
+          order_items(name_snapshot, quantity, line_total),
+          shelf:clearance_shelves(pickup_start, pickup_end),
           bag:rescue_bags(title, category, image_url, pickup_start, pickup_end),
           outlet:outlets(name, address, landmark, location, merchant:merchants(business_name))
         `,
@@ -422,6 +438,7 @@ export function OrderDetailScreen() {
   const normalized = normalizeOrderStatus(String(row.order_status ?? ''));
   const bag = row.bag;
   const outlet = row.outlet;
+  const isShelfOrder = Boolean(row.shelf_id);
   const venue =
     typeof outlet?.merchant?.business_name === 'string' &&
     outlet.merchant.business_name
@@ -431,13 +448,25 @@ export function OrderDetailScreen() {
         : '';
   const outletTitle =
     typeof outlet?.name === 'string' && outlet.name ? outlet.name : venue;
-  const title =
-    typeof bag?.title === 'string' && bag.title ? bag.title : 'Rescue bag';
+  const title = orderDisplayTitle({
+    shelf_id: row.shelf_id,
+    bag,
+    order_items: row.order_items,
+  });
   const category =
-    bag?.category != null ? String(bag.category).replace(/_/g, ' ') : '';
+    !isShelfOrder && bag?.category != null
+      ? String(bag.category).replace(/_/g, ' ')
+      : isShelfOrder
+        ? 'Clearance shelf'
+        : '';
+  const pickupTimes = orderPickupWindow({
+    shelf_id: row.shelf_id,
+    bag,
+    shelf: row.shelf,
+  });
   const { window: pickupWindow, day: pickupDay } = formatPickupWindow(
-    bag?.pickup_start,
-    bag?.pickup_end,
+    pickupTimes.start,
+    pickupTimes.end,
   );
   const pickupLine =
     pickupDay && pickupWindow !== '—'
@@ -485,8 +514,8 @@ export function OrderDetailScreen() {
     isOpenComplaintStatus(existingComplaint.status);
   const paymentStatus = String(row.payment_status ?? '').toLowerCase();
   const nowMs = Date.now();
-  const pickupStart = bag?.pickup_start ?? null;
-  const pickupEnd = bag?.pickup_end ?? null;
+  const pickupStart = pickupTimes.start;
+  const pickupEnd = pickupTimes.end;
   const arrivalWindowOpen = isCustomerArrivalEligible(nowMs, pickupStart, pickupEnd);
   const isCollectibleForArrival =
     ['reserved', 'paid', 'ready_for_pickup'].includes(normalized) &&
@@ -689,7 +718,7 @@ export function OrderDetailScreen() {
 
         <StitchCard style={{ marginBottom: spacing.lg }}>
           <View style={styles.bagRow}>
-            {typeof bag?.image_url === 'string' ? (
+            {typeof bag?.image_url === 'string' && !isShelfOrder ? (
               <Image
                 source={{ uri: bag.image_url }}
                 style={styles.bagThumb}
@@ -702,7 +731,13 @@ export function OrderDetailScreen() {
                   styles.bagThumb,
                   { backgroundColor: colors.surfaceContainerHigh },
                 ]}
-              />
+              >
+                <StitchIcon
+                  name={isShelfOrder ? 'inventory_2' : 'shopping_bag'}
+                  size={28}
+                  colorKey="textMuted"
+                />
+              </View>
             )}
             <View style={styles.bagCopy}>
               <View>
@@ -817,14 +852,27 @@ export function OrderDetailScreen() {
             </StitchText>
           </View>
           <View style={{ gap: spacing.sm }}>
-            <View style={styles.priceRow}>
-              <StitchText variant="body-md" colorKey="textMuted">
-                {title} (×{qty})
-              </StitchText>
-              <StitchText variant="body-md" colorKey="textMuted">
-                {formatLKR(subtotal)}
-              </StitchText>
-            </View>
+            {isShelfOrder && row.order_items?.length ? (
+              row.order_items.map((item, idx) => (
+                <View key={`${item.name_snapshot ?? 'item'}-${idx}`} style={styles.priceRow}>
+                  <StitchText variant="body-md" colorKey="textMuted">
+                    {item.name_snapshot ?? 'Item'} (×{item.quantity ?? 1})
+                  </StitchText>
+                  <StitchText variant="body-md" colorKey="textMuted">
+                    {formatLKR(Number(item.line_total ?? 0))}
+                  </StitchText>
+                </View>
+              ))
+            ) : (
+              <View style={styles.priceRow}>
+                <StitchText variant="body-md" colorKey="textMuted">
+                  {title} (×{qty})
+                </StitchText>
+                <StitchText variant="body-md" colorKey="textMuted">
+                  {formatLKR(subtotal)}
+                </StitchText>
+              </View>
+            )}
             <View style={styles.priceRow}>
               <StitchText variant="body-md" colorKey="textMuted">
                 Platform Fee

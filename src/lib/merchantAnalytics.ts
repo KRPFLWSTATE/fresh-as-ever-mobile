@@ -51,6 +51,22 @@ export function sumRevenue(
   return rows.reduce((sum, r) => sum + Number(r.total ?? 0), 0);
 }
 
+export function sumSurplusRecovered(
+  rows: {
+    quantity?: number | null;
+    bag?: { retail_value_estimate?: number | string | null } | null;
+  }[],
+): number {
+  let total = 0;
+  for (const row of rows) {
+    const retail = Number(row.bag?.retail_value_estimate ?? 0);
+    if (!Number.isFinite(retail) || retail <= 0) continue;
+    const qty = Math.max(1, Number(row.quantity ?? 1) || 1);
+    total += retail * qty;
+  }
+  return Math.round(total);
+}
+
 export function estimateWasteKg(
   orders: { bag_id?: string | null; quantity?: number | null }[],
   bagWeightById: Map<string, number>,

@@ -4,6 +4,8 @@ export const DISCOVER_FORCED_EMPTY_STATES = [
   'empty-search',
   'no-results',
   'no-bags-nearby',
+  'no-listings-nearby',
+  'no-shelves-yet',
   'sold-out',
 ] as const;
 
@@ -33,6 +35,14 @@ export const DISCOVER_EMPTY_COPY: Record<
   'no-bags-nearby': {
     title: 'No bags nearby right now',
     body: 'Check again later. Merchants publish new rescue bags throughout the day.',
+  },
+  'no-listings-nearby': {
+    title: 'No bags or shelves nearby',
+    body: 'Check again later — merchants publish rescue bags and clearance shelves throughout the day.',
+  },
+  'no-shelves-yet': {
+    title: 'No clearance shelves yet',
+    body: 'Supermarkets publish daily shelves when stock is ready. Rescue bags may still be available nearby.',
   },
   'sold-out': {
     title: 'Missed out today',

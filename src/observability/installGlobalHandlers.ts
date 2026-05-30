@@ -5,7 +5,7 @@ type ErrorUtilsApi = {
   setGlobalHandler?: (fn: (error: Error, isFatal?: boolean) => void) => void;
 };
 
-/** Dev-friendly tagging for native fatals — extend with Crashlytics/Sentry when wired. */
+/** Chains RN global errors after Sentry (when enabled) has installed its handler. */
 export function installReactNativeGlobalHandlers(): void {
   const g = globalThis as typeof globalThis & { ErrorUtils?: ErrorUtilsApi };
   const Eu = g.ErrorUtils;

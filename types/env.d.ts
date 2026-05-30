@@ -10,4 +10,10 @@ declare module '@env' {
    * merchant demo fixtures. Add to project-root `.env` — never ship `true` in production.
    */
   export const EXPO_PUBLIC_FAE_DEMO_MODE: string | undefined;
+  /** When exactly `true`, enables multi-bag group cart and checkout. */
+  export const EXPO_PUBLIC_GROUP_RESERVATIONS_ENABLED: string | undefined;
+  /** When exactly `true`, enables clearance shelf listings (supermarket outlets). */
+  export const EXPO_PUBLIC_CLEARANCE_SHELVES_ENABLED: string | undefined;
+  /** Sentry client DSN — optional; omit to disable crash reporting locally. */
+  export const SENTRY_DSN: string | undefined;
 }

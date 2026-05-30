@@ -12,11 +12,13 @@ import {
   formatLkr,
   isCollectedOrder,
   peakHourLabel,
-  retailToKgProxy,
   sumRevenue,
+  sumSurplusRecovered,
   type HourBucket,
   type TopSellingBag,
 } from '@/lib/merchantAnalytics';
+import { co2eKgFromFoodKg, resolveBagFoodWeightKg } from '@/lib/co2Impact';
+import { ERROR } from '@/lib/messages/errors';
 import { mapSupabaseError, logSupabaseError } from '@/lib/supabaseError';
 
 export type MerchantAnalyticsSnapshot = {
@@ -25,6 +27,8 @@ export type MerchantAnalyticsSnapshot = {
   customerReach: number;
   wasteKg: number;
   co2Kg: number;
+  surplusRecovered: number;
+  surplusRecoveredLabel: string;
   hourBuckets: HourBucket[];
   peakHour: string;
   topBags: TopSellingBag[];
@@ -44,6 +48,8 @@ export function useMerchantAnalytics(env: AppEnv, windowDays: AnalyticsWindowKey
         customerReach: 0,
         wasteKg: 0,
         co2Kg: 0,
+        surplusRecovered: 0,
+        surplusRecoveredLabel: formatLkr(0),
         hourBuckets: Array.from({ length: 24 }, (_, hour) => ({ hour, count: 0 })),
         peakHour: '—',
         topBags: [],
@@ -68,7 +74,7 @@ export function useMerchantAnalytics(env: AppEnv, windowDays: AnalyticsWindowKey
           quantity,
           created_at,
           order_status,
-          bag:rescue_bags(title, retail_value_estimate)
+          bag:rescue_bags(title, estimated_weight_kg, retail_value_estimate)
         `,
         )
         .in('outlet_id', outletScopeIds)
@@ -97,8 +103,11 @@ export function useMerchantAnalytics(env: AppEnv, windowDays: AnalyticsWindowKey
       for (const r of collected) {
         const bagId = r.bag_id != null ? String(r.bag_id) : '';
         if (!bagId || weightMap.has(bagId)) continue;
-        const bag = r.bag as { retail_value_estimate?: number | null } | null;
-        weightMap.set(bagId, retailToKgProxy(bag?.retail_value_estimate));
+        const bag = r.bag as {
+          estimated_weight_kg?: number | null;
+          retail_value_estimate?: number | null;
+        } | null;
+        weightMap.set(bagId, resolveBagFoodWeightKg(bag));
       }
       const wasteKg = estimateWasteKg(
         collected.map((r) => ({
@@ -107,7 +116,13 @@ export function useMerchantAnalytics(env: AppEnv, windowDays: AnalyticsWindowKey
         })),
         weightMap,
       );
-      const co2Kg = Math.round(wasteKg * 2.5 * 10) / 10;
+      const co2Kg = co2eKgFromFoodKg(wasteKg);
+      const surplusRecovered = sumSurplusRecovered(
+        collected.map((r) => ({
+          quantity: r.quantity as number | null,
+          bag: r.bag as { retail_value_estimate?: number | null } | null,
+        })),
+      );
 
       setSnapshot({
         revenue,
@@ -115,13 +130,15 @@ export function useMerchantAnalytics(env: AppEnv, windowDays: AnalyticsWindowKey
         customerReach: reach,
         wasteKg,
         co2Kg,
+        surplusRecovered,
+        surplusRecoveredLabel: formatLkr(surplusRecovered),
         hourBuckets,
         peakHour: peakHourLabel(hourBuckets),
         topBags,
       });
     } catch (e) {
       logSupabaseError(e, 'useMerchantAnalytics');
-      setError(mapSupabaseError(e as Error, 'Could not load analytics.'));
+      setError(mapSupabaseError(e as Error, ERROR.merchant.analytics));
       setSnapshot(null);
     } finally {
       setLoading(false);

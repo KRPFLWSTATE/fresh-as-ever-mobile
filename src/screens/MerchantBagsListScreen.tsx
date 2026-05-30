@@ -11,6 +11,7 @@ import {
   View,
 } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useMerchantRescueBagGuard } from '@/hooks/useMerchantRescueBagGuard';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '@/navigation/types';
 import { useAuthContext } from '@/context/AuthContext';
@@ -149,7 +150,12 @@ function createStyles({ spacing, radii }: CreateStylesArgs) {
   });
 }
 
-export function MerchantBagsListScreen() {
+type MerchantBagsListScreenProps = {
+  /** Mounted on merchant bottom tab — no clearance redirect. */
+  embeddedInTab?: boolean;
+};
+
+export function MerchantBagsListScreen({ embeddedInTab: _embeddedInTab }: MerchantBagsListScreenProps = {}) {
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { env } = useAuthContext();
@@ -157,6 +163,7 @@ export function MerchantBagsListScreen() {
   const scrollBottomPad = useScrollContentBottomPad();
   const styles = useMemo(() => createStyles({ spacing, radii }), [spacing, radii]);
 
+  const { allowed: bagsAllowed, goToShelves } = useMerchantRescueBagGuard();
   const {
     bags,
     loading,
@@ -170,8 +177,9 @@ export function MerchantBagsListScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      if (!bagsAllowed) return;
       refetch().catch((err) => logError(err, { context: 'MerchantBagsListScreen.refetch' }));
-    }, [refetch]),
+    }, [bagsAllowed, refetch]),
   );
 
   const baseBags = useMemo(
@@ -689,6 +697,33 @@ export function MerchantBagsListScreen() {
       tabRow,
     ],
   );
+
+  if (!bagsAllowed) {
+    return (
+      <StitchScreen
+        scroll
+        scrollProps={{
+          contentContainerStyle: {
+            padding: spacing.pageMarginMobile,
+            gap: spacing.md,
+          },
+        }}
+      >
+        <StitchText variant="h2" colorKey="onBackground">
+          Clearance shelves only
+        </StitchText>
+        <StitchText variant="body-md" colorKey="textMuted">
+          This outlet does not publish rescue bags. Manage today&apos;s shelf markdowns
+          instead.
+        </StitchText>
+        <Pressable onPress={goToShelves}>
+          <StitchText variant="label" colorKey="primary">
+            Go to clearance shelves
+          </StitchText>
+        </Pressable>
+      </StitchScreen>
+    );
+  }
 
   return (
     <StitchScreen edges={['top', 'left', 'right']}>

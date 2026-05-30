@@ -72,6 +72,7 @@ export function buildRescueBagInsertPayload(
     outlet_id: outletId,
     title,
     rescue_price: price,
+    estimated_weight_kg: 1,
     quantity_total: qty,
     quantity_remaining: qty,
     pickup_start: start.toISOString(),

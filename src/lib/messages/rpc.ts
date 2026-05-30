@@ -33,9 +33,12 @@ export function mapArrivalError(
 export function mapCheckoutError(
   message: unknown,
   fallback: string = ERROR.checkout.reserveFailed,
+  listingKind: 'bag' | 'shelf' = 'bag',
 ): string {
   const m = lower(message);
-  if (m.includes('sold out') || m.includes('quantity')) return ERROR.checkout.soldOut;
+  if (m.includes('sold out') || m.includes('quantity') || m.includes('clearance_item_sold_out')) {
+    return listingKind === 'shelf' ? ERROR.checkout.shelfSoldOut : ERROR.checkout.soldOut;
+  }
   if (m.includes('network') || m.includes('fetch')) return ERROR.common.network;
   return fallback;
 }

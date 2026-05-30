@@ -21,7 +21,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   groceries: 'Groceries',
   produce: 'Groceries',
   veg: 'Groceries',
-  hotel: 'Hotel',
+  hotel: 'Café',
   other: 'Saved Outlet',
 };
 

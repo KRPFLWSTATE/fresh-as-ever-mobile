@@ -3,6 +3,7 @@ import type { MerchantOrderRow } from '@/hooks/useMerchantOrders';
 
 function row(partial: Partial<MerchantOrderRow> & { id: string }): MerchantOrderRow {
   return {
+    outlet_id: 'outlet-1',
     reservation_code: 'ABC123',
     status: 'paid',
     order_status_raw: 'paid',
@@ -10,6 +11,7 @@ function row(partial: Partial<MerchantOrderRow> & { id: string }): MerchantOrder
     customer_phone: null,
     bag_title: 'Bag',
     bag_image_url: null,
+    shelf_id: null,
     pickup_start: '2026-05-20T10:00:00.000Z',
     pickup_end: '2026-05-20T12:00:00.000Z',
     no_show_available: false,

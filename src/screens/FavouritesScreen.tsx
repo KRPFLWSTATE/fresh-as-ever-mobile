@@ -23,6 +23,7 @@ import { StitchIcon } from '@/ui/stitch/StitchIcon';
 import { StitchSurface } from '@/ui/stitch/StitchSurface';
 import { StitchText } from '@/ui/stitch/StitchText';
 import { StitchButton } from '@/ui/stitch/StitchButton';
+import { OutletTrustBadge } from '@/components/OutletTrustBadge';
 import { PersonHeartIcon } from '@/ui/PersonHeartIcon';
 import { logError } from '@/observability/logError';
 
@@ -223,12 +224,15 @@ export function FavouritesScreen() {
               {item.name}
             </StitchText>
           </View>
-          <View style={styles.ratingPill}>
-            <StitchIcon name="star" size={16} colorKey="accent" />
-            <StitchText variant="label" colorKey="onSurface">
-              {item.rating.toFixed(1)}
-            </StitchText>
-          </View>
+          <OutletTrustBadge
+            size="sm"
+            trustScore={item.trustScore}
+            averageRating={item.averageRating}
+            totalReviews={item.totalReviews}
+            collectionRatePct={item.collectionRatePct}
+            complaintRatePct={item.complaintRatePct}
+            noShowRatePct={item.noShowRatePct}
+          />
         </View>
         <View style={styles.metaRow}>
           <View style={styles.metaItem}>

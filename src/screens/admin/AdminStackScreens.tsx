@@ -31,6 +31,7 @@ import {
   type AdminCrossTabNavigation,
 } from '@/navigation/adminNavigation';
 import { adminCollectOrder } from '@/lib/adminCollectOrder';
+import { orderDisplayTitle, orderListingKind } from '@/lib/orderDisplay';
 import { isOpenComplaintStatus } from '@/lib/adminComplaints';
 import {
   useAdminDashboardMetrics,
@@ -1042,6 +1043,8 @@ type AdminOrderRow = {
   total: number | null;
   customer_name: string;
   merchant_name: string;
+  listing_kind: 'shelf' | 'bag';
+  listing_title: string;
   created_at: string | null;
 };
 
@@ -1102,8 +1105,11 @@ function OrdersList({
           order_status,
           total,
           created_at,
+          shelf_id,
           customer:profiles(full_name),
-          outlet:outlets(name)
+          outlet:outlets(name),
+          bag:rescue_bags(title),
+          order_items(name_snapshot, quantity)
         `,
           { count: 'exact' },
         )
@@ -1143,7 +1149,15 @@ function OrdersList({
         setRows([]);
       } else {
         setErr(null);
-        const mapped = ((data ?? []) as Record<string, unknown>[]).map((r) => ({
+        const mapped = ((data ?? []) as Record<string, unknown>[]).map((r) => {
+          const bag = r.bag as Record<string, unknown> | undefined;
+          const orderItems = Array.isArray(r.order_items)
+            ? (r.order_items as Record<string, unknown>[])
+            : [];
+          const listingKind = orderListingKind({
+            shelf_id: r.shelf_id as string | null | undefined,
+          });
+          return {
           id: String(r.id ?? ''),
           order_status: typeof r.order_status === 'string' ? r.order_status : null,
           total: typeof r.total === 'number' ? r.total : Number(r.total ?? 0),
@@ -1154,7 +1168,18 @@ function OrdersList({
           merchant_name:
             String((r.outlet as Record<string, unknown> | undefined)?.name ?? '') ||
             'Merchant',
-        }));
+          listing_kind: listingKind,
+          listing_title: orderDisplayTitle({
+            shelf_id: r.shelf_id as string | null | undefined,
+            bag: bag ? { title: typeof bag.title === 'string' ? bag.title : null } : null,
+            order_items: orderItems.map((item) => ({
+              name_snapshot:
+                typeof item.name_snapshot === 'string' ? item.name_snapshot : null,
+              quantity: typeof item.quantity === 'number' ? item.quantity : null,
+            })),
+          }),
+        };
+        });
         setRows(mapped);
         if (typeof count === 'number') {
           onCountChange?.(count);
@@ -1283,6 +1308,9 @@ function OrdersList({
             </View>
             <StitchText variant="body-sm" colorKey="textMuted">
               {item.customer_name} · {item.merchant_name}
+            </StitchText>
+            <StitchText variant="body-sm" colorKey="textFaint">
+              {item.listing_kind === 'shelf' ? 'Shelf' : 'Bag'} · {item.listing_title}
             </StitchText>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: spacing.sm }}>
               <StitchText variant="body-sm" colorKey="textMuted">
@@ -3472,7 +3500,6 @@ export function AdminMerchantsScreen() {
     { key: 'cafe', label: 'Cafe' },
     { key: 'restaurant', label: 'Restaurant' },
     { key: 'supermarket', label: 'Supermarket' },
-    { key: 'hotel', label: 'Hotel' },
     { key: 'other', label: 'Other' },
   ] as const;
 
@@ -5769,9 +5796,12 @@ export function AdminPlatformOrderDetailScreen() {
           cancelled_at,
           cancellation_reason,
           cancelled_by,
+          shelf_id,
           customer:profiles(full_name, phone),
           outlet:outlets(name, address, merchant:merchants(business_name, contact_email)),
-          bag:rescue_bags(title, image_url)
+          bag:rescue_bags(title, image_url),
+          shelf:clearance_shelves(pickup_start, pickup_end),
+          order_items(name_snapshot, quantity)
         `,
         )
         .eq('id', route.params.orderId)
@@ -5798,6 +5828,9 @@ export function AdminPlatformOrderDetailScreen() {
         const outlet = r.outlet as Record<string, unknown> | undefined;
         const merchant = outlet?.merchant as Record<string, unknown> | undefined;
         const bag = r.bag as Record<string, unknown> | undefined;
+        const orderItems = Array.isArray(r.order_items)
+          ? (r.order_items as Record<string, unknown>[])
+          : [];
         setOrder({
           id: String(r.id ?? ''),
           reservation_code: String(r.reservation_code ?? ''),
@@ -5820,7 +5853,15 @@ export function AdminPlatformOrderDetailScreen() {
           outlet_name: String(outlet?.name ?? '') || 'Outlet',
           outlet_address: String(outlet?.address ?? ''),
           merchant_name: String(merchant?.business_name ?? '') || 'Merchant',
-          bag_title: String(bag?.title ?? '') || 'Rescue bag',
+          bag_title: orderDisplayTitle({
+            shelf_id: r.shelf_id as string | null | undefined,
+            bag: bag ? { title: typeof bag.title === 'string' ? bag.title : null } : null,
+            order_items: orderItems.map((item) => ({
+              name_snapshot:
+                typeof item.name_snapshot === 'string' ? item.name_snapshot : null,
+              quantity: typeof item.quantity === 'number' ? item.quantity : null,
+            })),
+          }),
           bag_image_url: String(bag?.image_url ?? ''),
         });
         setErr(null);

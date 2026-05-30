@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import type { AppEnv } from '@/config/env';
 import {
-  CUSTOMER_COMPLAINT_TYPE_OPTIONS,
+  customerComplaintTypeOptions,
   type CustomerComplaintType,
 } from '@/lib/complaints/customerComplaintTypes';
 import { submitCustomerComplaint } from '@/lib/complaints/submitCustomerComplaint';
@@ -32,6 +32,7 @@ type Props = {
   orderId: string;
   userId: string;
   onSubmitted: () => void;
+  isShelfOrder?: boolean;
 };
 
 export function ReportProblemModal({
@@ -41,7 +42,12 @@ export function ReportProblemModal({
   orderId,
   userId,
   onSubmitted,
+  isShelfOrder = false,
 }: Props) {
+  const typeOptions = useMemo(
+    () => customerComplaintTypeOptions(isShelfOrder),
+    [isShelfOrder],
+  );
   const { colors, spacing, radii } = useStitchTheme();
   const [type, setType] = useState<CustomerComplaintType>('quality');
   const [description, setDescription] = useState('');
@@ -185,7 +191,7 @@ export function ReportProblemModal({
             <StitchText variant="label-caps" colorKey="textMuted">
               Issue type
             </StitchText>
-            {CUSTOMER_COMPLAINT_TYPE_OPTIONS.map((opt) => {
+            {typeOptions.map((opt) => {
               const selected = type === opt.value;
               return (
                 <Pressable

@@ -16,28 +16,95 @@ export type MerchantProfile = Record<string, unknown> & {
   business_name?: string | null;
 };
 
-export function useMerchantContext(env: AppEnv) {
-  const supabase = useMemo(() => getSupabase(env), [env]);
+type MerchantContextState = {
+  merchant: MerchantProfile | null;
+  outlets: MerchantOutlet[];
+  activeOutletId: string | null;
+  loading: boolean;
+  error: string | null;
+  initialized: boolean;
+};
 
-  const [merchant, setMerchant] = useState<MerchantProfile | null>(null);
-  const [outlets, setOutlets] = useState<MerchantOutlet[]>([]);
-  const [activeOutletId, setActiveOutletId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+type MerchantContextStore = {
+  state: MerchantContextState;
+  listeners: Set<() => void>;
+  fetchPromise: Promise<void> | null;
+};
 
-  const fetchContext = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+const merchantContextStores = new Map<string, MerchantContextStore>();
+
+function createInitialState(): MerchantContextState {
+  return {
+    merchant: null,
+    outlets: [],
+    activeOutletId: null,
+    loading: true,
+    error: null,
+    initialized: false,
+  };
+}
+
+function getStoreKey(env: AppEnv): string {
+  return `${env.supabaseUrl}|${env.supabaseAnonKey}`;
+}
+
+function getMerchantContextStore(env: AppEnv): MerchantContextStore {
+  const key = getStoreKey(env);
+  const existing = merchantContextStores.get(key);
+  if (existing) {
+    return existing;
+  }
+  const next: MerchantContextStore = {
+    state: createInitialState(),
+    listeners: new Set(),
+    fetchPromise: null,
+  };
+  merchantContextStores.set(key, next);
+  return next;
+}
+
+function emitStore(store: MerchantContextStore) {
+  store.listeners.forEach((listener) => listener());
+}
+
+function updateStore(
+  store: MerchantContextStore,
+  updater: (current: MerchantContextState) => MerchantContextState,
+) {
+  store.state = updater(store.state);
+  emitStore(store);
+}
+
+async function fetchMerchantContext(
+  store: MerchantContextStore,
+  env: AppEnv,
+): Promise<void> {
+  if (store.fetchPromise) {
+    return store.fetchPromise;
+  }
+
+  const supabase = getSupabase(env);
+  store.fetchPromise = (async () => {
+    updateStore(store, (current) => ({
+      ...current,
+      loading: true,
+      error: null,
+    }));
+
     try {
       const {
         data: { user },
       } = await supabase.auth.getUser();
 
       if (!user) {
-        setError('Not authenticated');
-        setMerchant(null);
-        setOutlets([]);
-        setActiveOutletId(null);
+        updateStore(store, () => ({
+          merchant: null,
+          outlets: [],
+          activeOutletId: null,
+          loading: false,
+          error: 'Not authenticated',
+          initialized: true,
+        }));
         return;
       }
 
@@ -76,47 +143,114 @@ export function useMerchantContext(env: AppEnv) {
         }
       }
 
-      if (merchantData?.id) {
-        setMerchant(merchantData);
-
-        const { data: outletsData, error: outletsError } = await supabase
-          .from('outlets')
-          .select('*')
-          .eq('merchant_id', merchantData.id);
-
-        if (outletsError) {
-          throw outletsError;
-        }
-
-        const nextOutlets = (outletsData ?? []) as MerchantOutlet[];
-        setOutlets(nextOutlets);
-        if (nextOutlets.length > 0) {
-          setActiveOutletId((previousId) => {
-            const ok = previousId && nextOutlets.some((o) => o.id === previousId);
-            return ok ? previousId : String(nextOutlets[0].id);
-          });
-        } else {
-          setActiveOutletId(null);
-        }
-      } else {
-        setMerchant(null);
-        setOutlets([]);
-        setActiveOutletId(null);
+      if (!merchantData?.id) {
+        updateStore(store, () => ({
+          merchant: null,
+          outlets: [],
+          activeOutletId: null,
+          loading: false,
+          error: null,
+          initialized: true,
+        }));
+        return;
       }
+
+      const { data: outletsData, error: outletsError } = await supabase
+        .from('outlets')
+        .select('*')
+        .eq('merchant_id', merchantData.id);
+
+      if (outletsError) {
+        throw outletsError;
+      }
+
+      const nextOutlets = (outletsData ?? []) as MerchantOutlet[];
+      const previousId = store.state.activeOutletId;
+      const nextActiveOutletId =
+        nextOutlets.length > 0
+          ? nextOutlets.some((outlet) => String(outlet.id) === String(previousId))
+            ? String(previousId)
+            : String(nextOutlets[0]?.id ?? '')
+          : null;
+
+      updateStore(store, () => ({
+        merchant: merchantData,
+        outlets: nextOutlets,
+        activeOutletId: nextActiveOutletId,
+        loading: false,
+        error: null,
+        initialized: true,
+      }));
     } catch (e) {
       logSupabaseError(e, 'useMerchantContext.fetchContext');
-      setError(mapSupabaseError(e as Error, 'Failed to load merchant details.'));
-      setMerchant(null);
-      setOutlets([]);
-      setActiveOutletId(null);
+      updateStore(store, () => ({
+        merchant: null,
+        outlets: [],
+        activeOutletId: null,
+        loading: false,
+        error: mapSupabaseError(e as Error, 'Failed to load merchant details.'),
+        initialized: true,
+      }));
     } finally {
-      setLoading(false);
+      store.fetchPromise = null;
     }
-  }, [supabase]);
+  })();
+
+  return store.fetchPromise;
+}
+
+export function useMerchantContext(env: AppEnv) {
+  const store = useMemo(
+    () => getMerchantContextStore(env),
+    [env],
+  );
+  const [, setVersion] = useState(0);
 
   useEffect(() => {
-    fetchContext().catch((err) => logError(err, { context: 'useMerchantContext.fetchContext' }));
-  }, [fetchContext]);
+    const listener = () => {
+      setVersion((current) => current + 1);
+    };
+    store.listeners.add(listener);
+    return () => {
+      store.listeners.delete(listener);
+    };
+  }, [store]);
+
+  const fetchContext = useCallback(
+    async () => fetchMerchantContext(store, env),
+    [env, store],
+  );
+
+  useEffect(() => {
+    if (store.state.initialized || store.fetchPromise) {
+      return;
+    }
+    fetchContext().catch((err) =>
+      logError(err, { context: 'useMerchantContext.fetchContext' }),
+    );
+  }, [fetchContext, store]);
+
+  const setActiveOutletId = useCallback(
+    (
+      next:
+        | string
+        | null
+        | ((previousId: string | null) => string | null),
+    ) => {
+      updateStore(store, (current) => {
+        const resolved =
+          typeof next === 'function' ? next(current.activeOutletId) : next;
+        return {
+          ...current,
+          activeOutletId:
+            resolved != null && String(resolved).length > 0 ? String(resolved) : null,
+        };
+      });
+    },
+    [store],
+  );
+
+  const { merchant, outlets, activeOutletId, loading, error } = store.state;
 
   const activeOutlet = useMemo(
     () =>

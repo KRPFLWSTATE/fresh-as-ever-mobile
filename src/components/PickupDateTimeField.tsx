@@ -55,10 +55,20 @@ function createFieldStyles({ spacing, radii }: FieldStylesArgs) {
 }
 
 export function PickupDateTimeField({ label, value, onChange }: Props) {
-  const { colors, spacing, radii } = useStitchTheme();
+  const { colors, spacing, radii, colorScheme } = useStitchTheme();
   const styles = useMemo(
     () => createFieldStyles({ spacing, radii }),
     [spacing, radii],
+  );
+
+  /** Native picker does not inherit StitchText; force readable spinner labels. */
+  const pickerAppearance = useMemo(
+    () => ({
+      themeVariant: (colorScheme === 'dark' ? 'dark' : 'light') as 'light' | 'dark',
+      accentColor: colors.primaryContainer,
+      ...(Platform.OS === 'ios' ? { textColor: colors.onBackground } : {}),
+    }),
+    [colorScheme, colors.onBackground, colors.primaryContainer],
   );
 
   const [iosOpen, setIosOpen] = useState(false);
@@ -115,6 +125,7 @@ export function PickupDateTimeField({ label, value, onChange }: Props) {
 
       {Platform.OS === 'android' && androidStep === 'date' ? (
         <DateTimePicker
+          {...pickerAppearance}
           value={pending}
           mode="date"
           display="default"
@@ -140,6 +151,7 @@ export function PickupDateTimeField({ label, value, onChange }: Props) {
 
       {Platform.OS === 'android' && androidStep === 'time' ? (
         <DateTimePicker
+          {...pickerAppearance}
           value={pending}
           mode="time"
           display="default"
@@ -169,6 +181,7 @@ export function PickupDateTimeField({ label, value, onChange }: Props) {
           ]}
         >
           <DateTimePicker
+            {...pickerAppearance}
             value={pending}
             mode="datetime"
             display="spinner"
@@ -191,7 +204,7 @@ export function PickupDateTimeField({ label, value, onChange }: Props) {
             ]}
             onPress={() => setIosOpen(false)}
           >
-            <StitchText variant="label" colorKey="primaryContainer">
+            <StitchText variant="label" colorKey="primary">
               Done
             </StitchText>
           </Pressable>

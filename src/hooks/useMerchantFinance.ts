@@ -3,6 +3,7 @@ import { getSupabase } from '@/lib/supabase';
 import type { AppEnv } from '@/config/env';
 import { useMerchantContext } from '@/hooks/useMerchantContext';
 import { logError } from '@/observability/logError';
+import { ERROR } from '@/lib/messages/errors';
 import { mapSupabaseError, logSupabaseError } from '@/lib/supabaseError';
 
 /**
@@ -146,7 +147,7 @@ export function useMerchantFinance(env: AppEnv) {
       });
     } catch (e) {
       logSupabaseError(e, 'useMerchantFinance.refetch');
-      setError(mapSupabaseError(e as Error, 'Could not load finance data.'));
+      setError(mapSupabaseError(e as Error, ERROR.merchant.finance));
     } finally {
       setLoading(false);
     }

@@ -40,6 +40,9 @@ import {
   StitchIcon,
   StitchText,
 } from '@/ui/stitch';
+import { isGroupReservationsEnabled } from '@/config/groupReservations';
+import { isClearanceShelvesEnabled } from '@/config/clearanceShelves';
+import { formatPickupByLabel } from '@/lib/shelfDisplay';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 /**
@@ -75,6 +78,31 @@ export function CheckoutScreen() {
   const insets = useSafeAreaInsets();
   const params = checkoutParams.safeParse(route.params ?? {});
   const bagId = params.success ? params.data.draft ?? '' : '';
+  const groupRaw = params.success ? params.data.group ?? '' : '';
+  const groupBagIds = useMemo(() => {
+    if (groupRaw.trim()) {
+      return groupRaw
+        .split(',')
+        .map((id) => id.trim())
+        .filter(Boolean)
+        .slice(0, 5);
+    }
+    return bagId ? [bagId] : [];
+  }, [groupRaw, bagId]);
+  const shelfId = params.success ? params.data.shelf ?? '' : '';
+  const shelfItemsRaw = params.success ? params.data.shelfItems ?? '' : '';
+  const shelfItems = useMemo(() => {
+    if (!shelfId || !shelfItemsRaw) return [];
+    try {
+      const parsed = JSON.parse(shelfItemsRaw) as { shelf_item_id: string; quantity: number }[];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }, [shelfId, shelfItemsRaw]);
+  const isShelfCheckout = Boolean(shelfId && shelfItems.length > 0);
+  const isGroupCheckout = !isShelfCheckout && groupBagIds.length > 1;
+  const hasCheckoutTarget = Boolean(bagId) || groupBagIds.length > 0 || isShelfCheckout;
   /**
    * Stitch ships two header variants for checkout: `_1` keeps a title-bar header,
    * `_2` centers the brand logo. We honor either via the route param so deep links
@@ -91,6 +119,7 @@ export function CheckoutScreen() {
   const { flags: platformFlags } = usePlatformSettings(env);
 
   const [bag, setBag] = useState<Record<string, unknown> | null>(null);
+  const [groupBags, setGroupBags] = useState<Record<string, unknown>[]>([]);
   const [completedPickups, setCompletedPickups] = useState(0);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
@@ -148,7 +177,68 @@ export function CheckoutScreen() {
   }, [navigation, sb]);
 
   const hydrate = useCallback(async () => {
-    if (!bagId) return;
+    if (isShelfCheckout) {
+      setLoading(true);
+      setErr(null);
+      try {
+        if (await suspendRedirect()) {
+          setLoading(false);
+          return;
+        }
+        const { data: shelfRow, error: shelfErr } = await sb
+          .from('clearance_shelves')
+          .select(`*, outlet:outlets (id, name), items:clearance_shelf_items (*)`)
+          .eq('id', shelfId)
+          .eq('status', 'published')
+          .maybeSingle();
+        if (shelfErr) throw shelfErr;
+        if (!shelfRow) throw new Error('Shelf not found');
+        const byId = new Map(
+          ((shelfRow.items ?? []) as Record<string, unknown>[]).map((i) => [String(i.id), i]),
+        );
+        const firstSelectedItem = shelfItems
+          .map((row) => byId.get(row.shelf_item_id))
+          .find((item) => item != null);
+        let subtotal = 0;
+        let retailSum = 0;
+        for (const row of shelfItems) {
+          const item = byId.get(row.shelf_item_id);
+          if (!item || Number(item.quantity_remaining ?? 0) < row.quantity) {
+            throw new Error('Some items just sold out.');
+          }
+          subtotal += Number(item.rescue_price ?? 0) * row.quantity;
+          const retail = Number(item.retail_price ?? 0);
+          const rescue = Number(item.rescue_price ?? 0);
+          if (retail > rescue) {
+            retailSum += retail * row.quantity;
+          } else {
+            retailSum += rescue * row.quantity;
+          }
+        }
+        setBag({
+          id: shelfRow.id,
+          title: `Clearance shelf · ${shelfItems.length} items`,
+          rescue_price: subtotal,
+          retail_value_estimate: retailSum > subtotal ? retailSum : null,
+          category: 'Clearance shelf',
+          pickup_start: shelfRow.pickup_start,
+          pickup_end: shelfRow.pickup_end,
+          image_url:
+            firstSelectedItem && typeof firstSelectedItem.image_url_snapshot === 'string'
+              ? firstSelectedItem.image_url_snapshot
+              : null,
+          outlet_id: shelfRow.outlet_id,
+          outlet: shelfRow.outlet,
+        });
+        setGroupBags([]);
+      } catch (e) {
+        setErr(mapCheckoutError(e, ERROR.checkout.loadBag));
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+    if (groupBagIds.length === 0) return;
     setLoading(true);
     setErr(null);
     try {
@@ -158,15 +248,19 @@ export function CheckoutScreen() {
       }
       await refreshProfile();
 
-      const { data, error } = await sb
+      const { data: rows, error } = await sb
         .from('rescue_bags')
         .select(
           `*, outlet:outlets ( id, name, address, landmark, merchant:merchants(business_name) )`,
         )
-        .eq('id', bagId)
-        .single();
+        .in('id', groupBagIds);
       if (error) throw error;
-      setBag(data as Record<string, unknown>);
+      const list = (rows ?? []) as Record<string, unknown>[];
+      if (list.length !== groupBagIds.length) {
+        throw new Error('One or more bags are no longer available.');
+      }
+      setGroupBags(list);
+      setBag(list[0] ?? null);
 
       const {
         data: { user: u },
@@ -186,17 +280,17 @@ export function CheckoutScreen() {
     } finally {
       setLoading(false);
     }
-  }, [bagId, refreshProfile, sb, suspendRedirect]);
+  }, [groupBagIds, isShelfCheckout, refreshProfile, sb, shelfId, shelfItems, suspendRedirect]);
 
   useEffect(() => {
-    if (!bagId) {
+    if (!hasCheckoutTarget) {
       navigation.replace('MainTabs', { screen: 'DiscoverTab' });
       return;
     }
     scheduleMicrotask(() => {
       void hydrate();
     });
-  }, [bagId, hydrate, navigation]);
+  }, [hasCheckoutTarget, hydrate, navigation]);
 
   /** PayHere may complete via system browser / app link — same path logic as WebView. */
   useEffect(() => {
@@ -217,10 +311,14 @@ export function CheckoutScreen() {
   }, [navigation]);
 
   useEffect(() => {
+    if (isGroupCheckout) {
+      setPaymentMethod('card');
+      return;
+    }
     if (paymentMethod === 'cash' && completedPickups < 1) {
       setPaymentMethod('card');
     }
-  }, [completedPickups, paymentMethod]);
+  }, [completedPickups, paymentMethod, isGroupCheckout]);
 
   async function applyPromoCode() {
     const code = promoDraft.trim().toUpperCase();
@@ -230,7 +328,9 @@ export function CheckoutScreen() {
       return;
     }
     setPromoMsg(null);
-    const rescuePricePreview = Number(bag?.rescue_price ?? 0);
+    const rescuePricePreview = isGroupCheckout
+      ? groupBags.reduce((sum, b) => sum + Number(b.rescue_price ?? 0), 0)
+      : Number(bag?.rescue_price ?? 0);
     const { data, error } = await sb
       .from('promo_codes')
       .select(
@@ -300,6 +400,10 @@ export function CheckoutScreen() {
         throw new Error('Sign in required');
       }
 
+      if (isGroupCheckout && paymentMethod === 'cash') {
+        throw new Error('Group reservations require card payment.');
+      }
+
       if (paymentMethod === 'cash' && completedPickups < 1) {
         throw new Error('Pickup once before cash-at-pickup.');
       }
@@ -328,9 +432,213 @@ export function CheckoutScreen() {
         throw new Error('Missing outlet.');
       }
 
-      const rescuePrice = Number(bag.rescue_price ?? 0);
+      const rescuePrice = isGroupCheckout
+        ? groupBags.reduce((sum, b) => sum + Number(b.rescue_price ?? 0), 0)
+        : Number(bag.rescue_price ?? 0);
       const discountAmount = appliedPromo?.discountAmount ?? 0;
       const totalCost = Math.max(0, rescuePrice - discountAmount);
+
+      if (isShelfCheckout) {
+        if (!isClearanceShelvesEnabled()) {
+          throw new Error('Clearance shelves are not available right now.');
+        }
+        const { data: reserveRows, error: shelfErr } = await sb.rpc(
+          'create_clearance_reservation',
+          {
+            p_shelf_id: shelfId,
+            p_items: shelfItems,
+            p_payment_method: paymentMethod,
+            p_promo_code: appliedPromo?.code ?? null,
+          },
+        );
+        if (shelfErr) throw shelfErr;
+        const reserveRow = Array.isArray(reserveRows) ? reserveRows[0] : reserveRows;
+        const clearanceOrderId =
+          reserveRow && typeof reserveRow === 'object' && 'order_id' in reserveRow
+            ? String((reserveRow as { order_id: string }).order_id)
+            : '';
+        if (!clearanceOrderId) {
+          throw new Error('Could not create shelf reservation.');
+        }
+        if (paymentMethod === 'cash' || totalCost <= 0) {
+          await sb
+            .from('orders')
+            .update({ payment_status: 'paid', order_status: 'paid' })
+            .eq('id', clearanceOrderId);
+          navigation.replace('OrderCelebration', {
+            orderId: clearanceOrderId,
+            variant: 'reservation',
+          });
+          return;
+        }
+        const accessToken = session?.access_token;
+        if (!accessToken) throw new Error('Session expired. Sign in again.');
+        const ac = new AbortController();
+        const timer = setTimeout(() => ac.abort(), 45_000);
+        let res: Response;
+        try {
+          res = await fetch(`${env.apiBaseUrl}/api/payhere/hash`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${accessToken}`,
+            },
+            body: JSON.stringify({
+              order_id: clearanceOrderId,
+              amount: totalCost,
+              currency: 'LKR',
+            }),
+            signal: ac.signal,
+          });
+        } finally {
+          clearTimeout(timer);
+        }
+        const data = await res.json();
+        if (!res.ok || !data.hash || !data.merchant_id) {
+          throw new Error(data?.error ?? 'Payment setup failed.');
+        }
+        const base = env.payHereReturnHost || env.apiBaseUrl;
+        const returnUrl = `${base}/orders/${clearanceOrderId}?payment=success`;
+        const cancelQuery = new URLSearchParams({
+          shelf: shelfId,
+          shelfItems: shelfItemsRaw,
+          payment: 'cancelled',
+        });
+        const cancelUrl = `${base}/checkout?${cancelQuery.toString()}`;
+        const notifyUrl = `${env.apiBaseUrl}/api/payhere/webhook`;
+        const html = buildSandboxPayHereCheckoutHtml({
+          merchant_id: String(data.merchant_id),
+          return_url: returnUrl,
+          cancel_url: cancelUrl,
+          notify_url: notifyUrl,
+          order_id: clearanceOrderId,
+          items: 'Clearance shelf order',
+          amount: String(data.amount),
+          currency: String(data.currency ?? 'LKR'),
+          hash: String(data.hash),
+          first_name: 'Customer',
+          last_name: '',
+          email: user?.email ?? '',
+          phone: (user?.phone as string | undefined) ?? '',
+          address: 'Colombo',
+          city: 'Colombo',
+          country: 'Sri Lanka',
+        });
+        setPayHtml(html);
+        return;
+      }
+
+      if (isGroupCheckout && !isGroupReservationsEnabled()) {
+        throw new Error('Group reservations are not available right now.');
+      }
+
+      if (isGroupCheckout) {
+        const { data: groupRows, error: groupErr } = await sb.rpc(
+          'create_group_reservation',
+          {
+            p_bag_ids: groupBagIds,
+            p_payment_method: paymentMethod,
+            p_promo_code: appliedPromo?.code ?? null,
+          },
+        );
+        if (groupErr) throw groupErr;
+        const groupRow = Array.isArray(groupRows) ? groupRows[0] : groupRows;
+        const groupId =
+          groupRow && typeof groupRow === 'object' && 'group_id' in groupRow
+            ? String((groupRow as { group_id: string }).group_id)
+            : '';
+        if (!groupId) {
+          throw new Error('Could not create group reservation.');
+        }
+
+        if (paymentMethod === 'cash' || totalCost <= 0) {
+          await sb
+            .from('reservation_groups')
+            .update({ payment_status: 'paid', order_status: 'paid' })
+            .eq('id', groupId);
+          const { data: child } = await sb
+            .from('orders')
+            .select('id')
+            .eq('group_id', groupId)
+            .limit(1)
+            .maybeSingle();
+          await sb
+            .from('orders')
+            .update({ payment_status: 'paid', order_status: 'paid' })
+            .eq('group_id', groupId);
+          navigation.replace('OrderCelebration', {
+            orderId: String(child?.id ?? groupId),
+            variant: 'reservation',
+          });
+          return;
+        }
+
+        const accessToken = session?.access_token;
+        if (!accessToken) {
+          throw new Error('Session expired. Sign in again.');
+        }
+
+        const ac = new AbortController();
+        const timer = setTimeout(() => ac.abort(), 45_000);
+        let res: Response;
+        try {
+          res = await fetch(`${env.apiBaseUrl}/api/payhere/hash`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${accessToken}`,
+            },
+            body: JSON.stringify({
+              group_id: groupId,
+              amount: totalCost,
+              currency: 'LKR',
+            }),
+            signal: ac.signal,
+          });
+        } finally {
+          clearTimeout(timer);
+        }
+
+        const data = await res.json();
+        if (!res.ok || !data.hash || !data.merchant_id) {
+          throw new Error(data?.error ?? 'Payment setup failed.');
+        }
+
+        const base = env.payHereReturnHost || env.apiBaseUrl;
+        const returnUrl = `${base}/orders/${groupId}?payment=success`;
+        const cancelUrl = `${base}/checkout?group=${groupBagIds.join(',')}&payment=cancelled`;
+        const notifyUrl = `${env.apiBaseUrl}/api/payhere/webhook`;
+
+        const fname =
+          typeof user?.user_metadata?.full_name === 'string'
+            ? user.user_metadata.full_name.split(' ')[0]
+            : 'Customer';
+        const lname =
+          typeof user?.user_metadata?.full_name === 'string'
+            ? user.user_metadata.full_name.split(' ')[1] ?? ''
+            : '';
+
+        const html = buildSandboxPayHereCheckoutHtml({
+          merchant_id: String(data.merchant_id),
+          return_url: returnUrl,
+          cancel_url: cancelUrl,
+          notify_url: notifyUrl,
+          order_id: groupId,
+          items: `${groupBagIds.length} rescue bags`,
+          amount: String(data.amount),
+          currency: String(data.currency ?? 'LKR'),
+          hash: String(data.hash),
+          first_name: fname,
+          last_name: lname,
+          email: user?.email ?? '',
+          phone: (user?.phone as string | undefined) ?? '',
+          address: 'Colombo',
+          city: 'Colombo',
+          country: 'Sri Lanka',
+        });
+        setPayHtml(html);
+        return;
+      }
 
       const isReservationCodeConflict = (e: {
         code?: string;
@@ -461,6 +769,7 @@ export function CheckoutScreen() {
           : mapCheckoutError(
               e instanceof Error ? e.message : e,
               mapSupabaseError(e as Error, ERROR.checkout.reserveFailed),
+              isShelfCheckout ? 'shelf' : 'bag',
             );
       setErr(msg);
     } finally {
@@ -486,19 +795,56 @@ export function CheckoutScreen() {
     }
   }
 
-  if (!bagId) {
+  if (!hasCheckoutTarget) {
     return null;
   }
 
   if (loading || !bag) {
+    const loadMessage = err
+      ? err
+      : isShelfCheckout
+        ? 'Could not load shelf checkout.'
+        : 'Could not load checkout.';
     return (
-      <View style={[styles.centerFill, { backgroundColor: colors.background }]}>
-        <ActivityIndicator color={colors.primaryContainer} />
-        {!loading ? (
-          <StitchText variant="body-md" colorKey="onSurface" style={{ marginTop: spacing.md }}>
-            Missing bag.
+      <View style={[styles.flex, { backgroundColor: colors.background }]}>
+        <View style={[styles.topBar, { paddingTop: insets.top + spacing.sm }]}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+            onPress={() => navigation.goBack()}
+            style={({ pressed }) => [
+              styles.iconHit,
+              { opacity: pressed ? 0.85 : 1 },
+            ]}
+          >
+            <StitchIcon name="arrow_back" size={28} colorKey="primaryContainer" />
+          </Pressable>
+          <StitchText variant="h2" colorKey="primaryContainer">
+            Checkout
           </StitchText>
-        ) : null}
+          <View style={styles.iconHit} />
+        </View>
+        <View style={[styles.centerFill, { flex: 1 }]}>
+          {loading ? (
+            <ActivityIndicator color={colors.primaryContainer} />
+          ) : (
+            <>
+              <StitchText
+                variant="body-md"
+                colorKey="error"
+                style={{ marginTop: spacing.md, textAlign: 'center', paddingHorizontal: spacing.lg }}
+              >
+                {loadMessage}
+              </StitchText>
+              <StitchButton
+                title="Go back"
+                variant="secondary"
+                onPress={() => navigation.goBack()}
+                style={{ marginTop: spacing.lg }}
+              />
+            </>
+          )}
+        </View>
       </View>
     );
   }
@@ -516,8 +862,11 @@ export function CheckoutScreen() {
         : '';
   const category =
     bag.category != null ? String(bag.category).replace(/_/g, ' ') : '';
-  const rescuePrice =
-    typeof bag.rescue_price === 'number' ? bag.rescue_price : 0;
+  const rescuePrice = isGroupCheckout
+    ? groupBags.reduce((sum, b) => sum + Number(b.rescue_price ?? 0), 0)
+    : typeof bag.rescue_price === 'number'
+      ? bag.rescue_price
+      : 0;
   const retailRaw = bag.retail_value_estimate;
   const retail =
     typeof retailRaw === 'number' && Number.isFinite(retailRaw) ? retailRaw : null;
@@ -525,11 +874,19 @@ export function CheckoutScreen() {
     typeof bag.pickup_start === 'string' ? bag.pickup_start : null;
   const pickupEnd =
     typeof bag.pickup_end === 'string' ? bag.pickup_end : null;
-  const pickupLine = `Pickup: ${formatPickupWindow(pickupStart, pickupEnd)}`;
+  const pickupByShelf = isShelfCheckout ? formatPickupByLabel(pickupEnd) : null;
+  const pickupLine = pickupByShelf
+    ? pickupByShelf
+    : `Pickup: ${formatPickupWindow(pickupStart, pickupEnd)}`;
   const youSave =
     retail != null && retail > rescuePrice ? retail - rescuePrice : null;
   const promoDiscount = appliedPromo?.discountAmount ?? 0;
   const totalToPay = Math.max(0, rescuePrice - promoDiscount);
+  const priceBreakdownLabel = isShelfCheckout
+    ? 'Shelf total'
+    : isGroupCheckout
+      ? 'Bag total'
+      : 'Rescue Bag Price';
 
   const cardSelected = paymentMethod === 'card';
   const cashSelected = paymentMethod === 'cash';
@@ -677,8 +1034,8 @@ export function CheckoutScreen() {
               </Pressable>
               <Pressable
                 accessibilityRole="button"
-                disabled={!cashAllowed}
-                onPress={() => cashAllowed && setPaymentMethod('cash')}
+                disabled={!cashAllowed || isGroupCheckout}
+                onPress={() => cashAllowed && !isGroupCheckout && setPaymentMethod('cash')}
                 style={({ pressed }) => [
                   styles.payTile,
                   {
@@ -753,7 +1110,7 @@ export function CheckoutScreen() {
             ) : null}
             <View style={styles.priceRow}>
               <StitchText variant="body-md" colorKey="textMuted">
-                Rescue Bag Price
+                {priceBreakdownLabel}
               </StitchText>
               <StitchText variant="body-md" colorKey="textMuted">
                 {formatLKR(rescuePrice)}
