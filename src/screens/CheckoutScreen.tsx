@@ -42,6 +42,7 @@ import {
 } from '@/ui/stitch';
 import { isGroupReservationsEnabled } from '@/config/groupReservations';
 import { isClearanceShelvesEnabled } from '@/config/clearanceShelves';
+import { CLEARANCE_FOOD_SAFETY_NOTICE } from '@/lib/foodSafetyCopy';
 import { formatPickupByLabel } from '@/lib/shelfDisplay';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -441,6 +442,28 @@ export function CheckoutScreen() {
       if (isShelfCheckout) {
         if (!isClearanceShelvesEnabled()) {
           throw new Error('Clearance shelves are not available right now.');
+        }
+        const { data: liveShelf, error: liveErr } = await sb
+          .from('clearance_shelves')
+          .select('items:clearance_shelf_items(id, quantity_remaining, status)')
+          .eq('id', shelfId)
+          .eq('status', 'published')
+          .maybeSingle();
+        if (liveErr) throw liveErr;
+        if (!liveShelf) throw new Error('Shelf not found');
+        const liveById = new Map(
+          ((liveShelf.items ?? []) as Record<string, unknown>[]).map((row) => [
+            String(row.id),
+            row,
+          ]),
+        );
+        for (const row of shelfItems) {
+          const live = liveById.get(row.shelf_item_id);
+          const max = Number(live?.quantity_remaining ?? 0);
+          const soldOut = live?.status === 'sold_out' || max < row.quantity;
+          if (!live || soldOut) {
+            throw new Error('Some items just sold out.');
+          }
         }
         const { data: reserveRows, error: shelfErr } = await sb.rpc(
           'create_clearance_reservation',
@@ -1002,6 +1025,15 @@ export function CheckoutScreen() {
                     {pickupLine}
                   </StitchText>
                 </View>
+                {isShelfCheckout ? (
+                  <StitchText
+                    variant="body-sm"
+                    colorKey="textMuted"
+                    style={{ marginTop: spacing.sm }}
+                  >
+                    {CLEARANCE_FOOD_SAFETY_NOTICE}
+                  </StitchText>
+                ) : null}
               </View>
             </View>
           </StitchCard>

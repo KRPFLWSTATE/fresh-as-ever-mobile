@@ -22,6 +22,7 @@ import { navigationRef } from '@/navigation/navigationRef';
 import { scheduleMicrotask } from '@/lib/microtask';
 import { mapAuthError } from '@/lib/messages/auth';
 import { ERROR } from '@/lib/messages/errors';
+import { resetMerchantContextStore } from '@/hooks/useMerchantContext';
 
 export type ResolvedRole =
   | 'customer'
@@ -170,11 +171,20 @@ export function AuthProvider({
 
   useEffect(() => {
     let mounted = true;
-    void supabase.auth.getSession().then(({ data: { session: s } }) => {
+    void (async () => {
+      const {
+        data: { session: s },
+      } = await supabase.auth.getSession();
+      if (s?.access_token && s.refresh_token) {
+        await supabase.auth.setSession({
+          access_token: s.access_token,
+          refresh_token: s.refresh_token,
+        });
+      }
       if (!mounted) return;
       setSession(s);
       setInitializing(false);
-    });
+    })();
 
     const { data } = supabase.auth.onAuthStateChange((_evt, s) => {
       setSession(s);
@@ -218,6 +228,14 @@ export function AuthProvider({
       if (error || !data.user) {
         return { error: mapAuthError(error?.message) };
       }
+      if (data.session) {
+        await supabase.auth.setSession({
+          access_token: data.session.access_token,
+          refresh_token: data.session.refresh_token,
+        });
+        setSession(data.session);
+        resetMerchantContextStore(env);
+      }
       let r =
         data.user.app_metadata?.role ||
         data.user.user_metadata?.role ||
@@ -256,7 +274,7 @@ export function AuthProvider({
       await hydrate();
       return {};
     },
-    [supabase, hydrate],
+    [supabase, hydrate, env],
   );
 
   const requestPhoneOtp = useCallback(
@@ -386,6 +404,7 @@ export function AuthProvider({
 
   const signOut = useCallback(async () => {
     await supabase.auth.signOut();
+    resetMerchantContextStore(env);
     setUser(null);
     setResolvedRole('customer');
     setIsSuspended(false);
@@ -397,7 +416,7 @@ export function AuthProvider({
         CommonActions.reset({ index: 0, routes: [{ name: 'MainTabs' }] }),
       );
     });
-  }, [supabase]);
+  }, [supabase, env]);
 
   const value = useMemo(
     (): AuthContextValue => ({

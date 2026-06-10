@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -177,6 +177,7 @@ function MerchantTabsScreen() {
   const { colors } = useStitchTheme();
   const { env } = useAuthContext();
   const { activeOutlet } = useMerchantContext(env);
+
   const outletCategory =
     typeof activeOutlet?.category === 'string' ? activeOutlet.category : '';
   const { showShelves, showBags, isHybrid } =
@@ -210,6 +211,7 @@ function MerchantTabsScreen() {
         options={{
           title: 'Home',
           tabBarIcon: TabMerchantDashIcon,
+          tabBarButtonTestID: 'tab.merchant.home',
         }}
       />
       <MerchantTabsNav.Screen
@@ -218,6 +220,7 @@ function MerchantTabsScreen() {
         options={{
           title: 'Orders',
           tabBarIcon: TabOrdersIcon,
+          tabBarButtonTestID: 'tab.merchant.orders',
         }}
       />
       {showSingleInventoryTab || (isHybrid && showBags) ? (
@@ -232,6 +235,10 @@ function MerchantTabsScreen() {
               : singleModeMeta.iconName === 'inventory_2'
                 ? TabMerchantShelvesIcon
                 : TabMerchantBagsIcon,
+            tabBarButtonTestID:
+              isHybrid || showBags
+                ? 'tab.merchant.bags'
+                : 'tab.merchant.shelves',
           }}
         />
       ) : null}
@@ -243,6 +250,7 @@ function MerchantTabsScreen() {
             title: shelvesMeta.headerTitle,
             tabBarLabel: shelvesMeta.tabBarLabel,
             tabBarIcon: TabMerchantShelvesIcon,
+            tabBarButtonTestID: 'tab.merchant.shelves',
           }}
         />
       ) : null}
@@ -252,6 +260,7 @@ function MerchantTabsScreen() {
         options={{
           title: 'Settings',
           tabBarIcon: TabMerchantSettingsIcon,
+          tabBarButtonTestID: 'tab.merchant.settings',
         }}
       />
     </MerchantTabsNav.Navigator>

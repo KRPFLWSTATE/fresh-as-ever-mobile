@@ -1,7 +1,10 @@
-import React, { useCallback, useLayoutEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import { useMerchantClearanceShelfGuard } from '@/hooks/useMerchantClearanceShelfGuard';
 import {
+  ActivityIndicator,
+  Alert,
+  Image,
   Pressable,
   StyleSheet,
   Switch,
@@ -10,7 +13,12 @@ import {
 } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '@/navigation/types';
+import { useAuthContext } from '@/context/AuthContext';
+import { PickupDateTimeField } from '@/components/PickupDateTimeField';
+import { useProductCatalogSearch } from '@/hooks/useProductCatalogSearch';
 import { BAG_ALLERGEN_LABELS } from '@/lib/bagAllergens';
+import { pickAndUploadImage, shelfImagePath } from '@/lib/storage/uploadImage';
+import { useMerchantContext } from '@/hooks/useMerchantContext';
 import {
   appendUnitToName,
   newTempItemId,
@@ -54,7 +62,11 @@ export function MerchantShelfItemEditorScreen({ navigation, route }: Props) {
   );
 
   const { prefill, editIndex } = route.params ?? {};
+  const { env } = useAuthContext();
+  const { merchant } = useMerchantContext(env);
+  const { hits, loading: searchLoading, search, clear } = useProductCatalogSearch(env);
   const { colors, spacing, radii } = useStitchTheme();
+  const merchantId = merchant?.id != null ? String(merchant.id) : null;
   const scrollBottomPad = useScrollContentBottomPad();
 
   const initialName = parseUnitFromName(prefill?.name_snapshot ?? '');
@@ -75,7 +87,21 @@ export function MerchantShelfItemEditorScreen({ navigation, route }: Props) {
   );
   const [isHalal, setIsHalal] = useState(prefill?.is_halal === true);
   const [bestBefore, setBestBefore] = useState(prefill?.best_before ?? '');
+  const [imageUrl, setImageUrl] = useState(prefill?.image_url_snapshot ?? '');
+  const [imageUploading, setImageUploading] = useState(false);
+  const [productId, setProductId] = useState(prefill?.product_id ?? null);
+  const [catalogCategory, setCatalogCategory] = useState(prefill?.catalog_category ?? null);
+  const [catalogIngredients, setCatalogIngredients] = useState(
+    prefill?.catalog_ingredients ?? null,
+  );
   const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      void search(name);
+    }, 300);
+    return () => clearTimeout(t);
+  }, [name, search]);
 
   const inputStyle = useMemo(
     () => ({
@@ -120,7 +146,11 @@ export function MerchantShelfItemEditorScreen({ navigation, route }: Props) {
       setErr(rescueErr);
       return;
     }
-    const retail = retailPrice.trim() ? Number(retailPrice) : null;
+    if (!retailPrice.trim()) {
+      setErr('Retail price is required so customers can see savings.');
+      return;
+    }
+    const retail = Number(retailPrice);
     const retailErr = validateLkrRetailPrice(retail, rescue);
     if (retailErr) {
       setErr(retailErr);
@@ -131,24 +161,33 @@ export function MerchantShelfItemEditorScreen({ navigation, route }: Props) {
       setErr('Best before must be YYYY-MM-DD.');
       return;
     }
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (trimmedBestBefore) {
+      const bb = new Date(`${trimmedBestBefore}T12:00:00`);
+      if (!Number.isNaN(bb.getTime()) && bb < today) {
+        setErr('Best before cannot be in the past.');
+        return;
+      }
+    }
 
     const item: ShelfItemDraft = {
       id: prefill?.id,
       tempId: prefill?.tempId ?? newTempItemId(),
-      product_id: prefill?.product_id ?? null,
+      product_id: productId,
       barcode: prefill?.barcode ?? null,
       name_snapshot: appendUnitToName(name.trim(), unit),
       brand_snapshot: brand.trim() || null,
-      image_url_snapshot: prefill?.image_url_snapshot ?? null,
+      image_url_snapshot: imageUrl.trim() || null,
       allergens_snapshot: allergens,
       is_halal: isHalal ? true : null,
       retail_price: retail,
       rescue_price: rescue,
       quantity_total: qtyN,
       quantity_remaining: qtyN,
-      catalog_category: prefill?.catalog_category ?? null,
+      catalog_category: catalogCategory,
       catalog_weight_grams: prefill?.catalog_weight_grams ?? null,
-      catalog_ingredients: prefill?.catalog_ingredients ?? null,
+      catalog_ingredients: catalogIngredients,
       best_before: trimmedBestBefore || null,
     };
 
@@ -165,12 +204,31 @@ export function MerchantShelfItemEditorScreen({ navigation, route }: Props) {
     bestBefore,
     name,
     navigation,
+    catalogCategory,
+    catalogIngredients,
+    imageUrl,
     prefill,
+    productId,
     qtyN,
     rescuePrice,
     retailPrice,
     unit,
   ]);
+
+  const applyCatalogHit = useCallback(
+    (hit: (typeof hits)[number]) => {
+      setName(hit.name);
+      if (hit.brand) setBrand(hit.brand);
+      setProductId(hit.id);
+      setCatalogCategory(hit.category);
+      setCatalogIngredients(hit.ingredients_summary);
+      if (hit.image_url) setImageUrl(hit.image_url);
+      if (hit.allergens.length) setAllergens(hit.allergens);
+      if (hit.is_halal_hint) setIsHalal(true);
+      clear();
+    },
+    [clear],
+  );
 
   return (
     <StitchScreen
@@ -201,10 +259,52 @@ export function MerchantShelfItemEditorScreen({ navigation, route }: Props) {
         <TextInput
           value={name}
           onChangeText={setName}
+          onEndEditing={(e) => {
+            const next = e.nativeEvent.text?.trim();
+            if (next) setName(next);
+          }}
           placeholder="e.g. Sourdough loaf"
           placeholderTextColor={colors.textFaint}
-          style={[inputStyle, { marginBottom: spacing.md }]}
+          style={[inputStyle, { marginBottom: spacing.sm }]}
         />
+        {hits.length > 0 ? (
+          <View
+            style={{
+              marginBottom: spacing.md,
+              borderWidth: 1,
+              borderColor: colors.outlineVariant,
+              borderRadius: radii.lg,
+              overflow: 'hidden',
+            }}
+          >
+            {searchLoading ? (
+              <ActivityIndicator style={{ padding: spacing.md }} color={colors.primary} />
+            ) : null}
+            {hits.map((hit) => (
+              <Pressable
+                key={hit.id}
+                accessibilityRole="button"
+                onPress={() => applyCatalogHit(hit)}
+                style={({ pressed }) => ({
+                  padding: spacing.sm,
+                  borderBottomWidth: StyleSheet.hairlineWidth,
+                  borderBottomColor: colors.divider,
+                  opacity: pressed ? 0.9 : 1,
+                })}
+              >
+                <StitchText variant="body-sm" colorKey="onBackground">
+                  {hit.name}
+                  {hit.brand ? ` · ${hit.brand}` : ''}
+                </StitchText>
+                {hit.category ? (
+                  <StitchText variant="body-sm" colorKey="textMuted">
+                    {hit.category}
+                  </StitchText>
+                ) : null}
+              </Pressable>
+            ))}
+          </View>
+        ) : null}
 
         <StitchText variant="label" colorKey="onBackground" style={{ marginBottom: spacing.xs }}>
           Brand
@@ -349,27 +449,76 @@ export function MerchantShelfItemEditorScreen({ navigation, route }: Props) {
           />
         </View>
 
-        <StitchText variant="label" colorKey="onBackground" style={{ marginBottom: spacing.xs }}>
-          Best before (optional)
-        </StitchText>
-        <TextInput
+        <PickupDateTimeField
+          label="Best before (optional)"
+          mode="date"
           value={bestBefore}
-          onChangeText={setBestBefore}
-          placeholder="YYYY-MM-DD"
+          minimumDate={new Date()}
+          onChange={setBestBefore}
+        />
+
+        <StitchText variant="label" colorKey="onBackground" style={{ marginBottom: spacing.xs, marginTop: spacing.md }}>
+          Item photo
+        </StitchText>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Upload item photo"
+          disabled={!merchantId || imageUploading}
+          onPress={() => {
+            if (!merchantId) return;
+            void (async () => {
+              setImageUploading(true);
+              const result = await pickAndUploadImage({
+                env,
+                bucket: 'bag-images',
+                path: shelfImagePath(merchantId),
+              });
+              setImageUploading(false);
+              if (result.kind === 'uploaded') {
+                setImageUrl(result.publicUrl);
+              } else if (result.kind === 'error') {
+                Alert.alert('Upload failed', result.message);
+              }
+            })();
+          }}
+          style={{
+            marginBottom: spacing.sm,
+            borderRadius: radii.lg,
+            borderWidth: 1,
+            borderStyle: 'dashed',
+            borderColor: colors.outlineVariant,
+            minHeight: 100,
+            alignItems: 'center',
+            justifyContent: 'center',
+            overflow: 'hidden',
+          }}
+        >
+          {imageUrl.trim() ? (
+            <Image source={{ uri: imageUrl.trim() }} style={{ width: '100%', height: 120 }} />
+          ) : (
+            <StitchText variant="body-sm" colorKey="textMuted">
+              {imageUploading ? 'Uploading…' : 'Tap to upload'}
+            </StitchText>
+          )}
+        </Pressable>
+        <TextInput
+          value={imageUrl}
+          onChangeText={setImageUrl}
+          placeholder="Image URL (optional)"
           placeholderTextColor={colors.textFaint}
           autoCapitalize="none"
-          autoCorrect={false}
+          keyboardType="url"
           style={{ ...inputStyle, marginBottom: spacing.md }}
         />
 
         <StitchText variant="label" colorKey="onBackground" style={{ marginBottom: spacing.xs }}>
-          Retail price (LKR)
+          Retail price (LKR) *
         </StitchText>
         <TextInput
           value={retailPrice}
           onChangeText={setRetailPrice}
           keyboardType="decimal-pad"
-          placeholder="Optional"
+          placeholder="Required"
           placeholderTextColor={colors.textFaint}
           style={[inputStyle, { marginBottom: spacing.md }]}
         />

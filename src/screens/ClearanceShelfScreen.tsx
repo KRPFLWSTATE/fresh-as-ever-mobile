@@ -14,11 +14,14 @@ import type { RootStackParamList } from '@/navigation/types';
 import { useShelfDetail } from '@/hooks/useShelfDetail';
 import { scopeBasketToShelf, useClearanceBasket } from '@/hooks/useClearanceBasket';
 import { useAuthContext } from '@/context/AuthContext';
+import { useFavourites } from '@/hooks/useFavourites';
+import { CLEARANCE_FOOD_SAFETY_NOTICE } from '@/lib/foodSafetyCopy';
 import { isClearanceShelvesEnabled } from '@/config/clearanceShelves';
 import { OutletTrustBadge } from '@/components/OutletTrustBadge';
 import {
   filterShelfItems,
   groupShelfItemsByCategory,
+  resolveShelfItemCategory,
   sortShelfItems,
   type ShelfSortKey,
 } from '@/lib/shelfBrowse';
@@ -37,6 +40,10 @@ import {
 } from '@/lib/shelfDisplay';
 import { useStitchTheme } from '@/theme/StitchThemeContext';
 import { StitchIcon, StitchScreen, StitchSurface, StitchText } from '@/ui/stitch';
+import {
+  parsePreviewQueryParam,
+  resolveShelfPreviewMode,
+} from '@/lib/shelfPreviewMode';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ClearanceShelf'>;
 
@@ -53,10 +60,21 @@ function formatLkr(n: number): string {
 }
 
 export function ClearanceShelfScreen({ navigation, route }: Props) {
-  const { env } = useAuthContext();
+  const previewRequested = parsePreviewQueryParam(route.params.preview);
+  const { env, user, resolvedRole } = useAuthContext();
   const shelfId = route.params.id;
-  const merchantPreview = route.params.preview === true;
-  const { shelf, loading, error } = useShelfDetail(env, shelfId, { merchantPreview });
+  const { isMerchantPreview, isBrowseOnly } = resolveShelfPreviewMode(
+    previewRequested,
+    resolvedRole,
+  );
+  const { shelf, loading, error, refresh: refreshShelf } = useShelfDetail(env, shelfId, {
+    merchantPreview: isMerchantPreview,
+  });
+  const outletIdForFav = useMemo(() => {
+    const outlet = shelf?.outlet as Record<string, unknown> | undefined;
+    return typeof outlet?.id === 'string' ? outlet.id : null;
+  }, [shelf?.outlet]);
+  const { isSaved, toggleFavourite } = useFavourites(env, user?.id ?? null);
   const { shelfId: basketShelfId, items, setQuantity } = useClearanceBasket();
   const { colors, spacing, radii } = useStitchTheme();
   const insets = useSafeAreaInsets();
@@ -117,7 +135,7 @@ export function ClearanceShelfScreen({ navigation, route }: Props) {
     await Linking.openURL(url).catch(() => undefined);
   };
 
-  if (!isClearanceShelvesEnabled() && !merchantPreview) {
+  if (!isClearanceShelvesEnabled() && !isMerchantPreview) {
     return (
       <StitchScreen>
         <StitchText variant="body-md" colorKey="textMuted" style={{ padding: spacing.xl }}>
@@ -170,7 +188,12 @@ export function ClearanceShelfScreen({ navigation, route }: Props) {
   const pickupBy = formatPickupByLabel(
     typeof shelf.pickup_end === 'string' ? shelf.pickup_end : null,
   );
-  const isDraftPreview = merchantPreview && String(shelf.status ?? '') === 'draft';
+  const isDraftPreview = isMerchantPreview && String(shelf.status ?? '') === 'draft';
+  const categoryNames = new Set<string>();
+  for (const row of (shelf.items ?? []) as Record<string, unknown>[]) {
+    categoryNames.add(resolveShelfItemCategory(row));
+  }
+  const categoryGroupingUseful = categoryNames.size > 1;
 
   const renderItemRow = (item: Record<string, unknown>) => {
     const id = String(item.id);
@@ -270,7 +293,7 @@ export function ClearanceShelfScreen({ navigation, route }: Props) {
                 ))}
               </View>
             </View>
-            {!soldOut && !isDraftPreview ? (
+            {!soldOut && !isBrowseOnly ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
                 <Pressable
                   disabled={disabled || qty <= 0}
@@ -324,13 +347,36 @@ export function ClearanceShelfScreen({ navigation, route }: Props) {
               Back
             </StitchText>
           </Pressable>
-          {!isDraftPreview ? (
-            <Pressable accessibilityRole="button" onPress={() => void onShareWhatsApp()}>
-              <StitchIcon name="share" size={22} colorKey="primaryContainer" />
-            </Pressable>
-          ) : null}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+            {!isMerchantPreview && outletIdForFav ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={
+                  isSaved(outletIdForFav) ? 'Remove outlet from favourites' : 'Save outlet to favourites'
+                }
+                onPress={() => {
+                  void toggleFavourite(outletIdForFav);
+                }}
+              >
+                <StitchIcon
+                  name={isSaved(outletIdForFav) ? 'favorite' : 'favorite_border'}
+                  size={22}
+                  colorKey="primaryContainer"
+                />
+              </Pressable>
+            ) : null}
+            {!isMerchantPreview ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Share shelf"
+                onPress={() => void onShareWhatsApp()}
+              >
+                <StitchIcon name="share" size={22} colorKey="primaryContainer" />
+              </Pressable>
+            ) : null}
+          </View>
         </View>
-        {isDraftPreview ? (
+        {isMerchantPreview ? (
           <View
             style={{
               marginBottom: spacing.sm,
@@ -340,7 +386,9 @@ export function ClearanceShelfScreen({ navigation, route }: Props) {
             }}
           >
             <StitchText variant="label" colorKey="accent">
-              Merchant preview — draft shelf (not visible to customers)
+              {isDraftPreview
+                ? 'Merchant preview — draft shelf (not visible to customers)'
+                : 'Merchant preview — browse only. Customers cannot check out from this screen.'}
             </StitchText>
           </View>
         ) : null}
@@ -473,10 +521,15 @@ export function ClearanceShelfScreen({ navigation, route }: Props) {
               variant="label"
               colorKey={groupByCategory ? 'onSecondaryContainer' : 'textMuted'}
             >
-              By category
+              Group by category
             </StitchText>
           </Pressable>
         </ScrollView>
+        {groupByCategory && !categoryGroupingUseful ? (
+          <StitchText variant="body-sm" colorKey="textMuted" style={{ marginTop: spacing.xs }}>
+            Items share one category — turn off grouping or add catalog categories when editing items.
+          </StitchText>
+        ) : null}
       </View>
 
       <StitchScreen
@@ -508,7 +561,7 @@ export function ClearanceShelfScreen({ navigation, route }: Props) {
         )}
       </StitchScreen>
 
-      {!isDraftPreview ? (
+      {!isBrowseOnly ? (
         <View
           style={{
             position: 'absolute',
@@ -524,12 +577,18 @@ export function ClearanceShelfScreen({ navigation, route }: Props) {
           }}
         >
           <StitchText variant="body-sm" colorKey="textMuted" style={{ marginBottom: spacing.xs }}>
+            {CLEARANCE_FOOD_SAFETY_NOTICE}
+          </StitchText>
+          <StitchText variant="body-sm" colorKey="textMuted" style={{ marginBottom: spacing.xs }}>
             {lineCount} item{lineCount === 1 ? '' : 's'} · {formatLkr(subtotal)}
             {savingsHint > 0 ? ` · Save ${formatLkr(savingsHint)}` : ''}
           </StitchText>
           <Pressable
             disabled={lineCount < 1}
-            onPress={() => navigation.navigate('ShelfReview', { shelfId })}
+            onPress={() => {
+              void refreshShelf();
+              navigation.navigate('ShelfReview', { shelfId });
+            }}
             style={({ pressed }) => ({
               padding: spacing.md,
               borderRadius: radii.xl,
@@ -577,9 +636,14 @@ function ItemDetailSheet({
     ? (item.allergens_snapshot as string[])
     : [];
   const ingredients =
-    typeof item.ingredients_snapshot === 'string' ? item.ingredients_snapshot : null;
+    typeof item.ingredients_snapshot === 'string' && item.ingredients_snapshot.trim()
+      ? item.ingredients_snapshot
+      : null;
   const source =
-    typeof item.catalog_source === 'string' ? item.catalog_source : 'Open Food Facts';
+    typeof item.catalog_source === 'string' ? item.catalog_source : 'Shop listing';
+  const bestBefore = formatBestBefore(
+    typeof item.best_before === 'string' ? item.best_before : null,
+  );
 
   return (
     <Modal visible animationType="slide" transparent onRequestClose={onClose}>
@@ -608,16 +672,26 @@ function ItemDetailSheet({
           <StitchText variant="price" colorKey="accent" style={{ marginTop: spacing.md }}>
             {formatLkr(Number(item.rescue_price ?? 0))}
           </StitchText>
-          {allergens.length > 0 ? (
-            <View style={{ marginTop: spacing.md }}>
-              <StitchText variant="label-caps" colorKey="textMuted">
-                Allergens
-              </StitchText>
-              <StitchText variant="body-sm" colorKey="onBackground">
-                {allergens.join(', ')}
-              </StitchText>
-            </View>
+          {bestBefore ? (
+            <StitchText variant="body-sm" colorKey="accent" style={{ marginTop: spacing.md }}>
+              {bestBefore}
+            </StitchText>
           ) : null}
+          {item.is_halal === true ? (
+            <StitchText variant="label" colorKey="primaryContainer" style={{ marginTop: spacing.sm }}>
+              Halal item
+            </StitchText>
+          ) : null}
+          <View style={{ marginTop: spacing.md }}>
+            <StitchText variant="label-caps" colorKey="textMuted">
+              Allergens
+            </StitchText>
+            <StitchText variant="body-sm" colorKey="onBackground">
+              {allergens.length > 0
+                ? allergens.join(', ')
+                : 'Not provided by the shop — check the pack at pickup.'}
+            </StitchText>
+          </View>
           {ingredients ? (
             <View style={{ marginTop: spacing.md }}>
               <StitchText variant="label-caps" colorKey="textMuted">

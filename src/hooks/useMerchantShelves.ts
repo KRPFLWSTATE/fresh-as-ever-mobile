@@ -132,21 +132,25 @@ export function useMerchantShelves(env: AppEnv, outletId: string | null) {
       }
 
       for (const [idx, item] of items.entries()) {
+        const soldOut =
+          item.item_status === 'sold_out' ||
+          Number(item.quantity_remaining ?? 0) < 1;
         const payload = {
           name_snapshot: item.name_snapshot,
           brand_snapshot: item.brand_snapshot ?? null,
           rescue_price: item.rescue_price,
           retail_price: item.retail_price ?? null,
-          quantity_total: item.quantity_total,
-          quantity_remaining: item.quantity_remaining,
+          quantity_total: soldOut ? 0 : item.quantity_total,
+          quantity_remaining: soldOut ? 0 : item.quantity_remaining,
           allergens_snapshot: item.allergens_snapshot ?? [],
           is_halal: item.is_halal ?? null,
           image_url_snapshot: item.image_url_snapshot ?? null,
           product_id: item.product_id ?? null,
           barcode: item.barcode ?? null,
           sort_order: item.sort_order ?? idx,
-          status: 'live' as const,
+          status: soldOut ? ('sold_out' as const) : ('live' as const),
           best_before: item.best_before ?? null,
+          category_snapshot: item.catalog_category ?? null,
         };
         if (item.id) {
           const { error: itemErr } = await supabase

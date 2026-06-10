@@ -309,6 +309,7 @@ export function FavouritesScreen() {
         </StitchText>
         <ScrollView
           horizontal
+          nestedScrollEnabled
           showsHorizontalScrollIndicator={false}
           style={styles.chipScroll}
           contentContainerStyle={styles.chipRow}

@@ -29,6 +29,10 @@ import type { RootStackParamList } from '@/navigation/types';
 import { useAuthContext } from '@/context/AuthContext';
 import { getSupabase } from '@/lib/supabase';
 import { canPublishRescueBags } from '@/lib/outletListingMode';
+import {
+  discoverCategoryMatchesChip,
+  type DiscoverCategoryChipId,
+} from '@/lib/discoverCategoryChip';
 import { isClearanceShelvesEnabled } from '@/config/clearanceShelves';
 import { ERROR } from '@/lib/messages/errors';
 import { mapSupabaseError } from '@/lib/supabaseError';
@@ -75,7 +79,7 @@ const PICKUP_CHIPS = [
   { key: 'tomorrow', label: 'Tomorrow' },
 ] as const;
 
-type CategoryChipKey = (typeof CATEGORY_CHIPS)[number]['key'];
+type CategoryChipKey = DiscoverCategoryChipId;
 type DistanceChipKey = (typeof DISTANCE_CHIPS)[number]['key'];
 type PriceChipKey = (typeof PRICE_CHIPS)[number]['key'];
 type PickupChipKey = (typeof PICKUP_CHIPS)[number]['key'];
@@ -117,28 +121,7 @@ function formatPickupLine(start: string | null, end: string | null): string | nu
 }
 
 function bagMatchesCategory(row: Row, chip: CategoryChipKey): boolean {
-  if (chip === 'all') return true;
-  const c = (row.category ?? '').toLowerCase();
-  if (!c) return false;
-  switch (chip) {
-    case 'bakery':
-      return c.includes('bake') || c.includes('pastry');
-    case 'cafe':
-      return c.includes('cafe') || c.includes('coffee');
-    case 'meals':
-      return (
-        c.includes('meal') ||
-        c.includes('lunch') ||
-        c.includes('dinner') ||
-        c.includes('food')
-      );
-    case 'groceries':
-      return c.includes('groc') || c.includes('veg') || c.includes('produce');
-    case 'supermarket':
-      return c.includes('super') || c.includes('market');
-    default:
-      return false;
-  }
+  return discoverCategoryMatchesChip(row.outlet_category ?? row.category, chip);
 }
 
 function priceMatches(row: Row, chip: PriceChipKey): boolean {

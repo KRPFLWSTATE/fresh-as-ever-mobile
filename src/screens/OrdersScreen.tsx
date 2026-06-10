@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -20,6 +20,7 @@ import {
   ACTIVE_ORDER_STATUSES,
   normalizeOrderStatus,
 } from '@/lib/orderStatus';
+import { isCustomerArchivedOrderVisible } from '@/lib/customerRescueMetrics';
 import { orderDisplayTitle, orderPickupWindow } from '@/lib/orderDisplay';
 import { useStitchTheme } from '@/theme/StitchThemeContext';
 import { stitchFonts } from '@/theme/stitchTokens';
@@ -123,6 +124,7 @@ export function OrdersScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [segment, setSegment] = useState<'active' | 'archived'>('active');
+  const hasLoadedOnceRef = useRef(false);
 
   const styles = useMemo(
     () => createStyles({ spacing, radii }),
@@ -134,14 +136,14 @@ export function OrdersScreen() {
     const uid = session?.user.id;
     if (!uid) {
       setRows([]);
+      hasLoadedOnceRef.current = false;
       setLoading(false);
       setRefreshing(false);
-      navigation.getParent()?.navigate('Login');
       return;
     }
     if (mode === 'refresh') {
       setRefreshing(true);
-    } else {
+    } else if (!hasLoadedOnceRef.current) {
       setLoading(true);
     }
     const { data, error } = await sb
@@ -169,24 +171,30 @@ export function OrdersScreen() {
       setRefreshing(false);
     } else {
       setLoading(false);
+      hasLoadedOnceRef.current = true;
     }
     if (error) {
       setRows([]);
       return;
     }
     setRows((data as OrderRow[]) ?? []);
-  }, [env, navigation, session?.user.id]);
+  }, [env, session?.user.id]);
 
   useEffect(() => {
+    if (!session?.user.id) {
+      navigation.getParent()?.navigate('Login');
+      return;
+    }
     void load();
-  }, [load]);
+  }, [load, session?.user.id]);
 
   const filtered = rows.filter((r) => {
     const n = normalizeOrderStatus(r.order_status);
     const active = ACTIVE_ORDER_STATUSES.includes(
       n as (typeof ACTIVE_ORDER_STATUSES)[number],
     );
-    return segment === 'active' ? active : !active;
+    if (segment === 'active') return active;
+    return isCustomerArchivedOrderVisible(r.order_status);
   });
 
   const renderActiveCard = (item: OrderRow) => {

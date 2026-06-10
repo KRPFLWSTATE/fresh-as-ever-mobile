@@ -12,9 +12,12 @@ import { StitchText } from '@/ui/stitch/StitchText';
 
 type Props = {
   label: string;
-  /** `YYYY-MM-DDTHH:mm` in local time */
+  /** `YYYY-MM-DDTHH:mm` in local time, or `YYYY-MM-DD` when mode is `date` */
   value: string;
   onChange: (next: string) => void;
+  /** When set, picker values before this instant are rejected. */
+  minimumDate?: Date;
+  mode?: 'datetime' | 'date';
 };
 
 function parseLocal(value: string): Date {
@@ -54,7 +57,28 @@ function createFieldStyles({ spacing, radii }: FieldStylesArgs) {
   });
 }
 
-export function PickupDateTimeField({ label, value, onChange }: Props) {
+function clampToMinimum(picked: Date, minimumDate?: Date): Date {
+  if (!minimumDate) return picked;
+  return picked.getTime() < minimumDate.getTime() ? minimumDate : picked;
+}
+
+function formatOutput(picked: Date, mode: 'datetime' | 'date'): string {
+  if (mode === 'date') {
+    const y = picked.getFullYear();
+    const m = String(picked.getMonth() + 1).padStart(2, '0');
+    const d = String(picked.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+  return isoLocalRounded(picked);
+}
+
+export function PickupDateTimeField({
+  label,
+  value,
+  onChange,
+  minimumDate,
+  mode = 'datetime',
+}: Props) {
   const { colors, spacing, radii, colorScheme } = useStitchTheme();
   const styles = useMemo(
     () => createFieldStyles({ spacing, radii }),
@@ -162,9 +186,15 @@ export function PickupDateTimeField({ label, value, onChange }: Props) {
               return;
             }
             if (picked) {
-              const next = new Date(pending);
-              next.setHours(picked.getHours(), picked.getMinutes(), 0, 0);
-              onChange(isoLocalRounded(next));
+              const next = clampToMinimum(
+                (() => {
+                  const n = new Date(pending);
+                  n.setHours(picked.getHours(), picked.getMinutes(), 0, 0);
+                  return n;
+                })(),
+                minimumDate,
+              );
+              onChange(formatOutput(next, mode));
             }
           }}
         />
@@ -183,12 +213,14 @@ export function PickupDateTimeField({ label, value, onChange }: Props) {
           <DateTimePicker
             {...pickerAppearance}
             value={pending}
-            mode="datetime"
+            mode={mode === 'date' ? 'date' : 'datetime'}
             display="spinner"
+            minimumDate={minimumDate}
             style={styles.iosPicker}
             onChange={(_ev, picked) => {
               if (picked) {
-                const next = isoLocalRounded(picked);
+                const clamped = clampToMinimum(picked, minimumDate);
+                const next = formatOutput(clamped, mode);
                 setPending(parseLocal(next));
                 onChange(next);
               }

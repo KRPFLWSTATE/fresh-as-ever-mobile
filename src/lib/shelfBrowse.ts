@@ -2,6 +2,33 @@ export type ShelfSortKey = 'default' | 'price_asc' | 'price_desc' | 'name' | 'sa
 
 export type ShelfBrowseItem = Record<string, unknown>;
 
+const DEMO_NAME_CATEGORY_RULES: ReadonlyArray<[RegExp, string]> = [
+  [/bread|pastry|croissant|baguette|roll/i, 'Bakery'],
+  [/milk|yogurt|yoghurt|egg|dairy|cheese|butter/i, 'Dairy'],
+  [/banana|produce|fruit|vegetable|apple|tomato|salad/i, 'Produce'],
+];
+
+/** Resolve shelf item category for browse grouping and discover previews. */
+export function resolveShelfItemCategory(item: ShelfBrowseItem): string {
+  const snapshot = item.category_snapshot;
+  if (typeof snapshot === 'string' && snapshot.trim()) {
+    return snapshot.trim();
+  }
+  const catalog = item.catalog_category;
+  if (typeof catalog === 'string' && catalog.trim()) {
+    return catalog.trim();
+  }
+  const product = item.product as { category?: string | null } | undefined;
+  if (typeof product?.category === 'string' && product.category.trim()) {
+    return product.category.trim();
+  }
+  const name = String(item.name_snapshot ?? '');
+  for (const [pattern, category] of DEMO_NAME_CATEGORY_RULES) {
+    if (pattern.test(name)) return category;
+  }
+  return 'Other';
+}
+
 export function filterShelfItems(
   items: ShelfBrowseItem[],
   query: string,
@@ -59,10 +86,7 @@ export function groupShelfItemsByCategory(
 ): { category: string; items: ShelfBrowseItem[] }[] {
   const map = new Map<string, ShelfBrowseItem[]>();
   for (const item of items) {
-    const cat =
-      typeof item.catalog_category === 'string' && item.catalog_category.trim()
-        ? item.catalog_category.trim()
-        : 'Other';
+    const cat = resolveShelfItemCategory(item);
     const bucket = map.get(cat) ?? [];
     bucket.push(item);
     map.set(cat, bucket);
@@ -121,4 +145,42 @@ export function buildPublishChecklist(args: {
       ok: !args.outletHalalCertified || args.nonHalalCount === 0,
     },
   ];
+}
+
+export type PublishChecklistGate = {
+  canConfirmPublish: boolean;
+  halalOnlyBlock: boolean;
+  failedLabels: string[];
+  blockMessage: string | null;
+};
+
+/** Whether Confirm publish is allowed and what blocking copy to show in the checklist modal. */
+export function getPublishChecklistGate(
+  checklist: PublishChecklistItem[],
+): PublishChecklistGate {
+  const failed = checklist.filter((item) => !item.ok);
+  if (failed.length === 0) {
+    return {
+      canConfirmPublish: true,
+      halalOnlyBlock: false,
+      failedLabels: [],
+      blockMessage: null,
+    };
+  }
+  const halalOnlyBlock = failed.length === 1 && failed[0]?.id === 'halal';
+  if (halalOnlyBlock) {
+    return {
+      canConfirmPublish: false,
+      halalOnlyBlock: true,
+      failedLabels: failed.map((item) => item.label),
+      blockMessage:
+        'Some items are not marked halal. Edit items to mark halal, or use Publish anyway to continue with a customer warning.',
+    };
+  }
+  return {
+    canConfirmPublish: false,
+    halalOnlyBlock: false,
+    failedLabels: failed.map((item) => item.label),
+    blockMessage: `Complete before publishing: ${failed.map((item) => item.label).join(', ')}.`,
+  };
 }

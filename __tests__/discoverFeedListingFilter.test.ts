@@ -1,5 +1,7 @@
 import {
   filterDiscoverFeedByListingMode,
+  filterDiscoverFeedByMerchantStatus,
+  isOutletDiscoverVisible,
   mapBagToFeedItem,
   mapShelfToFeedItem,
 } from '@/lib/discoverFeed';
@@ -77,5 +79,46 @@ describe('filterDiscoverFeedByListingMode', () => {
       retail_price: 300,
       product_id: 'p1',
     });
+  });
+});
+
+describe('filterDiscoverFeedByMerchantStatus', () => {
+  it('hides feed items when merchant is suspended', () => {
+    const feed = filterDiscoverFeedByMerchantStatus([
+      mapBagToFeedItem({
+        id: 'b1',
+        title: 'Hidden bag',
+        outlet_category: 'hybrid',
+        outlet: { is_active: true, merchant: { status: 'suspended' } },
+      }),
+      mapShelfToFeedItem({
+        id: 's1',
+        outlet: {
+          category: 'hybrid',
+          is_active: true,
+          merchant: { status: 'approved' },
+        },
+        items: [{ status: 'live', quantity_remaining: 1, rescue_price: 10 }],
+      }),
+    ]);
+    expect(feed.map((f) => f.id)).toEqual(['s1']);
+  });
+
+  it('hides feed items when outlet is paused', () => {
+    expect(
+      isOutletDiscoverVisible({
+        is_active: false,
+        merchant: { status: 'approved' },
+      }),
+    ).toBe(false);
+  });
+
+  it('hides feed items when merchant status is missing (RLS join gap)', () => {
+    expect(
+      isOutletDiscoverVisible({
+        is_active: true,
+        merchant: undefined,
+      }),
+    ).toBe(false);
   });
 });

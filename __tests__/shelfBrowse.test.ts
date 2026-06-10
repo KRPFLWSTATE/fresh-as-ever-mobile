@@ -2,6 +2,7 @@ import {
   applyBulkDiscountToItems,
   buildPublishChecklist,
   filterShelfItems,
+  getPublishChecklistGate,
   groupShelfItemsByCategory,
   sortShelfItems,
 } from '@/lib/shelfBrowse';
@@ -28,6 +29,16 @@ describe('shelfBrowse', () => {
     expect(groups.map((g) => g.category)).toEqual(['Bakery', 'Dairy', 'Other']);
   });
 
+  it('infers demo categories from item names when snapshots missing', () => {
+    const demoItems = [
+      { name_snapshot: '[Demo] Wholemeal bread', rescue_price: 100 },
+      { name_snapshot: '[Demo] Fresh milk 1L', rescue_price: 200 },
+      { name_snapshot: '[Demo] Ripe bananas bunch', rescue_price: 150 },
+    ];
+    const groups = groupShelfItemsByCategory(demoItems);
+    expect(groups.map((g) => g.category)).toEqual(['Bakery', 'Dairy', 'Produce']);
+  });
+
   it('applies bulk discount from retail', () => {
     const out = applyBulkDiscountToItems(
       [{ retail_price: 1000, rescue_price: 500 }],
@@ -47,5 +58,47 @@ describe('shelfBrowse', () => {
     });
     expect(list.find((i) => i.id === 'halal')?.ok).toBe(false);
     expect(list.every((i) => i.id !== 'pickup' || i.ok)).toBe(true);
+  });
+
+  it('gates publish when halal checklist fails alone', () => {
+    const checklist = buildPublishChecklist({
+      pickupStart: '2026-05-30T10:00:00',
+      pickupEnd: '2026-05-30T14:00:00',
+      itemCount: 2,
+      itemsMissingRetail: 0,
+      outletHalalCertified: true,
+      nonHalalCount: 1,
+    });
+    const gate = getPublishChecklistGate(checklist);
+    expect(gate.canConfirmPublish).toBe(false);
+    expect(gate.halalOnlyBlock).toBe(true);
+    expect(gate.blockMessage).toMatch(/Publish anyway/);
+  });
+
+  it('blocks publish when multiple checklist rows fail', () => {
+    const checklist = buildPublishChecklist({
+      pickupStart: '',
+      pickupEnd: '',
+      itemCount: 0,
+      itemsMissingRetail: 1,
+      outletHalalCertified: true,
+      nonHalalCount: 1,
+    });
+    const gate = getPublishChecklistGate(checklist);
+    expect(gate.canConfirmPublish).toBe(false);
+    expect(gate.halalOnlyBlock).toBe(false);
+    expect(gate.blockMessage).toMatch(/Complete before publishing/);
+  });
+
+  it('allows confirm publish when checklist is complete', () => {
+    const checklist = buildPublishChecklist({
+      pickupStart: '2026-05-30T10:00:00',
+      pickupEnd: '2026-05-30T14:00:00',
+      itemCount: 2,
+      itemsMissingRetail: 0,
+      outletHalalCertified: true,
+      nonHalalCount: 0,
+    });
+    expect(getPublishChecklistGate(checklist).canConfirmPublish).toBe(true);
   });
 });

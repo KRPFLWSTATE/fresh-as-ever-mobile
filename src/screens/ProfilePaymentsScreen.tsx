@@ -379,7 +379,7 @@ export function ProfilePaymentsScreen() {
                   >
                     <View style={{ flex: 1, gap: 4 }}>
                       <StitchText variant="label" colorKey="text" numberOfLines={1}>
-                        {row.bag_title}
+                        {row.title}
                       </StitchText>
                       <StitchText variant="body-sm" colorKey="textMuted">
                         {row.outlet_name} · {row.reservation_code || row.id.slice(0, 8)}

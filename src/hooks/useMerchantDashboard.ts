@@ -6,6 +6,7 @@ import { filterOrdersForListingMode } from '@/lib/merchantOrderListingFilter';
 import { orderDisplayTitle } from '@/lib/orderDisplay';
 import { outletListingMode, type OutletListingMode } from '@/lib/outletListingMode';
 import { useMerchantContext } from '@/hooks/useMerchantContext';
+import { isPickupWindowOpen } from '@/domain/pickupWindow';
 import { logError } from '@/observability/logError';
 
 export type DashboardPopularBag = {
@@ -144,14 +145,19 @@ export function useMerchantDashboard(env: AppEnv) {
         }
         const shelfIds = (todayShelves ?? []).map((s) => String(s.id));
         if (shelfIds.length > 0) {
-          const { count, error: itemCountError } = await supabase
+          const { data: shelfItemRows, error: itemCountError } = await supabase
             .from('clearance_shelf_items')
-            .select('*', { count: 'exact', head: true })
+            .select('quantity_remaining, status')
             .in('shelf_id', shelfIds);
           if (itemCountError) {
             throw itemCountError;
           }
-          activeBagsCount = count ?? 0;
+          activeBagsCount = (shelfItemRows ?? []).reduce((sum, row) => {
+            if (String((row as Record<string, unknown>).status ?? '') === 'removed') {
+              return sum;
+            }
+            return sum + Math.max(0, Number((row as Record<string, unknown>).quantity_remaining ?? 0));
+          }, 0);
         }
       } else if (listingMode === 'hybrid') {
         const { count: bagCount, error: bagsError } = await supabase
@@ -198,16 +204,37 @@ export function useMerchantDashboard(env: AppEnv) {
 
       const { data: pendingRows, error: pendingError } = await supabase
         .from('orders')
-        .select('outlet_id, shelf_id')
+        .select(`
+          outlet_id, shelf_id, bag_id, order_status,
+          shelf:clearance_shelves(pickup_start, pickup_end),
+          bag:rescue_bags(pickup_start, pickup_end)
+        `)
         .in('outlet_id', outletScopeIds)
-        .in('order_status', ['reserved', 'paid', 'ready_for_pickup'])
-        .gte('created_at', today.toISOString());
-      const pendingPickupsCount =
-        pendingRows?.filter(filterRowForOutletMode).length ?? 0;
+        .in('order_status', ['reserved', 'paid', 'ready_for_pickup']);
 
       if (pendingError) {
         throw pendingError;
       }
+
+      const nowMs = Date.now();
+      const pendingPickupsCount =
+        (pendingRows ?? []).filter((row) => {
+          if (!filterRowForOutletMode(row)) return false;
+          const rec = row as Record<string, unknown>;
+          const shelf = rec.shelf as Record<string, unknown> | null | undefined;
+          const bag = rec.bag as Record<string, unknown> | null | undefined;
+          const pickupStart =
+            (typeof shelf?.pickup_start === 'string' ? shelf.pickup_start : null) ??
+            (typeof bag?.pickup_start === 'string' ? bag.pickup_start : null);
+          const pickupEnd =
+            (typeof shelf?.pickup_end === 'string' ? shelf.pickup_end : null) ??
+            (typeof bag?.pickup_end === 'string' ? bag.pickup_end : null);
+          if (!pickupEnd) return true;
+          return (
+            isPickupWindowOpen(nowMs, pickupStart, pickupEnd) ||
+            new Date(pickupEnd).getTime() >= nowMs
+          );
+        }).length ?? 0;
 
       // Yesterday counterpart values — used by the dashboard's day-over-day `%`
       // delta chips. We bucket `created_at` to the same 00:00..00:00 window
@@ -242,11 +269,29 @@ export function useMerchantDashboard(env: AppEnv) {
         );
         return activeRoots.includes(s);
       }).length;
-      const yesterdayPendingPickups = yRowsYesterday.filter((order) => {
-        const s = String(
-          (order as Record<string, unknown>).order_status ?? '',
-        );
-        return s === 'reserved' || s === 'paid' || s === 'ready_for_pickup';
+      const { data: yPendingRows, error: yPendingErr } = await supabase
+        .from('orders')
+        .select(`
+          outlet_id, shelf_id, bag_id, order_status,
+          shelf:clearance_shelves(pickup_start, pickup_end),
+          bag:rescue_bags(pickup_start, pickup_end)
+        `)
+        .in('outlet_id', outletScopeIds)
+        .in('order_status', ['reserved', 'paid', 'ready_for_pickup'])
+        .gte('created_at', yesterday.toISOString())
+        .lt('created_at', today.toISOString());
+      if (yPendingErr) throw yPendingErr;
+      const yPendingMs = yesterday.getTime() + 12 * 60 * 60 * 1000;
+      const yesterdayPendingPickups = (yPendingRows ?? []).filter((row) => {
+        if (!filterRowForOutletMode(row)) return false;
+        const rec = row as Record<string, unknown>;
+        const shelf = rec.shelf as Record<string, unknown> | null | undefined;
+        const bag = rec.bag as Record<string, unknown> | null | undefined;
+        const pickupEnd =
+          (typeof shelf?.pickup_end === 'string' ? shelf.pickup_end : null) ??
+          (typeof bag?.pickup_end === 'string' ? bag.pickup_end : null);
+        if (!pickupEnd) return true;
+        return new Date(pickupEnd).getTime() >= yPendingMs;
       }).length;
 
       // `rescue_bags` doesn't carry a `created_at` we can scope cleanly to a

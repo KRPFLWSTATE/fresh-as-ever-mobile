@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getSupabase } from '@/lib/supabase';
 import type { AppEnv } from '@/config/env';
 import { useAuthContext } from '@/context/AuthContext';
+import { isCustomerOrderHistoryVisible } from '@/lib/customerRescueMetrics';
+import { orderDisplayTitle } from '@/lib/orderDisplay';
 import { mapSupabaseError, logSupabaseError } from '@/lib/supabaseError';
 
 export type CustomerOrderHistoryRow = {
@@ -11,7 +13,7 @@ export type CustomerOrderHistoryRow = {
   created_at: string;
   order_status: string;
   payment_status: string;
-  bag_title: string;
+  title: string;
   outlet_name: string;
 };
 
@@ -41,7 +43,9 @@ export function useCustomerOrdersHistory(env: AppEnv, limit = 40) {
           created_at,
           order_status,
           payment_status,
+          shelf_id,
           bag:rescue_bags(title),
+          order_items(name_snapshot, quantity),
           outlet:outlets(name)
         `,
         )
@@ -52,16 +56,29 @@ export function useCustomerOrdersHistory(env: AppEnv, limit = 40) {
       if (qErr) throw qErr;
 
       setRows(
-        ((data ?? []) as Record<string, unknown>[]).map((r) => ({
-          id: String(r.id),
-          reservation_code: String(r.reservation_code ?? ''),
-          total: Number(r.total ?? 0),
-          created_at: String(r.created_at ?? ''),
-          order_status: String(r.order_status ?? ''),
-          payment_status: String(r.payment_status ?? ''),
-          bag_title: String((r.bag as { title?: string } | null)?.title ?? 'Rescue bag'),
-          outlet_name: String((r.outlet as { name?: string } | null)?.name ?? ''),
-        })),
+        ((data ?? []) as Record<string, unknown>[])
+          .filter((r) =>
+            isCustomerOrderHistoryVisible(
+              String(r.order_status ?? ''),
+              String(r.payment_status ?? ''),
+            ),
+          )
+          .map((r) => ({
+            id: String(r.id),
+            reservation_code: String(r.reservation_code ?? ''),
+            total: Number(r.total ?? 0),
+            created_at: String(r.created_at ?? ''),
+            order_status: String(r.order_status ?? ''),
+            payment_status: String(r.payment_status ?? ''),
+            title: orderDisplayTitle({
+              shelf_id: r.shelf_id as string | null,
+              bag: r.bag as { title?: string | null } | null,
+              order_items: r.order_items as
+                | { name_snapshot?: string | null; quantity?: number | null }[]
+                | null,
+            }),
+            outlet_name: String((r.outlet as { name?: string | null } | null)?.name ?? ''),
+          })),
       );
     } catch (e) {
       logSupabaseError(e, 'useCustomerOrdersHistory');

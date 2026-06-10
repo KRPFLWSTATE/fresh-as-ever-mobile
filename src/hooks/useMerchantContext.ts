@@ -1,4 +1,6 @@
+import type { Session, User } from '@supabase/supabase-js';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useAuthContext } from '@/context/AuthContext';
 import { getSupabase } from '@/lib/supabase';
 import type { AppEnv } from '@/config/env';
 import { logError } from '@/observability/logError';
@@ -63,6 +65,16 @@ function getMerchantContextStore(env: AppEnv): MerchantContextStore {
   return next;
 }
 
+export function resetMerchantContextStore(env: AppEnv): void {
+  const store = merchantContextStores.get(getStoreKey(env));
+  if (!store) {
+    return;
+  }
+  store.fetchPromise = null;
+  store.state = createInitialState();
+  emitStore(store);
+}
+
 function emitStore(store: MerchantContextStore) {
   store.listeners.forEach((listener) => listener());
 }
@@ -78,12 +90,17 @@ function updateStore(
 async function fetchMerchantContext(
   store: MerchantContextStore,
   env: AppEnv,
+  authSession?: Session | null,
 ): Promise<void> {
+  const supabase = getSupabase(env);
+  if (authSession?.access_token && authSession.refresh_token) {
+    store.fetchPromise = null;
+  }
+
   if (store.fetchPromise) {
     return store.fetchPromise;
   }
 
-  const supabase = getSupabase(env);
   store.fetchPromise = (async () => {
     updateStore(store, (current) => ({
       ...current,
@@ -92,11 +109,39 @@ async function fetchMerchantContext(
     }));
 
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      let liveSession = (
+        await supabase.auth.getSession()
+      ).data.session;
 
-      if (!user) {
+      if (
+        authSession?.access_token &&
+        authSession.refresh_token &&
+        (!liveSession?.access_token ||
+          liveSession.access_token !== authSession.access_token)
+      ) {
+        const { data: setData, error: setSessionError } = await supabase.auth.setSession({
+          access_token: authSession.access_token,
+          refresh_token: authSession.refresh_token,
+        });
+        if (setSessionError) {
+          throw setSessionError;
+        }
+        liveSession = setData.session ?? (await supabase.auth.getSession()).data.session;
+      }
+
+      if (!liveSession?.access_token && authSession?.access_token) {
+        for (let attempt = 0; attempt < 8; attempt += 1) {
+          await new Promise<void>((resolve) => {
+            setTimeout(() => resolve(), 400);
+          });
+          liveSession = (await supabase.auth.getSession()).data.session;
+          if (liveSession?.access_token) {
+            break;
+          }
+        }
+      }
+
+      if (!liveSession?.access_token || !liveSession.user) {
         updateStore(store, () => ({
           merchant: null,
           outlets: [],
@@ -108,16 +153,40 @@ async function fetchMerchantContext(
         return;
       }
 
-      await supabase.rpc('link_merchant_staff_from_email');
+      const verifiedUser = liveSession.user;
 
-      const { data: merchantRows, error: merchantError } = await supabase
+      const { error: linkStaffError } = await supabase.rpc(
+        'link_merchant_staff_from_email',
+      );
+      if (linkStaffError) {
+        logSupabaseError(linkStaffError, 'useMerchantContext.linkStaff');
+      }
+
+      let { data: merchantRows, error: merchantError } = await supabase
         .from('merchants')
         .select('*')
-        .eq('owner_id', user.id)
+        .eq('owner_id', verifiedUser.id)
         .order('created_at', { ascending: true });
 
       if (merchantError) {
         throw merchantError;
+      }
+
+      if (!merchantRows?.length) {
+        const retry = await supabase
+          .from('merchants')
+          .select('*')
+          .eq('owner_id', verifiedUser.id)
+          .order('created_at', { ascending: true });
+        if (retry.error) {
+          throw retry.error;
+        }
+        merchantRows = retry.data;
+      }
+
+      if (__DEV__ && !merchantRows?.length) {
+        // eslint-disable-next-line no-console
+        console.warn('[useMerchantContext] no merchants for owner', verifiedUser.id);
       }
 
       let merchantData = (merchantRows?.[0] as MerchantProfile | undefined) ?? null;
@@ -126,7 +195,7 @@ async function fetchMerchantContext(
         const { data: staffLink, error: staffErr } = await supabase
           .from('merchant_staff')
           .select('merchant_id')
-          .eq('user_id', user.id)
+          .eq('user_id', verifiedUser.id)
           .eq('status', 'active')
           .order('created_at', { ascending: true })
           .limit(1)
@@ -155,10 +224,15 @@ async function fetchMerchantContext(
         return;
       }
 
+      const merchantIds =
+        (merchantRows?.length ?? 0) > 0
+          ? merchantRows!.map((row) => String(row.id))
+          : [String(merchantData.id)];
+
       const { data: outletsData, error: outletsError } = await supabase
         .from('outlets')
         .select('*')
-        .eq('merchant_id', merchantData.id);
+        .in('merchant_id', merchantIds);
 
       if (outletsError) {
         throw outletsError;
@@ -166,11 +240,22 @@ async function fetchMerchantContext(
 
       const nextOutlets = (outletsData ?? []) as MerchantOutlet[];
       const previousId = store.state.activeOutletId;
+      const demoOutletId = '00000000-0000-0000-0000-000000000003';
+      const preferredDemo = nextOutlets.find(
+        (outlet) => String(outlet.id) === demoOutletId,
+      );
+      const preferredHybrid = nextOutlets.find(
+        (outlet) => String(outlet.category ?? '').toLowerCase() === 'hybrid',
+      );
       const nextActiveOutletId =
         nextOutlets.length > 0
           ? nextOutlets.some((outlet) => String(outlet.id) === String(previousId))
             ? String(previousId)
-            : String(nextOutlets[0]?.id ?? '')
+            : preferredHybrid
+              ? String(preferredHybrid.id)
+              : preferredDemo
+                ? String(preferredDemo.id)
+                : String(nextOutlets[0]?.id ?? '')
           : null;
 
       updateStore(store, () => ({
@@ -200,6 +285,7 @@ async function fetchMerchantContext(
 }
 
 export function useMerchantContext(env: AppEnv) {
+  const { session, initializing: authInitializing } = useAuthContext();
   const store = useMemo(
     () => getMerchantContextStore(env),
     [env],
@@ -217,18 +303,46 @@ export function useMerchantContext(env: AppEnv) {
   }, [store]);
 
   const fetchContext = useCallback(
-    async () => fetchMerchantContext(store, env),
-    [env, store],
+    async (authSession?: Session | null) =>
+      fetchMerchantContext(store, env, authSession ?? session),
+    [env, session, store],
   );
 
   useEffect(() => {
-    if (store.state.initialized || store.fetchPromise) {
+    if (authInitializing) {
       return;
     }
-    fetchContext().catch((err) =>
-      logError(err, { context: 'useMerchantContext.fetchContext' }),
-    );
-  }, [fetchContext, store]);
+
+    let cancelled = false;
+
+    const load = async () => {
+      if (cancelled) return;
+
+      if (!session) {
+        updateStore(store, () => ({
+          merchant: null,
+          outlets: [],
+          activeOutletId: null,
+          loading: false,
+          error: null,
+          initialized: true,
+        }));
+        return;
+      }
+
+      store.fetchPromise = null;
+
+      await fetchContext(session).catch((err) =>
+        logError(err, { context: 'useMerchantContext.fetchContext' }),
+      );
+    };
+
+    void load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [authInitializing, session?.access_token, env, fetchContext, store]);
 
   const setActiveOutletId = useCallback(
     (

@@ -98,7 +98,7 @@ export type RootStackParamList = {
     headerVariant?: 'title' | 'logo';
   };
   ClearanceShelf: { id: string; preview?: boolean };
-  ShelfReview: { shelfId: string };
+  ShelfReview: { shelfId: string; preview?: boolean; pass8Seed?: string };
   MerchantShelvesList: undefined;
   MerchantShelfEditor: {
     shelfId?: string;

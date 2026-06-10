@@ -99,11 +99,17 @@ const config: NonNullable<LinkingOptions<RootStackParamList>['config']> = {
     MerchantBagsList: 'merchant/bags',
     ClearanceShelf: {
       path: 'shelves/:id',
-      parse: { id: (id: string) => id },
+      parse: {
+        id: (id: string) => id,
+        preview: (value: string) => value === 'true' || value === '1',
+      },
     },
     ShelfReview: {
       path: 'shelves/:shelfId/review',
-      parse: { shelfId: (id: string) => id },
+      parse: {
+        shelfId: (id: string) => id,
+        preview: (value: string) => value === 'true' || value === '1',
+      },
     },
     MerchantShelvesList: 'merchant/shelves',
     MerchantShelfEditor: 'merchant/shelves/today',

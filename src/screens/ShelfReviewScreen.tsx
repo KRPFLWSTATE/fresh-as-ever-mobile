@@ -1,5 +1,5 @@
-import React, { useMemo } from 'react';
-import { Image, Pressable, View } from 'react-native';
+import React, { useMemo, useEffect, useRef } from 'react';
+import { Alert, Image, Pressable, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { RootStackParamList } from '@/navigation/types';
@@ -13,18 +13,26 @@ import {
   formatUnitLabel,
   sumRetailSavings,
 } from '@/lib/shelfDisplay';
+import { CLEARANCE_FOOD_SAFETY_NOTICE } from '@/lib/foodSafetyCopy';
 import { useStitchTheme } from '@/theme/StitchThemeContext';
 import { StitchIcon, StitchScreen, StitchSurface, StitchText } from '@/ui/stitch';
+import {
+  parsePreviewQueryParam,
+  resolveShelfPreviewMode,
+} from '@/lib/shelfPreviewMode';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ShelfReview'>;
 
 export function ShelfReviewScreen({ navigation, route }: Props) {
-  const { env } = useAuthContext();
+  const previewRequested = parsePreviewQueryParam(route.params.preview);
+  const { env, resolvedRole } = useAuthContext();
   const shelfId = route.params.shelfId;
-  const { shelf, loading, error } = useShelfDetail(env, shelfId);
+  const { isBrowseOnly } = resolveShelfPreviewMode(previewRequested, resolvedRole);
+  const { shelf, loading, error, refresh } = useShelfDetail(env, shelfId);
   const { shelfId: basketShelfId, items, setQuantity } = useClearanceBasket();
   const { colors, spacing, radii } = useStitchTheme();
   const insets = useSafeAreaInsets();
+  const pass8Seeded = useRef(false);
 
   const scopedItems = useMemo(
     () => scopeBasketToShelf(basketShelfId, items, shelfId),
@@ -68,6 +76,35 @@ export function ShelfReviewScreen({ navigation, route }: Props) {
   const pickupBy = formatPickupByLabel(
     typeof shelf?.pickup_end === 'string' ? shelf.pickup_end : null,
   );
+
+  useEffect(() => {
+    if (isBrowseOnly) {
+      navigation.replace('ClearanceShelf', { id: shelfId, preview: true });
+    }
+  }, [isBrowseOnly, navigation, shelfId]);
+
+  useEffect(() => {
+    const seedItemId = route.params.pass8Seed;
+    if (!__DEV__ || !seedItemId || pass8Seeded.current || !shelf?.items) return;
+    const row = (shelf.items as Record<string, unknown>[]).find(
+      (item) => String(item.id) === seedItemId,
+    );
+    if (!row) return;
+    const max = Number(row.quantity_remaining ?? 0);
+    if (max < 1) return;
+    pass8Seeded.current = true;
+    setQuantity(shelfId, seedItemId, 1, max);
+  }, [route.params.pass8Seed, shelf, shelfId, setQuantity]);
+
+  if (isBrowseOnly) {
+    return (
+      <StitchScreen>
+        <StitchText variant="body-md" colorKey="textMuted" style={{ padding: spacing.xl }}>
+          Checkout is not available in preview.
+        </StitchText>
+      </StitchScreen>
+    );
+  }
 
   if (loading) {
     return (
@@ -137,6 +174,11 @@ export function ShelfReviewScreen({ navigation, route }: Props) {
             {pickupBy}
           </StitchText>
         ) : null}
+        <StitchSurface elevated padding="md" style={{ backgroundColor: colors.surfaceContainerLow }}>
+          <StitchText variant="body-sm" colorKey="textMuted">
+            {CLEARANCE_FOOD_SAFETY_NOTICE}
+          </StitchText>
+        </StitchSurface>
 
         {lines.map(({ row, id, qty }) => {
           const max = Number(row.quantity_remaining ?? 0);
@@ -236,11 +278,28 @@ export function ShelfReviewScreen({ navigation, route }: Props) {
         </StitchText>
         <Pressable
           disabled={lines.length < 1}
-          onPress={() => {
-            const payload = lines.map(({ id, qty }) => ({
-              shelf_item_id: id,
-              quantity: qty,
-            }));
+          onPress={async () => {
+            await refresh();
+            const rows = (shelf?.items ?? []) as Record<string, unknown>[];
+            const byId = new Map(rows.map((r) => [String(r.id), r]));
+            const payload: { shelf_item_id: string; quantity: number }[] = [];
+            for (const { id, qty } of lines) {
+              const row = byId.get(id);
+              const max = Number(row?.quantity_remaining ?? 0);
+              const soldOut = row?.status === 'sold_out' || max < 1;
+              if (soldOut || qty > max) {
+                setQuantity(shelfId, id, 0, max);
+                continue;
+              }
+              payload.push({ shelf_item_id: id, quantity: qty });
+            }
+            if (payload.length < 1) {
+              Alert.alert(
+                'Items unavailable',
+                'Some items just sold out. Your basket was updated — add another item or go back.',
+              );
+              return;
+            }
             navigation.navigate('Checkout', {
               shelf: shelfId,
               shelfItems: JSON.stringify(payload),

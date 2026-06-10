@@ -3,6 +3,7 @@ import { getSupabase } from '@/lib/supabase';
 import type { AppEnv } from '@/config/env';
 import { logError } from '@/observability/logError';
 import { co2eKgFromBagRescue, co2eKgFromShelfOrderItems } from '@/lib/co2Impact';
+import { CUSTOMER_IMPACT_ORDER_STATUSES } from '@/lib/customerRescueMetrics';
 
 export { KG_CO2E_PER_KG_FOOD } from '@/lib/co2Impact';
 
@@ -29,12 +30,11 @@ export function useCustomerImpact(env: AppEnv, customerId: string | null) {
           `quantity, total, order_status, shelf_id,
           bag:rescue_bags(estimated_weight_kg, retail_value_estimate, rescue_price),
           order_items (
-            quantity, line_total, unit_price,
-            product:product_catalog (weight_grams)
+            quantity, line_total, unit_price
           )`,
         )
         .eq('customer_id', customerId)
-        .eq('order_status', 'collected');
+        .in('order_status', [...CUSTOMER_IMPACT_ORDER_STATUSES]);
 
       if (error) {
         throw error;
@@ -73,7 +73,8 @@ export function useCustomerImpact(env: AppEnv, customerId: string | null) {
       setBagsRescued(rescueCount);
       setCo2SavedKg(roundedCo2);
       setTotalSavedRs(Math.round(saved));
-    } catch {
+    } catch (err) {
+      logError(err, { context: 'useCustomerImpact.refetch' });
       setBagsRescued(0);
       setCo2SavedKg(0);
       setTotalSavedRs(0);

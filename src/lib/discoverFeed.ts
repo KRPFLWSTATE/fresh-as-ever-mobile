@@ -1,4 +1,5 @@
 import { calcItemSavingsPercent } from '@/lib/shelfDisplay';
+import { resolveShelfItemCategory } from '@/lib/shelfBrowse';
 import { isClearanceShelvesEnabled } from '@/config/clearanceShelves';
 import {
   canPublishClearanceShelves,
@@ -33,6 +34,7 @@ export type DiscoverFeedItem =
       merchant_name?: string | null;
       trust_score?: number | null;
       previewItemNames?: string[];
+      shelfCategories?: string[];
       savingsPercentMin?: number;
       savingsPercentMax?: number;
       payload: Record<string, unknown>;
@@ -58,6 +60,11 @@ export function mapShelfToFeedItem(shelf: Record<string, unknown>): DiscoverFeed
     .slice(0, 3)
     .map((i) => String(i.name_snapshot ?? '').trim())
     .filter((n) => n.length > 0);
+  const shelfCategories = [
+    ...new Set(
+      liveItems.map((i) => resolveShelfItemCategory(i)).filter((c) => c !== 'Other'),
+    ),
+  ];
   const savingsPercents = liveItems
     .map((i) =>
       calcItemSavingsPercent(
@@ -90,6 +97,7 @@ export function mapShelfToFeedItem(shelf: Record<string, unknown>): DiscoverFeed
     merchant_name: merchant?.business_name as string | undefined,
     trust_score: outlet.trust_score as number | undefined,
     previewItemNames,
+    shelfCategories,
     savingsPercentMin,
     savingsPercentMax,
     payload: shelf,
@@ -127,13 +135,14 @@ export async function fetchPublishedShelves(
       status,
       items:clearance_shelf_items (
         id, status, quantity_remaining, rescue_price, retail_price,
-        name_snapshot, brand_snapshot, product_id,
-        image_url_snapshot, allergens_snapshot, is_halal
+        name_snapshot, brand_snapshot, product_id, category_snapshot,
+        image_url_snapshot, allergens_snapshot, is_halal,
+        product:product_catalog (category)
       ),
       outlet:outlets (
-        id, name, category, location,
+        id, name, category, location, is_active,
         trust_score, average_rating, total_reviews,
-        merchant:merchants (business_name)
+        merchant:merchants (business_name, status)
       )
     `,
     )
@@ -143,13 +152,42 @@ export async function fetchPublishedShelves(
     console.warn('fetchPublishedShelves', error.message);
     return [];
   }
-  return (data ?? []).filter((s) =>
-    ((s.items as unknown[]) ?? []).some(
+  return (data ?? []).filter((s) => {
+    const rawOutlet = s.outlet as unknown;
+    const outlet = (
+      Array.isArray(rawOutlet) ? rawOutlet[0] : rawOutlet
+    ) as Record<string, unknown> | undefined;
+    if (!isOutletDiscoverVisible(outlet)) return false;
+    return ((s.items as unknown[]) ?? []).some(
       (i) =>
         (i as Record<string, unknown>).status === 'live' &&
         Number((i as Record<string, unknown>).quantity_remaining) > 0,
-    ),
-  ) as Record<string, unknown>[];
+    );
+  }) as Record<string, unknown>[];
+}
+
+/** Hide listings from paused outlets or merchants that ops suspended/rejected. */
+export function isOutletDiscoverVisible(
+  outlet: Record<string, unknown> | undefined,
+): boolean {
+  if (!outlet) return false;
+  if (outlet.is_active === false) return false;
+  const merchant = outlet.merchant as Record<string, unknown> | undefined;
+  if (!merchant?.status) return false;
+  return String(merchant.status) === 'approved';
+}
+
+export function filterDiscoverFeedByMerchantStatus(
+  items: DiscoverFeedItem[],
+): DiscoverFeedItem[] {
+  return items.filter((item) => {
+    const payload = item.payload as Record<string, unknown>;
+    const outlet =
+      item.kind === 'shelf'
+        ? (payload.outlet as Record<string, unknown> | undefined)
+        : (payload.outlet as Record<string, unknown> | undefined);
+    return isOutletDiscoverVisible(outlet);
+  });
 }
 
 export function mergeDiscoverFeed(
@@ -158,7 +196,9 @@ export function mergeDiscoverFeed(
 ): DiscoverFeedItem[] {
   const bagItems = (bags ?? []).map(mapBagToFeedItem);
   const shelfItems = (shelves ?? []).map(mapShelfToFeedItem);
-  return filterDiscoverFeedByListingMode([...bagItems, ...shelfItems]).sort((a, b) => {
+  return filterDiscoverFeedByMerchantStatus(
+    filterDiscoverFeedByListingMode([...bagItems, ...shelfItems]),
+  ).sort((a, b) => {
     const aStart = a.pickup_start ?? (a.kind === 'bag' ? a.payload?.pickup_start : '') ?? '';
     const bStart = b.pickup_start ?? (b.kind === 'bag' ? b.payload?.pickup_start : '') ?? '';
     return String(aStart).localeCompare(String(bStart));

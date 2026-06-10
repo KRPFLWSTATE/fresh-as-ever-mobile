@@ -141,21 +141,26 @@ export function MerchantDashboardScreen() {
               ? 'Live listings'
               : 'Active bags',
         icon: listingMode === 'clearance_shelf' ? 'inventory_2' : 'shopping_bag',
-        value: String(stats.active_bags),
+        value: String(
+          listingMode === 'clearance_shelf' ? stats.shelf_items_live : stats.active_bags,
+        ),
         sub:
           listingMode === 'clearance_shelf'
-            ? "On today's published shelf"
+            ? "Units left on today's shelf"
             : 'Live listings',
         subColorKey: 'textMuted',
         valueColorKey: 'text',
-        delta: buildDelta(stats.active_bags, stats.yesterday_active_bags),
+        delta: buildDelta(
+          listingMode === 'clearance_shelf' ? stats.shelf_items_live : stats.active_bags,
+          stats.yesterday_active_bags,
+        ),
       },
       {
         key: 'pickups',
         label: 'Pending pick-ups',
         icon: 'local_shipping',
         value: String(stats.pending_pickups_today),
-        sub: 'Today, full count',
+        sub: 'Open pickup window',
         subColorKey: 'textMuted',
         valueColorKey: 'accent',
         delta: buildDelta(

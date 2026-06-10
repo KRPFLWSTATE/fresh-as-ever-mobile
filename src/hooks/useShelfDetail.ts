@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getSupabase } from '@/lib/supabase';
 import type { AppEnv } from '@/config/env';
 import { mapSupabaseError } from '@/lib/supabaseError';
+import { resolveShelfItemCategory } from '@/lib/shelfBrowse';
 
 export function useShelfDetail(
   env: AppEnv,
@@ -46,16 +47,24 @@ export function useShelfDetail(
         .filter((i) => i.status === 'live' || i.status === 'sold_out')
         .map((i) => {
           const product = i.product as Record<string, unknown> | undefined;
+          const rowAllergens = Array.isArray(i.allergens_snapshot)
+            ? (i.allergens_snapshot as string[])
+            : [];
           return {
             ...i,
-            catalog_category:
-              typeof product?.category === 'string' ? product.category : null,
+            catalog_category: resolveShelfItemCategory({ ...i, product }),
             ingredients_snapshot:
               typeof product?.ingredients_summary === 'string'
                 ? product.ingredients_summary
                 : null,
             catalog_source:
-              typeof product?.source === 'string' ? product.source : null,
+              typeof product?.source === 'string' ? product.source : 'Shop listing',
+            allergens_snapshot:
+              rowAllergens.length > 0
+                ? rowAllergens
+                : Array.isArray(product?.allergens)
+                  ? (product.allergens as string[])
+                  : [],
           };
         });
       setShelf({ ...data, items });

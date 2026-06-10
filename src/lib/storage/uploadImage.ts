@@ -27,6 +27,8 @@ import type { AppEnv } from '@/config/env';
 
 export type UploadImageBucket = 'bag-images' | 'avatars' | 'complaint-images';
 
+/** Shelf covers + item photos reuse `bag-images` with merchant-scoped paths (RLS). */
+
 export type UploadImageResult =
   | { kind: 'cancelled' }
   | { kind: 'error'; message: string }
@@ -195,6 +197,11 @@ export async function pickAndUploadImage({
  */
 export function bagImagePath(merchantId: string): string {
   return `${merchantId}/${randomUuid()}.jpg`;
+}
+
+/** `bag-images/<merchant_id>/shelf/<uuid>.jpg` */
+export function shelfImagePath(merchantId: string): string {
+  return `${merchantId}/shelf/${randomUuid()}.jpg`;
 }
 
 /**

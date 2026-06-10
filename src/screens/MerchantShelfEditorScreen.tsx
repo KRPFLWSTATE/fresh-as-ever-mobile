@@ -1,7 +1,9 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
+  Keyboard,
   Modal,
   Pressable,
   StyleSheet,
@@ -16,12 +18,14 @@ import { PickupDateTimeField } from '@/components/PickupDateTimeField';
 import { useAuthContext } from '@/context/AuthContext';
 import { useMerchantContext } from '@/hooks/useMerchantContext';
 import { useMerchantShelves } from '@/hooks/useMerchantShelves';
+import { pickAndUploadImage, shelfImagePath } from '@/lib/storage/uploadImage';
 import { isoLocalRounded } from '@/lib/merchantBagForm';
 import { useMerchantRecentShelfItems } from '@/hooks/useMerchantRecentShelfItems';
 import { useShelfItemPerformance } from '@/hooks/useShelfItemPerformance';
 import {
   applyBulkDiscountToItems,
   buildPublishChecklist,
+  getPublishChecklistGate,
 } from '@/lib/shelfBrowse';
 import {
   defaultShelfEditorForm,
@@ -47,7 +51,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'MerchantShelfEditor'>;
 export function MerchantShelfEditorScreen({ navigation, route }: Props) {
   const { allowed: shelvesAllowed, goToBags } = useMerchantClearanceShelfGuard();
   const { env } = useAuthContext();
-  const { activeOutlet, loading: contextLoading } = useMerchantContext(env);
+  const { activeOutlet, merchant, loading: contextLoading } = useMerchantContext(env);
 
   useFocusEffect(
     useCallback(() => {
@@ -85,7 +89,18 @@ export function MerchantShelfEditorScreen({ navigation, route }: Props) {
   const [err, setErr] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState(false);
   const [showPublishChecklist, setShowPublishChecklist] = useState(false);
+  const [publishModalStep, setPublishModalStep] = useState<'checklist' | 'halal_confirm'>(
+    'checklist',
+  );
   const [bulkDiscountPct, setBulkDiscountPct] = useState('25');
+  const bulkDiscountPctRef = useRef('25');
+  const [coverUploading, setCoverUploading] = useState(false);
+  const merchantId = merchant?.id != null ? String(merchant.id) : null;
+  const pickupMinimum = useMemo(() => {
+    const d = new Date();
+    d.setSeconds(0, 0);
+    return d;
+  }, []);
 
   const targetShelf = useMemo(() => {
     const shelfId = route.params?.shelfId;
@@ -114,18 +129,45 @@ export function MerchantShelfEditorScreen({ navigation, route }: Props) {
     [form.items, form.pickup_end, form.pickup_start, outletHalalCertified],
   );
 
+  const publishChecklistGate = useMemo(
+    () => getPublishChecklistGate(publishChecklist),
+    [publishChecklist],
+  );
+
+  const nonHalalItemCount = useMemo(
+    () => form.items.filter((i) => i.is_halal !== true).length,
+    [form.items],
+  );
+
   const applyBulkDiscount = useCallback(() => {
-    const pct = Number(bulkDiscountPct);
+    const pct = Number(bulkDiscountPctRef.current || bulkDiscountPct);
     if (!Number.isFinite(pct) || pct <= 0 || pct >= 100) {
       setErr('Enter a discount between 1 and 99%.');
       return;
     }
-    setForm((prev) => ({
-      ...prev,
-      items: applyBulkDiscountToItems(prev.items, pct),
-    }));
-    setErr(null);
-  }, [bulkDiscountPct]);
+    const withRetail = form.items.filter((i) => i.retail_price != null && Number(i.retail_price) > 0);
+    if (withRetail.length === 0) {
+      setErr('Add retail prices before applying a bulk discount.');
+      return;
+    }
+    Alert.alert(
+      'Apply bulk discount?',
+      `This will overwrite rescue prices for ${withRetail.length} item${withRetail.length === 1 ? '' : 's'} using ${pct}% off retail.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Apply',
+          onPress: () => {
+            setForm((prev) => ({
+              ...prev,
+              items: applyBulkDiscountToItems(prev.items, pct),
+            }));
+            setErr(null);
+          },
+        },
+      ],
+    );
+  }, [bulkDiscountPct, form.items]);
 
   const openDraftPreview = useCallback(() => {
     const id =
@@ -162,6 +204,9 @@ export function MerchantShelfEditorScreen({ navigation, route }: Props) {
         return { ...prev, items };
       });
 
+      if (editIndex == null) {
+        Alert.alert('Item added', `${savedItem.name_snapshot} was added to today's shelf.`);
+      }
       navigation.setParams({ savedItem: undefined, editIndex: undefined });
     }, [navigation, route.params]),
   );
@@ -190,40 +235,35 @@ export function MerchantShelfEditorScreen({ navigation, route }: Props) {
   );
 
   const validateAndSave = useCallback(
-    async (status: 'draft' | 'published') => {
+    async (
+      status: 'draft' | 'published',
+      options?: { skipHalalGate?: boolean },
+    ): Promise<boolean> => {
       setErr(null);
       if (!outletId) {
         setErr('Wait for your outlet to load.');
-        return;
+        return false;
       }
       if (!form.pickup_start || !form.pickup_end) {
         setErr('Set pickup start and end times.');
-        return;
+        return false;
       }
       const ps = new Date(form.pickup_start);
       const pe = new Date(form.pickup_end);
       if (Number.isNaN(ps.getTime()) || Number.isNaN(pe.getTime())) {
         setErr('Invalid pickup times.');
-        return;
+        return false;
       }
       if (status === 'published' && form.items.length < 1) {
         setErr('Add at least one item before publishing.');
-        return;
+        return false;
       }
-      if (status === 'published' && outletHalalCertified) {
+      if (status === 'published' && outletHalalCertified && !options?.skipHalalGate) {
         const nonHalal = form.items.filter((i) => i.is_halal !== true);
         if (nonHalal.length > 0) {
-          const proceed = await new Promise<boolean>((resolve) => {
-            Alert.alert(
-              'Halal outlet notice',
-              `${nonHalal.length} item(s) are not marked halal. Customers may expect halal-only products. Publish anyway?`,
-              [
-                { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
-                { text: 'Publish anyway', style: 'destructive', onPress: () => resolve(true) },
-              ],
-            );
-          });
-          if (!proceed) return;
+          setPublishModalStep('halal_confirm');
+          setShowPublishChecklist(true);
+          return false;
         }
       }
 
@@ -240,9 +280,13 @@ export function MerchantShelfEditorScreen({ navigation, route }: Props) {
           items: form.items,
           removedItemIds,
         });
+        setShowPublishChecklist(false);
+        setPublishModalStep('checklist');
         navigation.goBack();
+        return true;
       } catch (e) {
         setErr(e instanceof Error ? e.message : 'Could not save shelf.');
+        return false;
       } finally {
         setSaving(false);
       }
@@ -250,20 +294,60 @@ export function MerchantShelfEditorScreen({ navigation, route }: Props) {
     [form, navigation, outletHalalCertified, outletId, removedItemIds, upsertShelf],
   );
 
-  const addRecentItem = useCallback((item: ShelfItemDraft) => {
-    setForm((prev) => ({
-      ...prev,
-      items: [
-        ...prev.items,
-        {
-          ...item,
-          id: undefined,
-          tempId: newTempItemId(),
-          quantity_total: item.quantity_total ?? 5,
-          quantity_remaining: item.quantity_remaining ?? 5,
-        },
-      ],
-    }));
+  const confirmPublish = useCallback(
+    (skipHalalGate = false) => {
+      void validateAndSave('published', skipHalalGate ? { skipHalalGate: true } : undefined);
+    },
+    [validateAndSave],
+  );
+
+  const addRecentItem = useCallback((item: ShelfItemDraft, delta = 1) => {
+    setForm((prev) => {
+      const key = item.barcode ?? item.name_snapshot;
+      const existingIdx = prev.items.findIndex(
+        (row) => (row.barcode ?? row.name_snapshot) === key,
+      );
+      if (existingIdx >= 0 && delta < 0) {
+        const next = [...prev.items];
+        const row = next[existingIdx];
+        const nextQty = Math.max(0, (row.quantity_total ?? 1) + delta);
+        if (nextQty <= 0) {
+          next.splice(existingIdx, 1);
+        } else {
+          next[existingIdx] = {
+            ...row,
+            quantity_total: nextQty,
+            quantity_remaining: nextQty,
+          };
+        }
+        return { ...prev, items: next };
+      }
+      if (existingIdx >= 0 && delta > 0) {
+        const next = [...prev.items];
+        const row = next[existingIdx];
+        const nextQty = (row.quantity_total ?? 1) + delta;
+        next[existingIdx] = {
+          ...row,
+          quantity_total: nextQty,
+          quantity_remaining: nextQty,
+        };
+        return { ...prev, items: next };
+      }
+      if (delta < 1) return prev;
+      return {
+        ...prev,
+        items: [
+          ...prev.items,
+          {
+            ...item,
+            id: undefined,
+            tempId: newTempItemId(),
+            quantity_total: item.quantity_total ?? 5,
+            quantity_remaining: item.quantity_remaining ?? 5,
+          },
+        ],
+      };
+    });
   }, []);
 
   const peakNudge = isPeakPublishHour();
@@ -322,6 +406,20 @@ export function MerchantShelfEditorScreen({ navigation, route }: Props) {
         <StitchText variant="body-md" colorKey="textMuted">
           Set pickup times and scan items onto your shelf.
         </StitchText>
+        {typeof targetShelf?.published_at === 'string' ? (
+          <StitchText variant="body-sm" colorKey="accent" style={{ marginTop: spacing.xs }}>
+            Last published{' '}
+            {new Date(targetShelf.published_at).toLocaleString(undefined, {
+              dateStyle: 'medium',
+              timeStyle: 'short',
+            })}
+          </StitchText>
+        ) : null}
+        {String(targetShelf?.status ?? '') === 'published' ? (
+          <StitchText variant="body-sm" colorKey="success" style={{ marginTop: spacing.xs }}>
+            Live on Discover for customers in this pickup window.
+          </StitchText>
+        ) : null}
       </View>
 
       {loading ? (
@@ -378,11 +476,13 @@ export function MerchantShelfEditorScreen({ navigation, route }: Props) {
         <PickupDateTimeField
           label="Starts *"
           value={form.pickup_start}
+          minimumDate={pickupMinimum}
           onChange={(pickup_start) => setForm((f) => ({ ...f, pickup_start }))}
         />
         <PickupDateTimeField
           label="Ends *"
           value={form.pickup_end}
+          minimumDate={pickupMinimum}
           onChange={(pickup_end) => setForm((f) => ({ ...f, pickup_end }))}
         />
       </StitchSurface>
@@ -466,6 +566,51 @@ export function MerchantShelfEditorScreen({ navigation, route }: Props) {
             marginBottom: spacing.md,
           }}
         />
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Upload cover image"
+          disabled={!merchantId || coverUploading}
+          onPress={() => {
+            if (!merchantId) return;
+            void (async () => {
+              setCoverUploading(true);
+              const result = await pickAndUploadImage({
+                env,
+                bucket: 'bag-images',
+                path: shelfImagePath(merchantId),
+              });
+              setCoverUploading(false);
+              if (result.kind === 'uploaded') {
+                setForm((f) => ({ ...f, cover_image_url: result.publicUrl }));
+              } else if (result.kind === 'error') {
+                Alert.alert('Upload failed', result.message);
+              }
+            })();
+          }}
+          style={{
+            marginBottom: spacing.md,
+            borderRadius: radii.lg,
+            borderWidth: 1,
+            borderStyle: 'dashed',
+            borderColor: colors.outlineVariant,
+            overflow: 'hidden',
+            minHeight: 120,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          {form.cover_image_url.trim() ? (
+            <Image
+              source={{ uri: form.cover_image_url.trim() }}
+              style={{ width: '100%', height: 140 }}
+              resizeMode="cover"
+            />
+          ) : (
+            <StitchText variant="body-sm" colorKey="textMuted">
+              {coverUploading ? 'Uploading…' : 'Tap to upload cover photo'}
+            </StitchText>
+          )}
+        </Pressable>
         <StitchText variant="label" colorKey="onBackground" style={{ marginBottom: spacing.xs }}>
           Cover image URL
         </StitchText>
@@ -525,11 +670,9 @@ export function MerchantShelfEditorScreen({ navigation, route }: Props) {
           </StitchText>
           <View style={{ gap: spacing.sm }}>
             {recentItems.slice(0, 6).map((item) => (
-              <Pressable
+              <View
                 key={`${item.barcode ?? item.name_snapshot}`}
-                accessibilityRole="button"
-                onPress={() => addRecentItem(item)}
-                style={({ pressed }) => ({
+                style={{
                   flexDirection: 'row',
                   alignItems: 'center',
                   justifyContent: 'space-between',
@@ -537,14 +680,45 @@ export function MerchantShelfEditorScreen({ navigation, route }: Props) {
                   borderRadius: radii.lg,
                   borderWidth: 1,
                   borderColor: colors.outlineVariant,
-                  opacity: pressed ? 0.9 : 1,
-                })}
+                  gap: spacing.sm,
+                }}
               >
                 <StitchText variant="body-sm" colorKey="onBackground" numberOfLines={1} style={{ flex: 1 }}>
                   {item.name_snapshot}
                 </StitchText>
-                <StitchIcon name="add" size={20} colorKey="primaryContainer" />
-              </Pressable>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`Remove one ${item.name_snapshot}`}
+                  onPress={() => addRecentItem(item, -1)}
+                  style={({ pressed }) => ({
+                    width: 36,
+                    height: 36,
+                    borderRadius: radii.default,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: colors.surfaceContainerLow,
+                    opacity: pressed ? 0.85 : 1,
+                  })}
+                >
+                  <StitchIcon name="remove" size={20} colorKey="onBackground" />
+                </Pressable>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`Add one ${item.name_snapshot}`}
+                  onPress={() => addRecentItem(item, 1)}
+                  style={({ pressed }) => ({
+                    width: 36,
+                    height: 36,
+                    borderRadius: radii.default,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: colors.primaryHighlight,
+                    opacity: pressed ? 0.85 : 1,
+                  })}
+                >
+                  <StitchIcon name="add" size={20} colorKey="primaryContainer" />
+                </Pressable>
+              </View>
             ))}
           </View>
           {recentLoading ? (
@@ -605,6 +779,18 @@ export function MerchantShelfEditorScreen({ navigation, route }: Props) {
                 item={item}
                 onEdit={() => editItem(index)}
                 onRemove={() => confirmRemove(index, item.name_snapshot)}
+                onMarkSoldOut={() => {
+                  setForm((prev) => {
+                    const next = [...prev.items];
+                    next[index] = {
+                      ...next[index],
+                      quantity_remaining: 0,
+                      quantity_total: 0,
+                      item_status: 'sold_out',
+                    };
+                    return { ...prev, items: next };
+                  });
+                }}
               />
             ))}
           </View>
@@ -621,10 +807,23 @@ export function MerchantShelfEditorScreen({ navigation, route }: Props) {
         <View style={{ flexDirection: 'row', gap: spacing.sm, alignItems: 'center' }}>
           <TextInput
             value={bulkDiscountPct}
-            onChangeText={setBulkDiscountPct}
+            onChangeText={(text) => {
+              bulkDiscountPctRef.current = text;
+              setBulkDiscountPct(text);
+            }}
+            onEndEditing={(e) => {
+              const next = e.nativeEvent.text?.trim();
+              if (next) {
+                bulkDiscountPctRef.current = next;
+                setBulkDiscountPct(next);
+              }
+            }}
+            selectTextOnFocus
             keyboardType="number-pad"
             placeholder="25"
             placeholderTextColor={colors.textFaint}
+            accessibilityLabel="Bulk discount percent"
+            testID="bulkDiscountPercent"
             style={{
               flex: 1,
               paddingHorizontal: spacing.md,
@@ -639,7 +838,13 @@ export function MerchantShelfEditorScreen({ navigation, route }: Props) {
             % off
           </StitchText>
           <Pressable
-            onPress={applyBulkDiscount}
+            onPress={() => {
+              Keyboard.dismiss();
+              setTimeout(() => applyBulkDiscount(), 250);
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="Apply bulk discount"
+            testID="applyBulkDiscount"
             style={{
               paddingHorizontal: spacing.md,
               paddingVertical: spacing.sm,
@@ -745,7 +950,11 @@ export function MerchantShelfEditorScreen({ navigation, route }: Props) {
         <Pressable
           accessibilityRole="button"
           disabled={saving || !outletId || form.items.length < 1}
-          onPress={() => setShowPublishChecklist(true)}
+          onPress={() => {
+            setErr(null);
+            setPublishModalStep('checklist');
+            setShowPublishChecklist(true);
+          }}
           style={({ pressed }) => ({
             flex: 1,
             flexDirection: 'row',
@@ -778,7 +987,11 @@ export function MerchantShelfEditorScreen({ navigation, route }: Props) {
         visible={showPublishChecklist}
         animationType="slide"
         transparent
-        onRequestClose={() => setShowPublishChecklist(false)}
+        onRequestClose={() => {
+          setShowPublishChecklist(false);
+          setPublishModalStep('checklist');
+        }}
+        testID={publishModalStep === 'halal_confirm' ? 'halalPublishConfirmModal' : 'publishChecklistModal'}
       >
         <View
           style={{
@@ -796,48 +1009,154 @@ export function MerchantShelfEditorScreen({ navigation, route }: Props) {
               gap: spacing.md,
             }}
           >
-            <StitchText variant="h2" colorKey="onBackground">
-              Publish checklist
-            </StitchText>
-            {publishChecklist.map((item) => (
-              <View key={item.id} style={{ flexDirection: 'row', gap: spacing.sm, alignItems: 'center' }}>
-                <StitchIcon
-                  name={item.ok ? 'check_circle' : 'error'}
-                  size={20}
-                  colorKey={item.ok ? 'success' : 'error'}
-                />
+            {publishModalStep === 'halal_confirm' ? (
+              <>
+                <StitchText variant="h2" colorKey="onBackground">
+                  Halal outlet notice
+                </StitchText>
                 <StitchText variant="body-md" colorKey="onBackground">
-                  {item.label}
+                  {nonHalalItemCount} item(s) are not marked halal. Customers may expect halal-only
+                  products.
                 </StitchText>
-              </View>
-            ))}
-            <View style={{ flexDirection: 'row', gap: spacing.md }}>
-              <StitchButton
-                variant="secondary"
-                title="Cancel"
-                onPress={() => setShowPublishChecklist(false)}
-              />
-              <Pressable
-                disabled={saving}
-                onPress={() => {
-                  setShowPublishChecklist(false);
-                  void validateAndSave('published');
-                }}
-                style={{
-                  flex: 1,
-                  minHeight: 48,
-                  borderRadius: radii.xl,
-                  backgroundColor: colors.secondaryContainer,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  opacity: saving ? 0.5 : 1,
-                }}
-              >
-                <StitchText variant="label" colorKey="onSecondaryContainer">
-                  Confirm publish
+                <View style={{ flexDirection: 'row', gap: spacing.md }}>
+                  <StitchButton
+                    variant="secondary"
+                    title="Back"
+                    onPress={() => {
+                      setPublishModalStep('checklist');
+                      setErr(null);
+                    }}
+                    testID="halalPublishCancel"
+                  />
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Publish anyway"
+                    disabled={saving}
+                    onPress={() => confirmPublish(true)}
+                    testID="halalPublishAnyway"
+                    style={{
+                      flex: 1,
+                      minHeight: 48,
+                      borderRadius: radii.xl,
+                      backgroundColor: colors.errorContainer,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      opacity: saving ? 0.5 : 1,
+                    }}
+                  >
+                    {saving ? (
+                      <ActivityIndicator color={colors.error} />
+                    ) : (
+                      <StitchText variant="label" colorKey="error">
+                        Publish anyway
+                      </StitchText>
+                    )}
+                  </Pressable>
+                </View>
+                {err ? (
+                  <StitchText variant="body-sm" colorKey="error">
+                    {err}
+                  </StitchText>
+                ) : null}
+              </>
+            ) : (
+              <>
+                <StitchText variant="h2" colorKey="onBackground">
+                  Publish checklist
                 </StitchText>
-              </Pressable>
-            </View>
+                {publishChecklist.map((item) => (
+                  <View key={item.id} style={{ flexDirection: 'row', gap: spacing.sm, alignItems: 'center' }}>
+                    <StitchIcon
+                      name={item.ok ? 'check_circle' : 'error'}
+                      size={20}
+                      colorKey={item.ok ? 'success' : 'error'}
+                    />
+                    <StitchText variant="body-md" colorKey="onBackground">
+                      {item.label}
+                    </StitchText>
+                  </View>
+                ))}
+                {publishChecklistGate.blockMessage ? (
+                  <StitchSurface
+                    elevated
+                    padding="md"
+                    style={{ backgroundColor: colors.errorContainer }}
+                  >
+                    <StitchText
+                      variant="body-sm"
+                      colorKey="onBackground"
+                      accessibilityRole="text"
+                      accessibilityLabel={publishChecklistGate.blockMessage}
+                      testID="publishChecklistBlockMessage"
+                    >
+                      {publishChecklistGate.blockMessage}
+                    </StitchText>
+                  </StitchSurface>
+                ) : null}
+                {err ? (
+                  <StitchText variant="body-sm" colorKey="error">
+                    {err}
+                  </StitchText>
+                ) : null}
+                {publishChecklistGate.halalOnlyBlock ? (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Publish anyway"
+                    disabled={saving}
+                    onPress={() => {
+                      setErr(null);
+                      setPublishModalStep('halal_confirm');
+                    }}
+                    testID="publishChecklistPublishAnyway"
+                    style={{
+                      minHeight: 48,
+                      borderRadius: radii.xl,
+                      borderWidth: 1,
+                      borderColor: colors.error,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      opacity: saving ? 0.5 : 1,
+                    }}
+                  >
+                    <StitchText variant="label" colorKey="error">
+                      Publish anyway
+                    </StitchText>
+                  </Pressable>
+                ) : null}
+                <View style={{ flexDirection: 'row', gap: spacing.md }}>
+                  <StitchButton
+                    variant="secondary"
+                    title="Cancel"
+                    onPress={() => {
+                      setShowPublishChecklist(false);
+                      setPublishModalStep('checklist');
+                    }}
+                    testID="publishChecklistCancel"
+                  />
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Confirm publish"
+                    accessibilityState={{ disabled: saving || !publishChecklistGate.canConfirmPublish }}
+                    disabled={saving || !publishChecklistGate.canConfirmPublish}
+                    onPress={() => confirmPublish(false)}
+                    testID="publishChecklistConfirm"
+                    style={{
+                      flex: 1,
+                      minHeight: 48,
+                      borderRadius: radii.xl,
+                      backgroundColor: colors.secondaryContainer,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      opacity: saving || !publishChecklistGate.canConfirmPublish ? 0.5 : 1,
+                    }}
+                  >
+                    <StitchText variant="label" colorKey="onSecondaryContainer">
+                      Confirm publish
+                    </StitchText>
+                  </Pressable>
+                </View>
+              </>
+            )}
           </View>
         </View>
       </Modal>
@@ -849,20 +1168,26 @@ function ShelfItemCard({
   item,
   onEdit,
   onRemove,
+  onMarkSoldOut,
 }: {
   item: ShelfItemDraft;
   onEdit: () => void;
   onRemove: () => void;
+  onMarkSoldOut: () => void;
 }): React.ReactElement {
   const { colors, spacing, radii } = useStitchTheme();
+  const soldOut =
+    item.item_status === 'sold_out' ||
+    (item.quantity_remaining != null && item.quantity_remaining < 1);
 
   return (
     <StitchSurface
       elevated
       padding="md"
       style={{
-        borderWidth: 1,
-        borderColor: colors.outlineVariant,
+        borderWidth: soldOut ? 2 : 1,
+        borderColor: soldOut ? colors.error : colors.outlineVariant,
+        backgroundColor: soldOut ? colors.errorContainer : undefined,
       }}
     >
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: spacing.sm }}>
@@ -890,10 +1215,34 @@ function ShelfItemCard({
             </StitchText>
           </View>
           <StitchText variant="body-sm" colorKey="textMuted" style={{ marginTop: spacing.xs }}>
-            Qty {item.quantity_total}
+            Qty {item.quantity_remaining ?? item.quantity_total}
           </StitchText>
+          {soldOut ? (
+            <StitchText variant="label" colorKey="error" style={{ marginTop: spacing.xs }}>
+              Sold out
+            </StitchText>
+          ) : null}
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: spacing.xs }}>
+          {!soldOut ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Mark sold out"
+              onPress={onMarkSoldOut}
+              style={({ pressed }) => ({
+                paddingHorizontal: spacing.sm,
+                paddingVertical: spacing.xs,
+                borderRadius: radii.full,
+                backgroundColor: colors.error,
+                opacity: pressed ? 0.9 : 1,
+                alignSelf: 'flex-start',
+              })}
+            >
+              <StitchText variant="body-sm" colorKey="onPrimary">
+                Sold out
+              </StitchText>
+            </Pressable>
+          ) : null}
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Edit item"

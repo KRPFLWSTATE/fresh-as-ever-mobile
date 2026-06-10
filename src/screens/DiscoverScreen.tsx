@@ -48,6 +48,10 @@ import type {
 import { useAuthContext } from '@/context/AuthContext';
 import { useNearbyBags, type DiscoverBag } from '@/hooks/useNearbyBags';
 import type { DiscoverFeedItem } from '@/lib/discoverFeed';
+import {
+  discoverCategoryMatchesChip,
+  type DiscoverCategoryChipId,
+} from '@/lib/discoverCategoryChip';
 import { isClearanceShelvesEnabled } from '@/config/clearanceShelves';
 import { useUserLocation } from '@/hooks/useUserLocation';
 import { FALLBACK_COORDS } from '@/lib/fallbackCoords';
@@ -168,13 +172,7 @@ type Nav = CompositeNavigationProp<
   NativeStackNavigationProp<RootStackParamList>
 >;
 
-type CategoryChipId =
-  | 'all'
-  | 'bakery'
-  | 'cafe'
-  | 'meals'
-  | 'groceries'
-  | 'supermarket';
+type CategoryChipId = DiscoverCategoryChipId;
 
 const DISCOVER_CHIPS: {
   id: CategoryChipId;
@@ -193,57 +191,14 @@ const DISCOVER_CHIPS: {
 ];
 
 function bagMatchesChip(bag: DiscoverBag, chip: CategoryChipId): boolean {
-  if (chip === 'all') return true;
-  const c = (bag.category ?? '').toLowerCase();
-  if (!c) return false;
-  switch (chip) {
-    case 'bakery':
-      return c.includes('bake') || c.includes('pastry');
-    case 'cafe':
-      return c.includes('cafe') || c.includes('coffee');
-    case 'meals':
-      return (
-        c.includes('meal') ||
-        c.includes('lunch') ||
-        c.includes('dinner') ||
-        c.includes('food')
-      );
-    case 'groceries':
-      return c.includes('groc') || c.includes('veg') || c.includes('produce');
-    case 'supermarket':
-      return c.includes('super') || c.includes('market');
-    default:
-      return false;
-  }
+  return discoverCategoryMatchesChip(bag.category, chip);
 }
 
 function shelfMatchesChip(
   item: Extract<DiscoverFeedItem, { kind: 'shelf' }>,
   chip: CategoryChipId,
 ): boolean {
-  if (chip === 'all') return true;
-  const c = (item.category ?? '').toLowerCase();
-  if (!c) return false;
-  switch (chip) {
-    case 'bakery':
-      return c.includes('bake') || c.includes('pastry');
-    case 'cafe':
-      return c.includes('cafe') || c.includes('coffee');
-    case 'meals':
-      return (
-        c.includes('meal') ||
-        c.includes('lunch') ||
-        c.includes('dinner') ||
-        c.includes('food') ||
-        c.includes('restaurant')
-      );
-    case 'groceries':
-      return c.includes('groc') || c.includes('veg') || c.includes('produce');
-    case 'supermarket':
-      return c.includes('super') || c.includes('market');
-    default:
-      return false;
-  }
+  return discoverCategoryMatchesChip(item.category, chip);
 }
 
 function discoverMarkerChip(
@@ -856,10 +811,26 @@ function DiscoverShelfCard(props: {
         </View>
         <View style={{ padding: spacing.md, gap: spacing.sm }}>
           {item.outlet_id ? (
-            <Pressable onPress={() => onOpenOutlet(item.outlet_id!)} hitSlop={6}>
-              <StitchText variant="body-sm" colorKey="textMuted">
-                {item.outlet_name ?? 'Supermarket'}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`View shop — ${item.outlet_name ?? 'outlet'}`}
+              onPress={(e) => {
+                e.stopPropagation?.();
+                onOpenOutlet(item.outlet_id!);
+              }}
+              hitSlop={8}
+              style={({ pressed }) => ({
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 4,
+                alignSelf: 'flex-start',
+                opacity: pressed ? 0.85 : 1,
+              })}
+            >
+              <StitchText variant="label" colorKey="primaryContainer">
+                View shop · {item.outlet_name ?? 'Supermarket'}
               </StitchText>
+              <StitchIcon name="chevron_right" size={18} colorKey="primaryContainer" />
             </Pressable>
           ) : (
             <StitchText variant="body-sm" colorKey="textMuted">

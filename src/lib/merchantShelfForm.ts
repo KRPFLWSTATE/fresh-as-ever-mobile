@@ -19,6 +19,8 @@ export type ShelfItemDraft = {
   catalog_weight_grams?: number | null;
   catalog_ingredients?: string | null;
   best_before?: string | null;
+  /** Local editor flag; persisted as clearance_shelf_items.status on save. */
+  item_status?: 'live' | 'sold_out';
 };
 
 export type ShelfEditorForm = {
@@ -99,6 +101,11 @@ export function shelfItemsFromRow(
         typeof i.best_before === 'string' && i.best_before.trim().length > 0
           ? i.best_before.trim()
           : null,
+      item_status:
+        String(i.status ?? '') === 'sold_out' ||
+        Number(i.quantity_remaining ?? 0) < 1
+          ? 'sold_out'
+          : 'live',
     }));
 }
 
