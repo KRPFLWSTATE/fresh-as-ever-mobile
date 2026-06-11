@@ -1,0 +1,2 @@
+{"step":"guest_discover_empty_state","result":"pass","guestTitleVisible":true,"badGeoCopy":false,"screenshot":"01-guest-discover-signin-empty-state.png","notes":"Appium MCP page source shows discover.guestSignInTitle; no No bags or shelves nearby copy"}
+{"step":"logged_in_discover_feed","result":"pass_by_code_review","notes":"Guest-only branch in resolveDiscoverListEmptyCopy; signed-in geo/filter empty paths unchanged. Prior pass11 hybrid feed screenshots remain valid regression baseline."}

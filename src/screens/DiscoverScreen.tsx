@@ -70,6 +70,10 @@ import {
   parseDiscoverState,
 } from '@/lib/discoverForcedState';
 import {
+  resolveDiscoverListEmptyCopy,
+  shouldShowDiscoverGuestSignIn,
+} from '@/lib/discoverGuestEmptyState';
+import {
   assertUniqueNearbyBagIds,
   getDiscoverMarkerCoordinate,
 } from '@/lib/discoverMapMarkers';
@@ -1034,7 +1038,29 @@ export function DiscoverScreen() {
   const locationDisplayLabel =
     regionLabel ?? geoLabel ?? profileCity ?? 'Colombo, LK';
 
-  const showGuestAuthCta = !session && error != null;
+  const isGuestDiscover = session == null;
+  const showGuestFeedSignIn = shouldShowDiscoverGuestSignIn({
+    isGuest: isGuestDiscover,
+    loading,
+    displayFeedLength: displayFeed.length,
+  });
+  const listEmptyCopy = useMemo(
+    () =>
+      resolveDiscoverListEmptyCopy({
+        isGuest: isGuestDiscover,
+        loading,
+        listFeedLength: listFeed.length,
+        displayFeedLength: displayFeed.length,
+        searchQuery,
+      }),
+    [
+      isGuestDiscover,
+      loading,
+      listFeed.length,
+      displayFeed.length,
+      searchQuery,
+    ],
+  );
 
   const hasLiveUserLocation =
     locationStatus === 'granted' &&
@@ -2123,35 +2149,22 @@ export function DiscoverScreen() {
     <>
       {discoverTopChrome}
       {discoverMapBlock}
-      {error ? (
+      {error && !showGuestFeedSignIn ? (
         <View style={[styles.banner, styles.bannerErr]}>
           <StitchText variant="body-md" colorKey="onSurface" style={styles.bannerTxt}>
-            {showGuestAuthCta
-              ? 'Sign in to see rescue bags near you.'
-              : error}
+            {error}
           </StitchText>
-          {showGuestAuthCta ? (
-            <Pressable
-              onPress={() => navigation.getParent()?.navigate('Login')}
-              style={styles.permissionBtn}
-            >
-              <StitchText variant="label" colorKey="onPrimary">
-                Sign in
-              </StitchText>
-            </Pressable>
-          ) : (
-            <Pressable
-              onPress={() => {
-                refetch().catch((err) =>
-                  logError(err, { context: 'DiscoverScreen.retry' }),
-                );
-              }}
-            >
-              <StitchText variant="label" colorKey="primaryContainer">
-                Retry
-              </StitchText>
-            </Pressable>
-          )}
+          <Pressable
+            onPress={() => {
+              refetch().catch((err) =>
+                logError(err, { context: 'DiscoverScreen.retry' }),
+              );
+            }}
+          >
+            <StitchText variant="label" colorKey="primaryContainer">
+              Retry
+            </StitchText>
+          </Pressable>
         </View>
       ) : null}
       <View style={styles.listHdrBlock}>
@@ -2211,35 +2224,22 @@ export function DiscoverScreen() {
               </StitchText>
             </View>
           ) : null}
-          {error ? (
+          {error && !showGuestFeedSignIn ? (
             <View style={[styles.banner, styles.bannerErr]}>
               <StitchText variant="body-md" colorKey="onSurface" style={styles.bannerTxt}>
-                {showGuestAuthCta
-                  ? 'Sign in to see rescue bags near you.'
-                  : error}
+                {error}
               </StitchText>
-              {showGuestAuthCta ? (
-                <Pressable
-                  onPress={() => navigation.getParent()?.navigate('Login')}
-                  style={styles.permissionBtn}
-                >
-                  <StitchText variant="label" colorKey="onPrimary">
-                    Sign in
-                  </StitchText>
-                </Pressable>
-              ) : (
-                <Pressable
-                  onPress={() => {
-                    refetch().catch((err) =>
-                      logError(err, { context: 'DiscoverScreen.retry' }),
-                    );
-                  }}
-                >
-                  <StitchText variant="label" colorKey="primaryContainer">
-                    Retry
-                  </StitchText>
-                </Pressable>
-              )}
+              <Pressable
+                onPress={() => {
+                  refetch().catch((err) =>
+                    logError(err, { context: 'DiscoverScreen.retry' }),
+                  );
+                }}
+              >
+                <StitchText variant="label" colorKey="primaryContainer">
+                  Retry
+                </StitchText>
+              </Pressable>
             </View>
           ) : null}
         </ScrollView>
@@ -2268,20 +2268,32 @@ export function DiscoverScreen() {
             ) : (
               <View style={[styles.listRowGutter, { marginTop: spacing.sm }]}>
                 <StitchSurface elevated padding="lg">
-                  <StitchText variant="h3" colorKey="text">
-                    {listFeed.length === 0 && displayFeed.length > 0
-                      ? searchQuery.trim()
-                        ? 'No matches for your search'
-                        : 'Nothing in this category'
-                      : 'No bags or shelves nearby'}
+                  <StitchText
+                    variant="h3"
+                    colorKey="text"
+                    testID={
+                      listEmptyCopy.kind === 'guest-sign-in'
+                        ? 'discover.guestSignInTitle'
+                        : undefined
+                    }
+                  >
+                    {listEmptyCopy.title}
                   </StitchText>
                   <StitchText variant="body-sm" colorKey="textMuted" style={{ marginTop: 8 }}>
-                    {listFeed.length === 0 && displayFeed.length > 0
-                      ? searchQuery.trim()
-                        ? 'Try different words or tap See all for full results.'
-                        : 'Try another filter or pick All to see every rescue nearby.'
-                      : 'Pull to refresh or widen your pickup area search.'}
+                    {listEmptyCopy.body}
                   </StitchText>
+                  {listEmptyCopy.kind === 'guest-sign-in' ? (
+                    <Pressable
+                      accessibilityRole="button"
+                      testID="discover.guestSignInCta"
+                      onPress={() => navigation.getParent()?.navigate('Login')}
+                      style={[styles.permissionBtn, { marginTop: spacing.md, alignSelf: 'flex-start' }]}
+                    >
+                      <StitchText variant="label" colorKey="onPrimary">
+                        Sign in
+                      </StitchText>
+                    </Pressable>
+                  ) : null}
                 </StitchSurface>
               </View>
             )
