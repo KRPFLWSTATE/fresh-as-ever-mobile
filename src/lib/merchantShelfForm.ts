@@ -97,6 +97,12 @@ export function shelfItemsFromRow(
       quantity_total: Number(i.quantity_total ?? 1),
       quantity_remaining: Number(i.quantity_remaining ?? i.quantity_total ?? 1),
       sort_order: typeof i.sort_order === 'number' ? i.sort_order : idx,
+      catalog_category:
+        typeof i.category_snapshot === 'string' && i.category_snapshot.trim().length > 0
+          ? i.category_snapshot.trim()
+          : typeof i.catalog_category === 'string' && i.catalog_category.trim().length > 0
+            ? i.catalog_category.trim()
+            : null,
       best_before:
         typeof i.best_before === 'string' && i.best_before.trim().length > 0
           ? i.best_before.trim()

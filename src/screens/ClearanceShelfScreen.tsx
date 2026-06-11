@@ -1,5 +1,6 @@
 import React, { useLayoutEffect, useMemo, useState } from 'react';
 import {
+  FlatList,
   Image,
   Linking,
   Modal,
@@ -39,13 +40,17 @@ import {
   sumRetailSavings,
 } from '@/lib/shelfDisplay';
 import { useStitchTheme } from '@/theme/StitchThemeContext';
-import { StitchIcon, StitchScreen, StitchSurface, StitchText } from '@/ui/stitch';
+import { StitchIcon, StitchSurface, StitchText } from '@/ui/stitch';
 import {
   parsePreviewQueryParam,
   resolveShelfPreviewMode,
 } from '@/lib/shelfPreviewMode';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ClearanceShelf'>;
+
+type ShelfListRow =
+  | { kind: 'category'; key: string; category: string }
+  | { kind: 'item'; key: string; item: Record<string, unknown> };
 
 const SORT_OPTIONS: { key: ShelfSortKey; label: string }[] = [
   { key: 'default', label: 'Default' },
@@ -122,6 +127,25 @@ export function ClearanceShelfScreen({ navigation, route }: Props) {
     [displayItems, groupByCategory],
   );
 
+  const listRows = useMemo((): ShelfListRow[] => {
+    if (displayItems.length === 0) return [];
+    if (groupedItems) {
+      return groupedItems.flatMap((group) => [
+        { kind: 'category' as const, key: `cat-${group.category}`, category: group.category },
+        ...group.items.map((item) => ({
+          kind: 'item' as const,
+          key: String(item.id),
+          item,
+        })),
+      ]);
+    }
+    return displayItems.map((item) => ({
+      kind: 'item' as const,
+      key: String(item.id),
+      item,
+    }));
+  }, [displayItems, groupedItems]);
+
   const onShareWhatsApp = async () => {
     if (!shelf) return;
     const outlet = shelf.outlet as Record<string, unknown> | undefined;
@@ -137,31 +161,31 @@ export function ClearanceShelfScreen({ navigation, route }: Props) {
 
   if (!isClearanceShelvesEnabled() && !isMerchantPreview) {
     return (
-      <StitchScreen>
+      <View style={{ flex: 1, backgroundColor: colors.background }}>
         <StitchText variant="body-md" colorKey="textMuted" style={{ padding: spacing.xl }}>
           Clearance shelves are not enabled.
         </StitchText>
-      </StitchScreen>
+      </View>
     );
   }
 
   if (loading) {
     return (
-      <StitchScreen>
+      <View style={{ flex: 1, backgroundColor: colors.background }}>
         <StitchText variant="body-md" colorKey="textMuted" style={{ padding: spacing.xl }}>
           Loading shelf…
         </StitchText>
-      </StitchScreen>
+      </View>
     );
   }
 
   if (error || !shelf) {
     return (
-      <StitchScreen>
+      <View style={{ flex: 1, backgroundColor: colors.background }}>
         <StitchText variant="body-md" colorKey="error" style={{ padding: spacing.xl }}>
           {error ?? 'Shelf not found'}
         </StitchText>
-      </StitchScreen>
+      </View>
     );
   }
 
@@ -194,6 +218,7 @@ export function ClearanceShelfScreen({ navigation, route }: Props) {
     categoryNames.add(resolveShelfItemCategory(row));
   }
   const categoryGroupingUseful = categoryNames.size > 1;
+  const basketBarPad = isBrowseOnly ? insets.bottom + spacing.md : 120 + insets.bottom;
 
   const renderItemRow = (item: Record<string, unknown>) => {
     const id = String(item.id);
@@ -218,7 +243,7 @@ export function ClearanceShelfScreen({ navigation, route }: Props) {
       : [];
 
     return (
-      <Pressable key={id} onPress={() => setDetailItem(item)}>
+      <Pressable onPress={() => setDetailItem(item)}>
         <StitchSurface
           elevated
           padding="md"
@@ -324,17 +349,15 @@ export function ClearanceShelfScreen({ navigation, route }: Props) {
     );
   };
 
-  return (
-    <View style={{ flex: 1, backgroundColor: colors.background }}>
-      <View
-        style={{
-          paddingTop: insets.top + spacing.sm,
-          paddingHorizontal: spacing.pageMarginMobile,
-          paddingBottom: spacing.md,
-          borderBottomWidth: 1,
-          borderBottomColor: colors.divider,
-        }}
-      >
+  const listHeader = (
+    <View
+      style={{
+        paddingTop: insets.top + spacing.sm,
+        paddingBottom: spacing.md,
+        borderBottomWidth: 1,
+        borderBottomColor: colors.divider,
+      }}
+    >
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           <Pressable
             accessibilityRole="button"
@@ -530,36 +553,39 @@ export function ClearanceShelfScreen({ navigation, route }: Props) {
             Items share one category — turn off grouping or add catalog categories when editing items.
           </StitchText>
         ) : null}
-      </View>
+    </View>
+  );
 
-      <StitchScreen
-        scroll
-        scrollProps={{
-          contentContainerStyle: {
-            paddingHorizontal: spacing.pageMarginMobile,
-            paddingTop: spacing.md,
-            paddingBottom: 120 + insets.bottom,
-            gap: spacing.sm,
-          },
-        }}
-      >
-        {displayItems.length === 0 ? (
-          <StitchText variant="body-md" colorKey="textMuted">
-            No items match your search.
+  return (
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <FlatList
+        style={{ flex: 1 }}
+        data={listRows}
+        keyExtractor={(row) => row.key}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        ListHeaderComponent={listHeader}
+        ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
+        renderItem={({ item: row }) =>
+          row.kind === 'category' ? (
+            <StitchText variant="label-caps" colorKey="textMuted" style={{ marginTop: spacing.xs }}>
+              {row.category}
+            </StitchText>
+          ) : (
+            renderItemRow(row.item)
+          )
+        }
+        ListEmptyComponent={
+          <StitchText variant="body-md" colorKey="textMuted" style={{ paddingTop: spacing.md }}>
+            {searchQuery.trim() ? 'No items match your search.' : 'No items on this shelf yet.'}
           </StitchText>
-        ) : groupedItems ? (
-          groupedItems.map((group) => (
-            <View key={group.category} style={{ gap: spacing.sm }}>
-              <StitchText variant="label-caps" colorKey="textMuted">
-                {group.category}
-              </StitchText>
-              {group.items.map((item) => renderItemRow(item))}
-            </View>
-          ))
-        ) : (
-          displayItems.map((item) => renderItemRow(item))
-        )}
-      </StitchScreen>
+        }
+        contentContainerStyle={{
+          paddingHorizontal: spacing.pageMarginMobile,
+          paddingTop: spacing.md,
+          paddingBottom: basketBarPad,
+        }}
+      />
 
       {!isBrowseOnly ? (
         <View
