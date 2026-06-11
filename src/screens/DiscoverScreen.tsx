@@ -75,7 +75,8 @@ import {
 } from '@/lib/discoverGuestEmptyState';
 import {
   assertUniqueNearbyBagIds,
-  getDiscoverMarkerCoordinate,
+  buildDiscoverMapMarkersFromFeed,
+  type DiscoverFeedMarkerSource,
 } from '@/lib/discoverMapMarkers';
 import { discoverMapAnimateCamera, DISCOVER_MAP_ZOOM } from '@/lib/mapCamera';
 import { getSupabase } from '@/lib/supabase';
@@ -239,14 +240,15 @@ function DiscoverMapBagMarker({
       title={bag.title}
       description={demo ? 'Demo data' : chip.label}
       onPress={onPress}
+      testID={`discover.mapMarker.${bag.id}`}
       anchor={{ x: 0.5, y: 0.5 }}
       zIndex={demo ? 160 : 12}
       /**
-       * Demo builds use heavier marker chrome; `tracksViewChanges={true}` keeps
-       * custom Marker children from occasionally painting as 0×0 on first layout
-       * (MapKit / Google both occasionally skip a raster pass when false).
+       * Custom Marker children can paint as 0×0 on first layout when
+       * `tracksViewChanges={false}` (MapKit / Google both). Keep true so feed
+       * pins reliably appear; marker count is small on Discover.
        */
-      tracksViewChanges={demo}
+      tracksViewChanges
       accessibilityLabel={
         demo
           ? `${bag.title}, demo venue, ${chip.label}`
@@ -254,6 +256,7 @@ function DiscoverMapBagMarker({
       }
     >
       <View
+        collapsable={false}
         style={[
           styles.discoverMapMarkerOuter,
           demo ? styles.discoverMapMarkerOuterDemo : null,
@@ -1023,18 +1026,6 @@ export function DiscoverScreen() {
     });
   }, [filteredFeed, searchQuery]);
 
-  const bagsWithValidMapCoords = useMemo(
-    () =>
-      listBags.filter(
-        (b) =>
-          typeof b.outlet_lat === 'number' &&
-          typeof b.outlet_lng === 'number' &&
-          Number.isFinite(b.outlet_lat) &&
-          Number.isFinite(b.outlet_lng),
-      ),
-    [listBags],
-  );
-
   const locationDisplayLabel =
     regionLabel ?? geoLabel ?? profileCity ?? 'Colombo, LK';
 
@@ -1120,21 +1111,58 @@ export function DiscoverScreen() {
   ]);
   const discoverMapMarkersDemo = isDemoMode();
 
-  const discoverMapPinById = useMemo(() => {
-    const list = bagsWithValidMapCoords.map((x) => ({
-      id: x.id,
-      outlet_lat: x.outlet_lat as number,
-      outlet_lng: x.outlet_lng as number,
-    }));
-    const out = new Map<string, { latitude: number; longitude: number }>();
-    for (const b of list) {
-      out.set(
-        b.id,
-        getDiscoverMarkerCoordinate(b, list, discoverMapMarkersDemo),
-      );
-    }
-    return out;
-  }, [bagsWithValidMapCoords, discoverMapMarkersDemo]);
+  const discoverMapMarkerFeed = useMemo((): DiscoverFeedMarkerSource[] => {
+    return listFeed.map((item) => {
+      if (item.kind === 'shelf') {
+        return {
+          kind: 'shelf' as const,
+          id: item.id,
+          outlet_id: item.outlet_id,
+          outlet_name: item.outlet_name,
+          outlet_lat: item.outlet_lat,
+          outlet_lng: item.outlet_lng,
+          category: item.category,
+        };
+      }
+      const bag = item as unknown as DiscoverBag;
+      return {
+        kind: 'bag' as const,
+        id: bag.id,
+        title: bag.title,
+        outlet_id: bag.outlet_id,
+        outlet_name: bag.outlet_name,
+        outlet_lat: bag.outlet_lat,
+        outlet_lng: bag.outlet_lng,
+        category: bag.category,
+        outlet_category: bag.outlet_category,
+      };
+    });
+  }, [listFeed]);
+
+  const discoverMapMarkers = useMemo(
+    () =>
+      buildDiscoverMapMarkersFromFeed(discoverMapMarkerFeed, {
+        demo: discoverMapMarkersDemo,
+        onSkipInvalid: __DEV__
+          ? (item, reason) => {
+              // eslint-disable-next-line no-console -- dev-only map QA
+              console.log('[DiscoverMap] skip marker', reason, item.kind, item.id);
+            }
+          : undefined,
+      }),
+    [discoverMapMarkerFeed, discoverMapMarkersDemo],
+  );
+
+  useEffect(() => {
+    if (!mapViewPrefsHydrated || discoverMapMarkers.length === 0) return;
+    mapRef.current?.fitToCoordinates(
+      discoverMapMarkers.map((m) => m.coordinate),
+      {
+        edgePadding: { top: 48, right: 48, bottom: 48, left: 48 },
+        animated: false,
+      },
+    );
+  }, [discoverMapMarkers, mapViewPrefsHydrated]);
 
   const openLocationSheet = useCallback(() => {
     setLocationSheetMode('menu');
@@ -1996,18 +2024,33 @@ export function DiscoverScreen() {
           onMapReady={onMapReady}
           onRegionChangeComplete={handleRegionChangeComplete}
         >
-          {bagsWithValidMapCoords.map((b) => {
-            const coordinate = discoverMapPinById.get(b.id);
-            if (!coordinate) return null;
+          {discoverMapMarkers.map((marker) => {
+            const chipBag: DiscoverBag = {
+              id: marker.feedItemId,
+              title: marker.title,
+              rescue_price: 0,
+              category: marker.category,
+              outlet_category: marker.category,
+            };
             return (
               <DiscoverMapBagMarker
-                key={b.id}
-                bag={b}
+                key={marker.markerKey}
+                bag={chipBag}
                 demo={discoverMapMarkersDemo}
-                coordinate={coordinate}
+                coordinate={marker.coordinate}
                 colors={colors}
                 styles={styles}
-                onPress={() => openBag(b.id)}
+                onPress={() => {
+                  if (marker.outletId) {
+                    openOutlet(marker.outletId);
+                    return;
+                  }
+                  if (marker.feedKind === 'shelf') {
+                    openShelf(marker.feedItemId);
+                    return;
+                  }
+                  openBag(marker.feedItemId);
+                }}
               />
             );
           })}

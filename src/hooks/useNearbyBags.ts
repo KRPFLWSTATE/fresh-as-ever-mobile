@@ -34,6 +34,61 @@ export type DiscoverBag = {
   no_show_rate_pct?: number | null;
 };
 
+async function enrichBagsWithOutletCoords(
+  supabase: ReturnType<typeof getSupabase>,
+  bags: DiscoverBag[],
+): Promise<DiscoverBag[]> {
+  const outletIds = [
+    ...new Set(
+      bags
+        .filter(
+          (b) =>
+            b.outlet_id &&
+            (b.outlet_lat == null ||
+              b.outlet_lng == null ||
+              !Number.isFinite(b.outlet_lat) ||
+              !Number.isFinite(b.outlet_lng)),
+        )
+        .map((b) => b.outlet_id as string),
+    ),
+  ];
+  if (!outletIds.length) return bags;
+
+  const { data, error } = await supabase
+    .from('outlets')
+    .select('id, location')
+    .in('id', outletIds);
+
+  if (error || !data?.length) return bags;
+
+  const coordsByOutlet = new Map<string, { lat: number; lng: number }>();
+  for (const row of data as Record<string, unknown>[]) {
+    const parsed = parseOutletCoords(row.location);
+    if (parsed) {
+      coordsByOutlet.set(String(row.id), parsed);
+    }
+  }
+
+  return bags.map((bag) => {
+    if (!bag.outlet_id) return bag;
+    if (
+      typeof bag.outlet_lat === 'number' &&
+      typeof bag.outlet_lng === 'number' &&
+      Number.isFinite(bag.outlet_lat) &&
+      Number.isFinite(bag.outlet_lng)
+    ) {
+      return bag;
+    }
+    const coords = coordsByOutlet.get(bag.outlet_id);
+    if (!coords) return bag;
+    return {
+      ...bag,
+      outlet_lat: coords.lat,
+      outlet_lng: coords.lng,
+    };
+  });
+}
+
 async function enrichBagsWithOutletTrust(
   supabase: ReturnType<typeof getSupabase>,
   bags: DiscoverBag[],
@@ -412,7 +467,10 @@ export async function fetchScopedNearbyBags(
     }
   }
 
-  return enrichBagsWithOutletTrust(supabase, next);
+  return enrichBagsWithOutletTrust(
+    supabase,
+    await enrichBagsWithOutletCoords(supabase, next),
+  );
 }
 
 /**

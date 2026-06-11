@@ -12,9 +12,142 @@ export function assertUniqueNearbyBagIds(
 
 const EARTH_METRES_PER_DEG_LAT = 111_320;
 
+/** Reject unset PostGIS defaults and non-finite values. */
+export function isValidDiscoverOutletCoord(lat: number, lng: number): boolean {
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return false;
+  if (Math.abs(lat) < 1e-6 && Math.abs(lng) < 1e-6) return false;
+  return true;
+}
+
 /** 5 decimals ≈ 1.1 m — group outlets that are effectively co-located. */
 function discoverMarkerCoordGroupKey(lat: number, lng: number): string {
   return `${lat.toFixed(5)},${lng.toFixed(5)}`;
+}
+
+export type DiscoverFeedMarkerSource = {
+  kind: 'bag' | 'shelf';
+  id: string;
+  title?: string | null;
+  outlet_id?: string | null;
+  outlet_name?: string | null;
+  outlet_lat?: number | null;
+  outlet_lng?: number | null;
+  category?: string | null;
+  outlet_category?: string | null;
+};
+
+export type DiscoverMapOutletMarker = {
+  markerKey: string;
+  outletId: string | null;
+  outletName: string;
+  lat: number;
+  lng: number;
+  category: string | null;
+  feedKind: 'bag' | 'shelf';
+  feedItemId: string;
+  title: string;
+  coordinate: { latitude: number; longitude: number };
+};
+
+function markerCategory(item: DiscoverFeedMarkerSource): string | null {
+  if (item.kind === 'shelf') {
+    return item.category ?? null;
+  }
+  return item.category ?? item.outlet_category ?? null;
+}
+
+function markerTitle(item: DiscoverFeedMarkerSource): string {
+  if (item.kind === 'shelf') {
+    return "Today's clearance shelf";
+  }
+  const t = item.title?.trim();
+  return t && t.length > 0 ? t : 'Rescue bag';
+}
+
+function markerOutletKey(item: DiscoverFeedMarkerSource, lat: number, lng: number): string {
+  const outletId = item.outlet_id?.trim();
+  if (outletId) return outletId;
+  return discoverMarkerCoordGroupKey(lat, lng);
+}
+
+/**
+ * Build one map pin per outlet from the same filtered Discover feed list. Skips
+ * invalid coordinates (including POINT(0 0)) with an optional dev-only callback.
+ */
+export function buildDiscoverMapMarkersFromFeed(
+  feedItems: readonly DiscoverFeedMarkerSource[],
+  options?: {
+    demo?: boolean;
+    onSkipInvalid?: (
+      item: DiscoverFeedMarkerSource,
+      reason: 'missing-coords' | 'invalid-coords',
+    ) => void;
+  },
+): DiscoverMapOutletMarker[] {
+  const demo = options?.demo ?? false;
+  const byKey = new Map<string, DiscoverMapOutletMarker>();
+
+  for (const item of feedItems) {
+    const lat = item.outlet_lat;
+    const lng = item.outlet_lng;
+    if (typeof lat !== 'number' || typeof lng !== 'number') {
+      options?.onSkipInvalid?.(item, 'missing-coords');
+      continue;
+    }
+    if (!isValidDiscoverOutletCoord(lat, lng)) {
+      options?.onSkipInvalid?.(item, 'invalid-coords');
+      continue;
+    }
+
+    const key = markerOutletKey(item, lat, lng);
+    if (byKey.has(key)) continue;
+
+    byKey.set(key, {
+      markerKey: key,
+      outletId: item.outlet_id?.trim() ? String(item.outlet_id) : null,
+      outletName: item.outlet_name?.trim() || 'Local partner',
+      lat,
+      lng,
+      category: markerCategory(item),
+      feedKind: item.kind,
+      feedItemId: item.id,
+      title: markerTitle(item),
+      coordinate: { latitude: lat, longitude: lng },
+    });
+  }
+
+  const markers = [...byKey.values()];
+  if (markers.length === 0) return markers;
+
+  const coordInputs = markers.map((m) => ({
+    id: m.markerKey,
+    outlet_lat: m.lat,
+    outlet_lng: m.lng,
+  }));
+
+  return markers.map((m) => ({
+    ...m,
+    coordinate: getDiscoverMarkerCoordinate(
+      { id: m.markerKey, outlet_lat: m.lat, outlet_lng: m.lng },
+      coordInputs,
+      demo,
+    ),
+  }));
+}
+
+/** Count feed rows that carry plottable outlet coordinates (before outlet dedupe). */
+export function countFeedItemsWithValidMapCoords(
+  feedItems: readonly DiscoverFeedMarkerSource[],
+): number {
+  return feedItems.filter((item) => {
+    const lat = item.outlet_lat;
+    const lng = item.outlet_lng;
+    return (
+      typeof lat === 'number' &&
+      typeof lng === 'number' &&
+      isValidDiscoverOutletCoord(lat, lng)
+    );
+  }).length;
 }
 
 /**
