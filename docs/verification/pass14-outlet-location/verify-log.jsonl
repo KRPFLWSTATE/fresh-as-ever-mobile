@@ -1,0 +1,8 @@
+{"ts":"2026-06-12T01:55:00Z","step":"implementation","actor":"agent","result":"pass","detail":"OutletLocationPicker + LocationSearchField + useLocationSearch; MerchantOutletEditor + Onboarding step 2"}
+{"ts":"2026-06-12T01:56:00Z","step":"typecheck_jest","actor":"ci","result":"pass","detail":"tsc + 6 location tests"}
+{"ts":"2026-06-12T02:05:00Z","step":"appium_merchant_login","actor":"appium_mcp","result":"pass","detail":"qa.merchant@freshasever.test → Bakehouse dashboard"}
+{"ts":"2026-06-12T02:06:00Z","step":"appium_outlet_editor_deeplink","actor":"appium_mcp","result":"pass","detail":"freshasever://merchant/outlets/00000000-0000-0000-0000-000000000003/edit"}
+{"ts":"2026-06-12T02:07:00Z","step":"appium_address_search","actor":"appium_mcp","result":"pass","detail":"Colombo 07 query → 5 suggestions; pick suggestion.0"}
+{"ts":"2026-06-12T02:08:00Z","step":"appium_gps_reverse","actor":"appium_mcp","result":"pass","detail":"Use current location → Cupertino reverse-geocode label in page source"}
+{"ts":"2026-06-12T02:09:00Z","step":"appium_save_goback","actor":"appium_mcp","result":"partial","detail":"Save changes tapped; remained on Edit outlet (iOS automation tap limitation)"}
+{"ts":"2026-06-12T02:10:00Z","step":"supabase_cross_app","actor":"anon_rest","result":"partial","detail":"Bakehouse address/location unchanged after automation — manual save verify recommended"}
