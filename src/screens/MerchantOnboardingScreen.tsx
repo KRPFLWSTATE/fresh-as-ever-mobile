@@ -8,20 +8,17 @@ import {
   ScrollView,
   StyleSheet,
   TextInput,
-  useColorScheme,
   View,
   type ViewStyle,
 } from 'react-native';
-import Geolocation from '@react-native-community/geolocation';
-import MapView, { Marker, PROVIDER_DEFAULT } from 'react-native-maps';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { OutletLocationPicker } from '@/components/OutletLocationPicker';
 import type { RouteProp } from '@react-navigation/native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { onboardingParams } from '@/contracts/routeParams';
 import { useAuthContext } from '@/context/AuthContext';
 import { FALLBACK_COORDS } from '@/lib/fallbackCoords';
-import { mapStyleForScheme } from '@/lib/mapStyles';
 import { getSupabase } from '@/lib/supabase';
 import type { RootStackParamList } from '@/navigation/types';
 import { useStitchTheme } from '@/theme/StitchThemeContext';
@@ -33,7 +30,6 @@ import {
   StitchText,
 } from '@/ui/stitch';
 import { logError } from '@/observability/logError';
-import { fetchLocationSearch } from '@/lib/locationApi';
 import { buildRescueBagInsertPayload } from '@/lib/merchantBagForm';
 import { MerchantBagFormFields } from '@/components/merchant/MerchantBagFormFields';
 
@@ -343,11 +339,6 @@ export function MerchantOnboardingScreen(): React.ReactElement {
   const [draftHydrated, setDraftHydrated] = useState(false);
   const { env } = useAuthContext();
   const { colors, spacing, radii } = useStitchTheme();
-  const systemScheme = useColorScheme();
-  const customMapStyle = useMemo(
-    () => mapStyleForScheme(systemScheme === 'dark' ? 'dark' : 'light'),
-    [systemScheme],
-  );
 
   const filteredBanks = useMemo(() => {
     const q = bankFilter.trim().toLowerCase();
@@ -512,47 +503,6 @@ export function MerchantOnboardingScreen(): React.ReactElement {
     }),
     [colors.primary, primaryCta],
   );
-
-  const mapShell = useMemo(
-    (): ViewStyle => ({
-      height: 240,
-      borderRadius: radii.lg,
-      overflow: 'hidden',
-      borderWidth: 1,
-      borderColor: colors.outlineVariant,
-      backgroundColor: colors.surfaceContainerLow,
-    }),
-    [colors.outlineVariant, colors.surfaceContainerLow, radii.lg],
-  );
-
-  const outletMapRegion = useMemo(
-    () => ({
-      latitude: draft.outletLat,
-      longitude: draft.outletLng,
-      latitudeDelta: 0.02,
-      longitudeDelta: 0.02,
-    }),
-    [draft.outletLat, draft.outletLng],
-  );
-
-  const detectOutletLocation = useCallback(() => {
-    Geolocation.getCurrentPosition(
-      (pos) => {
-        setDraft((d) => ({
-          ...d,
-          outletLat: pos.coords.latitude,
-          outletLng: pos.coords.longitude,
-        }));
-      },
-      () => {
-        Alert.alert(
-          'Location unavailable',
-          'Enable location services or drag the pin on the map to set your outlet.',
-        );
-      },
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 60_000 },
-    );
-  }, []);
 
   const footerBar = useMemo(
     (): ViewStyle => ({
@@ -752,26 +702,6 @@ export function MerchantOnboardingScreen(): React.ReactElement {
 
     return { ok: true, outletError };
   }, [draft, env]);
-
-  useEffect(() => {
-    if (step !== 2) return;
-    const q = draft.locationSearch.trim();
-    if (q.length < 4) return;
-    let cancelled = false;
-    void fetchLocationSearch(env, q)
-      .then(({ results }) => {
-        if (cancelled || !results[0]) return;
-        setDraft((d) => ({
-          ...d,
-          outletLat: results[0].lat,
-          outletLng: results[0].lng,
-        }));
-      })
-      .catch((err) => logError(err, { context: 'MerchantOnboarding.geocode' }));
-    return () => {
-      cancelled = true;
-    };
-  }, [draft.locationSearch, env, step]);
 
   const next = useCallback(async () => {
     if (step < ONBOARDING_MAX_STEP) {
@@ -981,78 +911,22 @@ export function MerchantOnboardingScreen(): React.ReactElement {
         />
 
         <View style={{ gap: spacing.xs }}>
-          <View
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-            }}
-          >
-            <StitchText variant="label" colorKey="onSurfaceVariant">
-              Location
-            </StitchText>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Auto-detect location"
-              onPress={detectOutletLocation}
-              style={({ pressed }) => ({
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: spacing.xs,
-                opacity: pressed ? 0.7 : 1,
-              })}
-            >
-              <StitchIcon name="my_location" size={16} colorKey="textMuted" />
-              <StitchText variant="body-sm" colorKey="textMuted">
-                Auto-detect
-              </StitchText>
-            </Pressable>
-          </View>
-          <View style={mapShell}>
-            <MapView
-              style={StyleSheet.absoluteFill}
-              provider={PROVIDER_DEFAULT}
-              customMapStyle={customMapStyle}
-              initialRegion={outletMapRegion}
-              region={outletMapRegion}
-              scrollEnabled
-              zoomEnabled
-            >
-              <Marker
-                coordinate={{
-                  latitude: draft.outletLat,
-                  longitude: draft.outletLng,
-                }}
-                draggable
-                onDragEnd={(e) => {
-                  const { latitude, longitude } = e.nativeEvent.coordinate;
-                  setDraft((d) => ({
-                    ...d,
-                    outletLat: latitude,
-                    outletLng: longitude,
-                  }));
-                }}
-              />
-            </MapView>
-            <View style={{ position: 'absolute', top: spacing.sm, left: spacing.sm, right: spacing.sm }}>
-              <View style={{ position: 'relative' }}>
-                <View style={{ position: 'absolute', left: spacing.sm, top: 13, zIndex: 1 }}>
-                  <StitchIcon name="search" size={20} colorKey="textMuted" />
-                </View>
-                <TextInput
-                  placeholder="Search address"
-                  placeholderTextColor={colors.textFaint}
-                  value={draft.locationSearch}
-                  onChangeText={(t) => setDraft((d) => ({ ...d, locationSearch: t }))}
-                  style={{
-                    ...inputShellMd,
-                    paddingLeft: 40,
-                    backgroundColor: `${colors.surface}e6`,
-                  }}
-                />
-              </View>
-            </View>
-          </View>
+          <StitchText variant="label" colorKey="onSurfaceVariant">
+            Location
+          </StitchText>
+          <OutletLocationPicker
+            env={env}
+            address={draft.locationSearch}
+            lat={draft.outletLat}
+            lng={draft.outletLng}
+            onAddressChange={(next) =>
+              setDraft((d) => ({ ...d, locationSearch: next }))
+            }
+            onCoordsChange={(nextLat, nextLng) =>
+              setDraft((d) => ({ ...d, outletLat: nextLat, outletLng: nextLng }))
+            }
+            variant="map-overlay"
+          />
         </View>
 
         <View style={{ gap: spacing.sm, paddingTop: spacing.sm, borderTopWidth: 1, borderTopColor: colors.divider }}>

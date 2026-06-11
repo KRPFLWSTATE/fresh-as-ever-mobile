@@ -28,19 +28,17 @@ import {
   type TextStyle,
   type ViewStyle,
 } from 'react-native';
-import MapView, { Marker, PROVIDER_DEFAULT } from 'react-native-maps';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
+import { OutletLocationPicker } from '@/components/OutletLocationPicker';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '@/navigation/types';
 import { useAuthContext } from '@/context/AuthContext';
-import { FALLBACK_COORDS } from '@/lib/fallbackCoords';
 import { parseOutletCoords } from '@/lib/parseOutletCoords';
 import { useMerchantContext } from '@/hooks/useMerchantContext';
 import { ensureOutletDemoListings } from '@/lib/ensureOutletDemoListings';
 import { MERCHANT_OUTLET_CATEGORIES } from '@/lib/outletListingMode';
 import { outletCategoryWarnings } from '@/lib/outletCategoryWarning';
 import { getSupabase } from '@/lib/supabase';
-import { mapStyleForScheme } from '@/lib/mapStyles';
 import { useStitchTheme, type StitchTheme } from '@/theme/StitchThemeContext';
 import {
   StitchButton,
@@ -117,11 +115,7 @@ export function MerchantOutletEditorScreen(): React.ReactElement {
   const route = useRoute<R>();
   const { env } = useAuthContext();
   const { refetch: refetchMerchantContext } = useMerchantContext(env);
-  const { colors, radii, spacing, colorScheme } = useStitchTheme();
-  const customMapStyle = useMemo(
-    () => mapStyleForScheme(colorScheme),
-    [colorScheme],
-  );
+  const { colors, radii, spacing } = useStitchTheme();
   const outletId = String(route.params?.outletId ?? '').trim();
 
   const [loading, setLoading] = useState(true);
@@ -136,8 +130,8 @@ export function MerchantOutletEditorScreen(): React.ReactElement {
   const [isActive, setIsActive] = useState(false);
   const [isHalalCertified, setIsHalalCertified] = useState(false);
   const [hours, setHours] = useState<BusinessHours>(() => readHoursJsonb(null));
-  const [lat, setLat] = useState<string>('');
-  const [lng, setLng] = useState<string>('');
+  const [outletLat, setOutletLat] = useState<number | null>(null);
+  const [outletLng, setOutletLng] = useState<number | null>(null);
 
   const styles = useMemo(() => createStyles({ colors, radii, spacing }), [colors, radii, spacing]);
   const categoryWarnings = useMemo(
@@ -192,11 +186,11 @@ export function MerchantOutletEditorScreen(): React.ReactElement {
       setHours(readHoursJsonb(row.business_hours));
       const loc = parseOutletCoords(row.location);
       if (loc) {
-        setLat(String(loc.lat));
-        setLng(String(loc.lng));
+        setOutletLat(loc.lat);
+        setOutletLng(loc.lng);
       } else {
-        setLat('');
-        setLng('');
+        setOutletLat(null);
+        setOutletLng(null);
       }
       setLoading(false);
     })().catch((e) => {
@@ -209,34 +203,15 @@ export function MerchantOutletEditorScreen(): React.ReactElement {
     };
   }, [env, outletId]);
 
-  const parsedLat = Number(lat);
-  const parsedLng = Number(lng);
   const hasLatLng =
-    Number.isFinite(parsedLat) &&
-    Number.isFinite(parsedLng) &&
-    parsedLat >= -90 &&
-    parsedLat <= 90 &&
-    parsedLng >= -180 &&
-    parsedLng <= 180;
-
-  const initialRegion = useMemo(
-    () => ({
-      // Merchants editing an outlet do NOT want the map snapping to their phone's
-      // current GPS — we deliberately use a shared static fallback constant
-      // instead of pulling `useUserLocation` into this screen. The fallback only
-      // ever matters when the outlet row has no `location` (newly created
-      // outlets before lat/lng is saved).
-      latitude: hasLatLng ? parsedLat : FALLBACK_COORDS.lat,
-      longitude: hasLatLng ? parsedLng : FALLBACK_COORDS.lng,
-      latitudeDelta: 0.05,
-      longitudeDelta: 0.05,
-    }),
-    [hasLatLng, parsedLat, parsedLng],
-  );
-
-  const mapRegionKey = hasLatLng
-    ? `${parsedLat.toFixed(5)}:${parsedLng.toFixed(5)}`
-    : 'fallback';
+    outletLat != null &&
+    outletLng != null &&
+    Number.isFinite(outletLat) &&
+    Number.isFinite(outletLng) &&
+    outletLat >= -90 &&
+    outletLat <= 90 &&
+    outletLng >= -180 &&
+    outletLng <= 180;
 
   const onSave = useCallback(async () => {
     if (!outletId) return;
@@ -299,11 +274,11 @@ export function MerchantOutletEditorScreen(): React.ReactElement {
       return;
     }
 
-    if (hasLatLng) {
+    if (hasLatLng && outletLat != null && outletLng != null) {
       // PostGIS write must use ST_SetSRID(ST_MakePoint(...), 4326)::geography. We can't get
       // PostgREST to emit that exact cast — use the existing RPC-friendly text representation
       // via `update_outlet_location` if present, else fall back to a WKT string with SRID.
-      const wktLiteral = `SRID=4326;POINT(${parsedLng} ${parsedLat})`;
+      const wktLiteral = `SRID=4326;POINT(${outletLng} ${outletLat})`;
       const { error: locError } = await sb
         .from('outlets')
         .update({ location: wktLiteral })
@@ -333,8 +308,8 @@ export function MerchantOutletEditorScreen(): React.ReactElement {
     name,
     navigation,
     outletId,
-    parsedLat,
-    parsedLng,
+    outletLat,
+    outletLng,
     phone,
     refetchMerchantContext,
   ]);
@@ -406,19 +381,6 @@ export function MerchantOutletEditorScreen(): React.ReactElement {
               style={styles.input}
               placeholder="Eg. The Daily Crumb — Wellawatte"
               placeholderTextColor={colors.textFaint}
-            />
-          </View>
-          <View style={styles.fieldCol}>
-            <StitchText variant="label-caps" colorKey="textMuted">
-              Address
-            </StitchText>
-            <TextInput
-              value={address}
-              onChangeText={setAddress}
-              style={[styles.input, styles.inputMultiline]}
-              placeholder="Street, neighbourhood, city"
-              placeholderTextColor={colors.textFaint}
-              multiline
             />
           </View>
           <View style={styles.fieldCol}>
@@ -592,76 +554,22 @@ export function MerchantOutletEditorScreen(): React.ReactElement {
           Location
         </StitchText>
         <StitchText variant="body-sm" colorKey="textMuted" style={{ marginTop: 4 }}>
-          Drag the pin to reposition, or type lat/lng directly. Saved as PostGIS geography
-          (SRID 4326).
+          Search for your outlet address, use GPS, or drag the map pin. Saved as PostGIS
+          geography (SRID 4326).
         </StitchText>
-        {hasLatLng ? (
-          <View style={styles.mapShell}>
-            <MapView
-              key={mapRegionKey}
-              provider={PROVIDER_DEFAULT}
-              style={StyleSheet.absoluteFill}
-              initialRegion={initialRegion}
-              region={initialRegion}
-              /**
-               * Matches the live Discover map: `customMapStyle` is the Aubergine
-               * override on Android Google Maps in dark mode (undefined in
-               * light), `userInterfaceStyle` flips Apple Maps on iOS when the
-               * user overrides the theme via `ProfileTheme`, and
-               * `showsBuildings` requests the platform 3D building layer.
-               */
-              customMapStyle={customMapStyle}
-              userInterfaceStyle={colorScheme}
-              showsBuildings
-              showsPointsOfInterests
-              pitchEnabled
-            >
-              <Marker
-                coordinate={{ latitude: parsedLat, longitude: parsedLng }}
-                draggable
-                onDragEnd={(e) => {
-                  const c = e.nativeEvent.coordinate;
-                  setLat(String(c.latitude));
-                  setLng(String(c.longitude));
-                }}
-              />
-            </MapView>
-          </View>
-        ) : (
-          <View style={[styles.mapShell, styles.mapPlaceholder]}>
-            <StitchIcon name="map" size={36} colorKey="outline" />
-            <StitchText variant="body-sm" colorKey="textMuted" style={{ textAlign: 'center', marginTop: spacing.xs }}>
-              Enter lat/lng to drop a draggable pin.
-            </StitchText>
-          </View>
-        )}
-        <View style={styles.latLngRow}>
-          <View style={[styles.fieldCol, { flex: 1 }]}>
-            <StitchText variant="label-caps" colorKey="textMuted">
-              Latitude
-            </StitchText>
-            <TextInput
-              value={lat}
-              onChangeText={setLat}
-              style={styles.input}
-              placeholder={String(FALLBACK_COORDS.lat)}
-              placeholderTextColor={colors.textFaint}
-              keyboardType="numbers-and-punctuation"
-            />
-          </View>
-          <View style={[styles.fieldCol, { flex: 1 }]}>
-            <StitchText variant="label-caps" colorKey="textMuted">
-              Longitude
-            </StitchText>
-            <TextInput
-              value={lng}
-              onChangeText={setLng}
-              style={styles.input}
-              placeholder={String(FALLBACK_COORDS.lng)}
-              placeholderTextColor={colors.textFaint}
-              keyboardType="numbers-and-punctuation"
-            />
-          </View>
+        <View style={{ marginTop: spacing.md }}>
+          <OutletLocationPicker
+            env={env}
+            address={address}
+            lat={outletLat}
+            lng={outletLng}
+            onAddressChange={setAddress}
+            onCoordsChange={(nextLat, nextLng) => {
+              setOutletLat(nextLat);
+              setOutletLng(nextLng);
+            }}
+            variant="stacked"
+          />
         </View>
       </StitchSurface>
 
@@ -724,7 +632,6 @@ function createStyles(props: {
     cardBorder,
     fieldCol: { gap: spacing.xs },
     input: inputBase,
-    inputMultiline: { minHeight: 64 },
     chipRow: {
       flexDirection: 'row',
       flexWrap: 'wrap',
@@ -756,28 +663,6 @@ function createStyles(props: {
       textAlign: 'center',
     },
     timeDivider: { width: 24, textAlign: 'center' },
-    mapShell: {
-      height: 220,
-      width: '100%',
-      minWidth: 280,
-      alignSelf: 'stretch',
-      marginTop: spacing.md,
-      borderRadius: radii.lg,
-      overflow: 'hidden',
-      borderWidth: 1,
-      borderColor: colors.outlineVariant,
-      backgroundColor: colors.surfaceContainerLow,
-    },
-    mapPlaceholder: {
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingHorizontal: spacing.md,
-    },
-    latLngRow: {
-      flexDirection: 'row',
-      gap: spacing.md,
-      marginTop: spacing.md,
-    },
     footerActions: {
       flexDirection: 'row',
       gap: spacing.md,

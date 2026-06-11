@@ -142,6 +142,30 @@ export async function fetchLocationSearch(
   };
 }
 
+/** OpenStreetMap Nominatim reverse — Sri Lanka bias (mirrors hosted API). */
+export async function fetchNominatimLocationReverse(
+  lat: number,
+  lng: number,
+): Promise<string> {
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return '';
+
+  const url = new URL('https://nominatim.openstreetmap.org/reverse');
+  url.searchParams.set('lat', String(lat));
+  url.searchParams.set('lon', String(lng));
+  url.searchParams.set('format', 'jsonv2');
+
+  try {
+    const res = await fetch(url.toString(), {
+      headers: { 'User-Agent': 'fresh-as-ever-mobile/1.0' },
+    });
+    if (!res.ok) return '';
+    const body = (await parseJsonSafely(res)) as { display_name?: string } | null;
+    return String(body?.display_name ?? '').trim();
+  } catch {
+    return '';
+  }
+}
+
 /** Hosted Next.js `/api/location/reverse` — label for coordinates. */
 export async function fetchLocationReverse(
   env: AppEnv,
@@ -149,17 +173,19 @@ export async function fetchLocationReverse(
   lng: number,
 ): Promise<string> {
   const base = env.apiBaseUrl?.trim();
-  if (!base) return '';
-
-  const url = `${base.replace(/\/$/, '')}/api/location/reverse?lat=${lat}&lng=${lng}`;
-  try {
-    const res = await fetch(url);
-    const body = await parseJsonSafely(res);
-    if (!res.ok || body == null || typeof body !== 'object') {
-      return '';
+  if (base) {
+    const url = `${base.replace(/\/$/, '')}/api/location/reverse?lat=${lat}&lng=${lng}`;
+    try {
+      const res = await fetch(url);
+      const body = await parseJsonSafely(res);
+      if (res.ok && body != null && typeof body === 'object') {
+        const label = String((body as { label?: string }).label ?? '').trim();
+        if (label) return label;
+      }
+    } catch {
+      // fall through to Nominatim
     }
-    return String((body as { label?: string }).label ?? '');
-  } catch {
-    return '';
   }
+
+  return fetchNominatimLocationReverse(lat, lng);
 }

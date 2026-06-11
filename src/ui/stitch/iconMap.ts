@@ -61,6 +61,7 @@ export const stitchIconMap = {
   attachment: 'attachment',
   edit: 'edit',
   expand_more: 'expand-more',
+  expand_less: 'expand-less',
   lock: 'lock',
   delete: 'delete',
   chat: 'chat',
