@@ -4,6 +4,17 @@ import { fetchLocationSearch, type LocationHit } from '@/lib/locationApi';
 
 export type { LocationHit };
 
+/** Strip iOS append artifact when new text was typed over a prior address baseline. */
+export function normalizeNativeEditText(nativeText: string, baseline: string): string {
+  const text = nativeText.trim();
+  const base = baseline.trim();
+  if (!text || !base || text === base) return text;
+  if (text.endsWith(base) && text.length > base.length) {
+    return text.slice(0, text.length - base.length).trimEnd();
+  }
+  return text;
+}
+
 /** Normalize for label comparison. */
 export function normalizeLocationLabel(label: string): string {
   return label.trim().toLowerCase().replace(/\s+/g, ' ');

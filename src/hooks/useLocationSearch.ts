@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { AppEnv } from '@/config/env';
 import {
   fetchLocationSearch,
@@ -23,6 +23,15 @@ export type UseLocationSearchResult = {
   clearError: () => void;
 };
 
+function queryChangedSubstantially(prev: string, next: string): boolean {
+  const a = prev.trim().toLowerCase();
+  const b = next.trim().toLowerCase();
+  if (!a || !b) return a !== b;
+  if (a === b) return false;
+  const shared = Math.min(3, a.length, b.length);
+  return a.slice(0, shared) !== b.slice(0, shared);
+}
+
 /**
  * Debounced location search — extracted from DiscoverScreen place-search sheet.
  */
@@ -33,23 +42,30 @@ export function useLocationSearch(
 ): UseLocationSearchResult {
   const { debounceMs = 400, minChars = 2, enabled = true } = options;
   const [suggestions, setSuggestions] = useState<LocationHit[]>([]);
+  const [suggestionsQuery, setSuggestionsQuery] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const lastQueryRef = useRef('');
 
-  const clearSuggestions = useCallback(() => setSuggestions([]), []);
+  const clearSuggestions = useCallback(() => {
+    setSuggestions([]);
+    setSuggestionsQuery('');
+  }, []);
   const clearError = useCallback(() => setError(null), []);
 
   const runSearch = useCallback(async () => {
     const q = query.trim();
     if (!q) {
-      setSuggestions([]);
+      clearSuggestions();
       return;
     }
     setBusy(true);
     setError(null);
     try {
       const { results, apiBaseUrlMissing } = await fetchLocationSearch(env, q);
-      setSuggestions(dedupeLocationHits(results));
+      const deduped = dedupeLocationHits(results);
+      setSuggestions(deduped);
+      setSuggestionsQuery(q);
       if (!results.length) {
         setError(
           apiBaseUrlMissing
@@ -59,17 +75,23 @@ export function useLocationSearch(
       }
     } catch {
       setError('Search failed — try again or pick a suggestion below.');
-      setSuggestions([]);
+      clearSuggestions();
     } finally {
       setBusy(false);
     }
-  }, [env, query]);
+  }, [clearSuggestions, env, query]);
 
   useEffect(() => {
     if (!enabled) return;
     const q = query.trim();
+    const prev = lastQueryRef.current;
+    if (queryChangedSubstantially(prev, q)) {
+      clearSuggestions();
+    }
+    lastQueryRef.current = q;
+
     if (q.length < minChars) {
-      setSuggestions([]);
+      clearSuggestions();
       setError(q.length === 0 ? null : `Type at least ${minChars} characters`);
       return;
     }
@@ -77,7 +99,15 @@ export function useLocationSearch(
       void runSearch();
     }, debounceMs);
     return () => clearTimeout(timer);
-  }, [debounceMs, enabled, minChars, query, runSearch]);
+  }, [clearSuggestions, debounceMs, enabled, minChars, query, runSearch]);
 
-  return { suggestions, busy, error, clearSuggestions, clearError };
+  const activeSuggestions = query.trim() === suggestionsQuery ? suggestions : [];
+
+  return {
+    suggestions: activeSuggestions,
+    busy,
+    error,
+    clearSuggestions,
+    clearError,
+  };
 }

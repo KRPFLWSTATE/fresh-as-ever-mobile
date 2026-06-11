@@ -5,6 +5,8 @@ import {
   StyleSheet,
   TextInput,
   View,
+  type NativeSyntheticEvent,
+  type TextInputEndEditingEventData,
   type TextStyle,
   type ViewStyle,
 } from 'react-native';
@@ -14,6 +16,7 @@ import type { LocationHit } from '@/lib/locationApi';
 import {
   dedupeLocationHits,
   geocodeTypedAddress,
+  normalizeNativeEditText,
   pickForwardGeocodeHit,
 } from '@/lib/locationSearchHelpers';
 import { useStitchTheme } from '@/theme/StitchThemeContext';
@@ -27,6 +30,8 @@ export type LocationSearchFieldProps = {
   onSelectHit: (hit: LocationHit) => void;
   /** Called when typed text is geocoded without picking a suggestion (coords only). */
   onCoordsFromText?: (coords: { lat: number; lng: number }) => void;
+  /** Fires when the user starts/stops editing (focus/blur). */
+  onEditingChange?: (editing: boolean) => void;
   placeholder?: string;
   testID?: string;
   multiline?: boolean;
@@ -42,6 +47,7 @@ export type LocationSearchFieldProps = {
 
 /**
  * Address search with suggestion list — mirrors DiscoverScreen place-search UX.
+ * Uses a local draft while focused so external address updates never append mid-typing.
  */
 export function LocationSearchField({
   env,
@@ -49,6 +55,7 @@ export function LocationSearchField({
   onChangeText,
   onSelectHit,
   onCoordsFromText,
+  onEditingChange,
   placeholder = 'Neighbourhood or landmark…',
   testID = 'outlet.location.search',
   multiline = false,
@@ -59,15 +66,32 @@ export function LocationSearchField({
   shellStyle,
 }: LocationSearchFieldProps): React.ReactElement {
   const { colors, spacing } = useStitchTheme();
+  const [draft, setDraft] = useState(value);
+  const [focused, setFocused] = useState(false);
   const { suggestions, busy, error, clearSuggestions, clearError } = useLocationSearch(
     env,
-    value,
+    draft,
     { enabled: searchEnabled },
   );
   const [geocodeBusy, setGeocodeBusy] = useState(false);
   const pickedRef = useRef(false);
   const lastGeocodedQueryRef = useRef('');
   const geocodeRequestIdRef = useRef(0);
+  const inputEpochRef = useRef(0);
+  const inputRef = useRef<TextInput>(null);
+  const focusBaselineRef = useRef('');
+  const pendingNativeTextRef = useRef<string | null>(null);
+
+  // Sync parent value only when the field is not being edited.
+  useEffect(() => {
+    if (focused) return;
+    if (value !== draft) {
+      setDraft(value);
+      inputEpochRef.current += 1;
+      lastGeocodedQueryRef.current = '';
+      pickedRef.current = false;
+    }
+  }, [draft, focused, value]);
 
   const styles = useMemo(
     () =>
@@ -146,7 +170,7 @@ export function LocationSearchField({
         if (!hit) {
           hit = await geocodeTypedAddress(env, q, geocodeMinChars);
         }
-        if (requestId !== geocodeRequestIdRef.current || value.trim() !== q) return;
+        if (requestId !== geocodeRequestIdRef.current || draft.trim() !== q) return;
         applyGeocodeHit(hit, q);
       } finally {
         if (requestId === geocodeRequestIdRef.current) {
@@ -156,11 +180,11 @@ export function LocationSearchField({
     },
     [
       applyGeocodeHit,
+      draft,
       env,
       geocodeMinChars,
       onCoordsFromText,
       suggestions,
-      value,
     ],
   );
 
@@ -170,7 +194,7 @@ export function LocationSearchField({
       pickedRef.current = false;
       return;
     }
-    const q = value.trim();
+    const q = draft.trim();
     if (q.length < geocodeMinChars) return;
     if (lastGeocodedQueryRef.current === q) return;
 
@@ -179,27 +203,67 @@ export function LocationSearchField({
     }, geocodeDebounceMs);
     return () => clearTimeout(timer);
   }, [
+    draft,
     geocodeDebounceMs,
     geocodeMinChars,
     onCoordsFromText,
     runGeocode,
     searchEnabled,
-    value,
   ]);
+
+  const commitDraft = useCallback(
+    (next: string) => {
+      setDraft(next);
+      onChangeText(next);
+    },
+    [onChangeText],
+  );
 
   const handleSelect = (hit: LocationHit) => {
     pickedRef.current = true;
-    lastGeocodedQueryRef.current = value.trim();
+    lastGeocodedQueryRef.current = hit.label.trim();
     clearSuggestions();
+    commitDraft(hit.label);
     onSelectHit(hit);
   };
 
-  const handleEndEditing = () => {
-    void runGeocode(value, true);
+  const handleFocus = () => {
+    focusBaselineRef.current = value;
+    setDraft(value);
+    setFocused(true);
+    onEditingChange?.(true);
+  };
+
+  const handleBlur = () => {
+    const committed =
+      pendingNativeTextRef.current != null
+        ? pendingNativeTextRef.current
+        : normalizeNativeEditText(draft, focusBaselineRef.current);
+    pendingNativeTextRef.current = null;
+
+    setDraft(committed);
+    if (committed !== value) {
+      onChangeText(committed);
+    }
+    setFocused(false);
+    inputEpochRef.current += 1;
+    onEditingChange?.(false);
+    requestAnimationFrame(() => {
+      inputRef.current?.setNativeProps({ text: committed });
+    });
+  };
+
+  const handleEndEditing = (e: NativeSyntheticEvent<TextInputEndEditingEventData>) => {
+    const cleaned = normalizeNativeEditText(
+      e.nativeEvent.text ?? draft,
+      focusBaselineRef.current,
+    );
+    pendingNativeTextRef.current = cleaned;
+    void runGeocode(cleaned, true);
   };
 
   const handleSubmitEditing = () => {
-    void runGeocode(value, true);
+    void runGeocode(draft, true);
   };
 
   const showLocating = geocodeBusy && !busy;
@@ -211,16 +275,21 @@ export function LocationSearchField({
           <StitchIcon name="search" size={22} colorKey="outline" />
         </View>
         <TextInput
+          ref={inputRef}
+          key={focused ? `edit-${inputEpochRef.current}` : `show-${inputEpochRef.current}-${draft}`}
           testID={testID}
           placeholder={placeholder}
           placeholderTextColor={colors.textFaint}
-          value={value}
+          value={draft}
           onChangeText={(t) => {
-            onChangeText(t);
+            commitDraft(t);
             if (error && t.trim().length >= 2) clearError();
           }}
+          onFocus={handleFocus}
+          onBlur={handleBlur}
           onEndEditing={handleEndEditing}
           onSubmitEditing={handleSubmitEditing}
+          selectTextOnFocus={!multiline}
           style={[styles.searchInput, inputStyle]}
           returnKeyType="search"
           autoCorrect={false}

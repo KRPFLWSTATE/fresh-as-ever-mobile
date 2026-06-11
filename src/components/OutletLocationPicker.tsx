@@ -67,8 +67,54 @@ export function OutletLocationPicker({
   const [reverseBusy, setReverseBusy] = useState(false);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [searchEnabled, setSearchEnabled] = useState(true);
+  const [addressEditing, setAddressEditing] = useState(false);
+  const pendingAddressRef = useRef<string | null>(null);
+  const userEditedAddressRef = useRef(false);
   const [latText, setLatText] = useState(lat != null ? formatCoord(lat) : '');
   const [lngText, setLngText] = useState(lng != null ? formatCoord(lng) : '');
+
+  const applyAddress = useCallback(
+    (next: string, force = false) => {
+      const trimmed = next.trim();
+      if (!trimmed) return;
+      if (!force && addressEditing) {
+        pendingAddressRef.current = trimmed;
+        return;
+      }
+      pendingAddressRef.current = null;
+      onAddressChange(trimmed);
+    },
+    [addressEditing, onAddressChange],
+  );
+
+  const handleAddressTextChange = useCallback(
+    (next: string) => {
+      if (next !== address) {
+        userEditedAddressRef.current = true;
+      }
+      pendingAddressRef.current = null;
+      onAddressChange(next);
+    },
+    [address, onAddressChange],
+  );
+
+  const handleAddressEditingChange = useCallback((editing: boolean) => {
+    setAddressEditing(editing);
+    if (editing) {
+      userEditedAddressRef.current = false;
+      return;
+    }
+    if (userEditedAddressRef.current) {
+      pendingAddressRef.current = null;
+      userEditedAddressRef.current = false;
+      return;
+    }
+    if (pendingAddressRef.current != null) {
+      const pending = pendingAddressRef.current;
+      pendingAddressRef.current = null;
+      onAddressChange(pending);
+    }
+  }, [onAddressChange]);
 
   useEffect(() => {
     if (lat != null && Number.isFinite(lat)) setLatText(formatCoord(lat));
@@ -110,12 +156,12 @@ export function OutletLocationPicker({
       setReverseBusy(true);
       try {
         const label = await fetchLocationReverse(env, nextLat, nextLng);
-        if (label) onAddressChange(label);
+        if (label) applyAddress(label);
       } finally {
         setReverseBusy(false);
       }
     },
-    [env, onAddressChange],
+    [applyAddress, env],
   );
 
   const applyCoords = useCallback(
@@ -133,11 +179,11 @@ export function OutletLocationPicker({
   const handleSelectHit = useCallback(
     (hit: LocationHit) => {
       setSearchEnabled(false);
-      onAddressChange(hit.label);
+      applyAddress(hit.label, true);
       applyCoords(hit.lat, hit.lng, { reverse: false });
       setTimeout(() => setSearchEnabled(true), 300);
     },
-    [applyCoords, onAddressChange],
+    [applyAddress, applyCoords],
   );
 
   const handleCoordsFromText = useCallback(
@@ -193,9 +239,10 @@ export function OutletLocationPicker({
     <LocationSearchField
       env={env}
       value={address}
-      onChangeText={onAddressChange}
+      onChangeText={handleAddressTextChange}
       onSelectHit={handleSelectHit}
       onCoordsFromText={handleCoordsFromText}
+      onEditingChange={handleAddressEditingChange}
       searchEnabled={searchEnabled}
       placeholder="Street, neighbourhood, city"
       multiline={variant === 'stacked'}

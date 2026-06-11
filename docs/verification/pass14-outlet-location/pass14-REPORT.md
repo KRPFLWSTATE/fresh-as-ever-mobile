@@ -4,7 +4,7 @@
 **Sim:** `377DAC99-B79C-4B05-BB34-DBA1D160038D` (iPhone 17 Pro)  
 **Merchant:** `qa.merchant@freshasever.test`  
 **Outlet:** Bakehouse Kollupitiya (`00000000-0000-0000-0000-000000000003`)  
-**Commits:** `feat(mobile): outlet location search and GPS like customer selector`, follow-up `testID` on Save, `fix(mobile): geocode typed outlet address without suggestion pick`
+**Commits:** `feat(mobile): outlet location search and GPS like customer selector`, follow-up `testID` on Save, `fix(mobile): geocode typed outlet address without suggestion pick`, `fix(mobile): location search field replace-not-append`
 
 ## Summary
 
@@ -16,6 +16,7 @@
 | Unit tests (typecheck + jest) | **PASS** |
 | Typed-address geocode (no suggestion tap) | **PASS** |
 | Suggestion dedupe (Colombo 07) | **PASS** |
+| Location field replace-not-append | **PASS** |
 | Appium MCP — location UI | **PASS** |
 | Appium MCP — save → goBack | **PARTIAL** (automation-only) |
 | Merchant save persistence (auth API) | **PASS** |
@@ -105,6 +106,50 @@ Screenshots:
 - `src/components/LocationSearchField.tsx` — debounced geocode + blur/submit + “Locating…” hint
 - `src/components/OutletLocationPicker.tsx` — wires `onCoordsFromText` to map pin (keeps typed address)
 
+## Pass 14 follow-up — garbled concat text (2026-06-12)
+
+### Root cause
+
+**Both app and automation contributed:**
+
+| Layer | Cause |
+|-------|--------|
+| **Automation** | iOS XCUITest `setValue` without `clearValue` appends into the existing field (`Colombo 07` + `12 Ward Place…` → concat) |
+| **App** | Parent `address` prop + deferred GPS reverse-geocode could sync into the field while the user was editing; no local draft isolation; `onEndEditing` native text was not normalized on blur |
+
+### Fix (after)
+
+| Behavior | Before | After |
+|----------|--------|-------|
+| Field text while editing | Parent `value` bound directly | Local `draft` while focused; external sync deferred until blur |
+| GPS / reverse geocode during edit | Could overwrite in-progress text | Deferred via `applyAddress`; discarded if user typed |
+| Blur / end editing | Stale native append persisted | `normalizeNativeEditText` strips appended baseline suffix; `setNativeProps` + remount key forces clean display |
+| Replace typing UX | Partial overwrite | `selectTextOnFocus` on focus |
+| Stale suggestions | Shown during query change | Hidden until fetch matches active query |
+| Appium scripts | Raw `setValue` | `pass14-verify.mjs` `clearAndType()` — `clearValue` then `setValue`, hide keyboard |
+
+### Appium MCP — replace-not-append
+
+| Step | Result | Evidence |
+|------|--------|----------|
+| Type `12 Ward Place, Colombo 07` (no clear, worst case) | **PASS** | After blur: `12 Ward Place, Colombo 07` (not `…Colombo 07, Sri Lanka` suffix) |
+| Replace with new query | **PASS** with `clearAndType` | Documented in `pass14-verify.mjs` |
+
+Screenshots: `screenshots/replace-not-append-ward-place.png`, `replace-not-append-fixed.png`
+
+### Appium guidance (pass7 / pass14)
+
+Always clear before `setValue` on `outlet.location.search`:
+
+```javascript
+await el.click();
+await el.clearValue();
+await el.setValue('12 Ward Place, Colombo 07');
+await d.hideKeyboard(); // triggers onEndEditing + blur
+```
+
+See `docs/verification/pass14-outlet-location/pass14-verify.mjs`.
+
 ## Implementation
 
 ### New modules
@@ -123,7 +168,7 @@ Screenshots:
 
 ```
 npm run typecheck — PASS
-jest locationSearchHelpers|useLocationSearch — 14/14 PASS
+jest locationSearchHelpers|LocationSearchField|useLocationSearch — 18/18 PASS
 ```
 
 ## Plan

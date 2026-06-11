@@ -2,6 +2,7 @@ import {
   dedupeLocationHits,
   geocodeTypedAddress,
   normalizeLocationLabel,
+  normalizeNativeEditText,
   pickForwardGeocodeHit,
   shortenLocationLabel,
 } from '@/lib/locationSearchHelpers';
@@ -19,6 +20,21 @@ const env = {
 };
 
 describe('locationSearchHelpers', () => {
+  describe('normalizeNativeEditText', () => {
+    it('removes appended baseline suffix from iOS setValue artifact', () => {
+      expect(
+        normalizeNativeEditText(
+          '12 Ward Place, Colombo 07Colombo 07, Sri Lanka',
+          'Colombo 07, Sri Lanka',
+        ),
+      ).toBe('12 Ward Place, Colombo 07');
+    });
+
+    it('returns text unchanged when baseline is not a suffix', () => {
+      expect(normalizeNativeEditText('Colombo 03', 'Colombo 07, Sri Lanka')).toBe('Colombo 03');
+    });
+  });
+
   describe('normalizeLocationLabel', () => {
     it('lowercases and collapses whitespace', () => {
       expect(normalizeLocationLabel('  Colombo  07 ')).toBe('colombo 07');
