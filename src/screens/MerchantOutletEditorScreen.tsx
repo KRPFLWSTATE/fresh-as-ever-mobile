@@ -581,6 +581,7 @@ export function MerchantOutletEditorScreen(): React.ReactElement {
           style={{ flex: 1 }}
         />
         <StitchButton
+          testID="outlet.saveChanges"
           title={saving ? 'Saving…' : 'Save changes'}
           onPress={() => void onSave()}
           disabled={saving}

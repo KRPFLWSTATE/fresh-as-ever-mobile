@@ -6,3 +6,7 @@
 {"ts":"2026-06-12T02:08:00Z","step":"appium_gps_reverse","actor":"appium_mcp","result":"pass","detail":"Use current location → Cupertino reverse-geocode label in page source"}
 {"ts":"2026-06-12T02:09:00Z","step":"appium_save_goback","actor":"appium_mcp","result":"partial","detail":"Save changes tapped; remained on Edit outlet (iOS automation tap limitation)"}
 {"ts":"2026-06-12T02:10:00Z","step":"supabase_cross_app","actor":"anon_rest","result":"partial","detail":"Bakehouse address/location unchanged after automation — manual save verify recommended"}
+{"ts":"2026-06-12T02:28:00Z","step":"save_auth_repro","actor":"supabase_js","result":"pass","detail":"merchant signIn + address/location WKT update succeeded — save path not broken"}
+{"ts":"2026-06-12T02:29:00Z","step":"appium_save_testid","actor":"appium_mcp","result":"partial","detail":"outlet.saveChanges tapped; no DB write — scroll-footer tap limitation"}
+{"ts":"2026-06-12T02:30:00Z","step":"cross_app_outlet_detail","actor":"appium_mcp","result":"pass","detail":"outlet detail shows Colombo 07, Sri Lanka"}
+{"ts":"2026-06-12T02:31:00Z","step":"cross_app_discover","actor":"appium_mcp","result":"pass","detail":"Discover feed Bakehouse Near you; SQL nearby_bags=1 within 15km"}
