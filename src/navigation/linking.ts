@@ -162,6 +162,14 @@ const config: NonNullable<LinkingOptions<RootStackParamList>['config']> = {
       parse: {
         chip: (c: unknown) => (typeof c === 'string' ? c : undefined),
         query: (q: unknown) => (typeof q === 'string' ? q : undefined),
+        lat: (v: unknown) => {
+          const n = Number(v);
+          return Number.isFinite(n) ? n : undefined;
+        },
+        lng: (v: unknown) => {
+          const n = Number(v);
+          return Number.isFinite(n) ? n : undefined;
+        },
       },
     },
     Impact: 'impact',

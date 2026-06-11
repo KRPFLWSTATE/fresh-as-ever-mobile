@@ -28,6 +28,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '@/navigation/types';
 import { useAuthContext } from '@/context/AuthContext';
 import { getSupabase } from '@/lib/supabase';
+import { fetchScopedNearbyBags } from '@/hooks/useNearbyBags';
 import { canPublishRescueBags } from '@/lib/outletListingMode';
 import {
   discoverCategoryMatchesChip,
@@ -159,6 +160,34 @@ function pickupMatches(row: Row, chip: PickupChipKey): boolean {
   }
 }
 
+function mapDiscoverBagToRow(bag: {
+  id: string;
+  title: string;
+  category?: string | null;
+  rescue_price: number;
+  retail_value_estimate?: number | null;
+  image_url?: string | null;
+  pickup_start?: string | null;
+  pickup_end?: string | null;
+  outlet_name?: string | null;
+  outlet_id?: string | null;
+  outlet_category?: string | null;
+}): Row {
+  return {
+    id: bag.id,
+    title: bag.title,
+    category: bag.category ?? null,
+    rescue_price: bag.rescue_price,
+    retail_value_estimate: bag.retail_value_estimate ?? null,
+    image_url: bag.image_url ?? null,
+    pickup_start: bag.pickup_start ?? null,
+    pickup_end: bag.pickup_end ?? null,
+    outlet_name: bag.outlet_name ?? null,
+    outlet_id: bag.outlet_id ?? null,
+    outlet_category: bag.outlet_category ?? null,
+  };
+}
+
 function mapRow(raw: Record<string, unknown>): Row {
   const outlet = raw.outlet as Record<string, unknown> | undefined;
   const retailRaw = raw.retail_value_estimate;
@@ -206,6 +235,14 @@ export function SearchResultsScreen(): React.ReactElement {
   const [pickup, setPickup] = useState<PickupChipKey>('any');
   const [query, setQuery] = useState<string>(route.params?.query ?? '');
 
+  const scopedLat = route.params?.lat;
+  const scopedLng = route.params?.lng;
+  const hasGeoScope =
+    typeof scopedLat === 'number' &&
+    Number.isFinite(scopedLat) &&
+    typeof scopedLng === 'number' &&
+    Number.isFinite(scopedLng);
+
   const [rows, setRows] = useState<Row[]>([]);
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
@@ -217,6 +254,25 @@ export function SearchResultsScreen(): React.ReactElement {
       setLoading(true);
       setError(null);
       const sb = getSupabase(env);
+
+      if (hasGeoScope && nextPage === 0) {
+        try {
+          const nearby = await fetchScopedNearbyBags(sb, scopedLat!, scopedLng!);
+          const mapped = nearby
+            .map(mapDiscoverBagToRow)
+            .filter((row) => canPublishRescueBags(row.outlet_category));
+          setRows(mapped);
+          setHasMore(false);
+          setPage(0);
+        } catch (e) {
+          setError(mapSupabaseError(e as Error, ERROR.discover.loadBags));
+          if (reset) setRows([]);
+        } finally {
+          setLoading(false);
+        }
+        return;
+      }
+
       const from = nextPage * PAGE_SIZE;
       const to = from + PAGE_SIZE - 1;
 
@@ -266,7 +322,7 @@ export function SearchResultsScreen(): React.ReactElement {
       setPage(nextPage);
       setLoading(false);
     },
-    [env, query],
+    [env, hasGeoScope, query, scopedLat, scopedLng],
   );
 
   useEffect(() => {
@@ -393,78 +449,105 @@ export function SearchResultsScreen(): React.ReactElement {
     [navigation, styles],
   );
 
-  return (
-    <StitchScreen edges={['top', 'left', 'right']}>
-      <View style={styles.pageHeader}>
-        <StitchText variant="h1" colorKey="text">
-          Search results
-        </StitchText>
-        <StitchText variant="body-sm" colorKey="textMuted" style={{ marginTop: 4 }}>
-          Filter by category, distance, price, and pickup window.
-        </StitchText>
-      </View>
-
-      <View style={styles.searchShell}>
-        <View style={styles.searchIcon} pointerEvents="none">
-          <StitchIcon name="search" size={22} colorKey="outline" />
-        </View>
-        <TextInput
-          value={query}
-          onChangeText={setQuery}
-          placeholder="Search rescue bags…"
-          placeholderTextColor={colors.textFaint}
-          style={styles.searchInput}
-          returnKeyType="search"
-          onSubmitEditing={() => {
-            void fetchPage(0, true);
-          }}
-        />
-      </View>
-
-      <FilterChipBar
-        label="Categories"
-        items={CATEGORY_CHIPS}
-        value={category}
-        onSelect={(v) => setCategory(v as CategoryChipKey)}
-      />
-      <FilterChipBar
-        label="Distance"
-        items={DISTANCE_CHIPS}
-        value={distance}
-        onSelect={(v) => setDistance(v as DistanceChipKey)}
-      />
-      <FilterChipBar
-        label="Price"
-        items={PRICE_CHIPS}
-        value={price}
-        onSelect={(v) => setPrice(v as PriceChipKey)}
-      />
-      <FilterChipBar
-        label="Pickup window"
-        items={PICKUP_CHIPS}
-        value={pickup}
-        onSelect={(v) => setPickup(v as PickupChipKey)}
-      />
-
-      {error ? (
-        <View style={styles.errorRow}>
-          <StitchText variant="body-sm" colorKey="error">
-            {error}
+  const listHeader = useMemo(
+    () => (
+      <>
+        <View style={styles.pageHeader}>
+          <StitchText variant="h1" colorKey="text">
+            Search results
+          </StitchText>
+          <StitchText variant="body-sm" colorKey="textMuted" style={{ marginTop: 4 }}>
+            {hasGeoScope
+              ? 'Rescue bags near your selected area.'
+              : 'Filter by category, distance, price, and pickup window.'}
           </StitchText>
         </View>
-      ) : null}
 
+        <View style={styles.searchShell}>
+          <View style={styles.searchIcon} pointerEvents="none">
+            <StitchIcon name="search" size={22} colorKey="outline" />
+          </View>
+          <TextInput
+            value={query}
+            onChangeText={setQuery}
+            placeholder="Search rescue bags…"
+            placeholderTextColor={colors.textFaint}
+            style={styles.searchInput}
+            returnKeyType="search"
+            onSubmitEditing={() => {
+              void fetchPage(0, true);
+            }}
+          />
+        </View>
+
+        <FilterChipBar
+          label="Categories"
+          items={CATEGORY_CHIPS}
+          value={category}
+          onSelect={(v) => setCategory(v as CategoryChipKey)}
+        />
+        <FilterChipBar
+          label="Distance"
+          items={DISTANCE_CHIPS}
+          value={distance}
+          onSelect={(v) => setDistance(v as DistanceChipKey)}
+        />
+        <FilterChipBar
+          label="Price"
+          items={PRICE_CHIPS}
+          value={price}
+          onSelect={(v) => setPrice(v as PriceChipKey)}
+        />
+        <FilterChipBar
+          label="Pickup window"
+          items={PICKUP_CHIPS}
+          value={pickup}
+          onSelect={(v) => setPickup(v as PickupChipKey)}
+        />
+
+        {error ? (
+          <View style={styles.errorRow}>
+            <StitchText variant="body-sm" colorKey="error">
+              {error}
+            </StitchText>
+          </View>
+        ) : null}
+      </>
+    ),
+    [
+      category,
+      colors.textFaint,
+      distance,
+      error,
+      fetchPage,
+      hasGeoScope,
+      pickup,
+      price,
+      query,
+      styles.errorRow,
+      styles.pageHeader,
+      styles.searchIcon,
+      styles.searchInput,
+      styles.searchShell,
+    ],
+  );
+
+  return (
+    <StitchScreen edges={['top', 'left', 'right']} style={styles.screen}>
       <FlatList
+        style={styles.list}
         data={filteredRows}
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
         contentContainerStyle={styles.listContent}
+        keyboardShouldPersistTaps="handled"
         onEndReachedThreshold={0.4}
         onEndReached={() => {
-          if (!loading && hasMore && rows.length > 0) {
+          if (!hasGeoScope && !loading && hasMore && rows.length > 0) {
             void fetchPage(page + 1, false);
           }
         }}
+        ListHeaderComponent={listHeader}
         ListEmptyComponent={
           loading ? null : (
             <StitchSurface elevated padding="md" style={styles.emptyCard}>
@@ -541,6 +624,8 @@ function createStyles(props: {
     overflow: 'hidden',
   };
   return StyleSheet.create({
+    screen: { flex: 1 },
+    list: { flex: 1 },
     pageHeader: {
       paddingHorizontal: spacing.pageMarginMobile,
       paddingTop: spacing.md,

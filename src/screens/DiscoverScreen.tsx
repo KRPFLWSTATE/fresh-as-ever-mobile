@@ -1762,6 +1762,8 @@ export function DiscoverScreen() {
     navigation.getParent()?.navigate('SearchResults', {
       chip: selectedChip === 'all' ? undefined : selectedChip,
       query: q,
+      lat: center.lat,
+      lng: center.lng,
     });
   }, [navigation, searchQuery, selectedChip]);
 
@@ -2168,6 +2170,8 @@ export function DiscoverScreen() {
               ?.navigate('SearchResults', {
                 chip: selectedChip === 'all' ? undefined : selectedChip,
                 query: searchQuery.trim() || undefined,
+                lat: center.lat,
+                lng: center.lng,
               })
           }
           accessibilityRole="button"

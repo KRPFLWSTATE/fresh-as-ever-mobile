@@ -182,10 +182,13 @@ export function filterDiscoverFeedByMerchantStatus(
 ): DiscoverFeedItem[] {
   return items.filter((item) => {
     const payload = item.payload as Record<string, unknown>;
-    const outlet =
-      item.kind === 'shelf'
-        ? (payload.outlet as Record<string, unknown> | undefined)
-        : (payload.outlet as Record<string, unknown> | undefined);
+    const outlet = payload.outlet as Record<string, unknown> | undefined;
+    if (!outlet) {
+      // `nearby_bags` RPC rows are flat (no nested outlet join) but are already
+      // vetted server-side. Dropping them here hid every bag while shelves kept
+      // their nested `outlet:outlets(...)` join from `fetchPublishedShelves`.
+      return item.kind === 'bag';
+    }
     return isOutletDiscoverVisible(outlet);
   });
 }

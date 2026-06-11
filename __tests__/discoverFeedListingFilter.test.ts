@@ -83,6 +83,26 @@ describe('filterDiscoverFeedByListingMode', () => {
 });
 
 describe('filterDiscoverFeedByMerchantStatus', () => {
+  it('keeps flat RPC bag rows that omit nested outlet joins', () => {
+    const feed = filterDiscoverFeedByMerchantStatus([
+      mapBagToFeedItem({
+        id: 'b-flat',
+        title: 'Pastry Rescue',
+        outlet_category: 'hybrid',
+      }),
+      mapShelfToFeedItem({
+        id: 's1',
+        outlet: {
+          category: 'hybrid',
+          is_active: true,
+          merchant: { status: 'approved' },
+        },
+        items: [{ status: 'live', quantity_remaining: 1, rescue_price: 10 }],
+      }),
+    ]);
+    expect(feed.map((f) => f.id).sort()).toEqual(['b-flat', 's1']);
+  });
+
   it('hides feed items when merchant is suspended', () => {
     const feed = filterDiscoverFeedByMerchantStatus([
       mapBagToFeedItem({

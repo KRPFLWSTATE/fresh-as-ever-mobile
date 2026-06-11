@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getSupabase } from '@/lib/supabase';
 import type { AppEnv } from '@/config/env';
 import { logError } from '@/observability/logError';
@@ -159,18 +159,31 @@ export function useFavourites(
 ) {
   const supabase = useMemo(() => getSupabase(env), [env]);
 
-  const [favourites, setFavourites] = useState<FavouriteOutlet[]>([]);
+  const [rawRows, setRawRows] = useState<Record<string, unknown>[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const hasLoadedOnceRef = useRef(false);
 
-  const fetchFavourites = useCallback(async () => {
+  const favourites = useMemo(
+    () =>
+      rawRows
+        .map((row) => mapOutletRow(row, userCoords))
+        .filter(Boolean) as FavouriteOutlet[],
+    [rawRows, userCoords?.lat, userCoords?.lng],
+  );
+
+  const fetchFavourites = useCallback(async (mode: 'full' | 'refresh' = 'full') => {
     try {
-      setLoading(true);
+      if (mode === 'full' && !hasLoadedOnceRef.current) {
+        setLoading(true);
+      }
       setError(null);
 
       if (!customerId) {
         setError(ERROR.favourites.signIn);
-        setFavourites([]);
+        setRawRows([]);
+        hasLoadedOnceRef.current = false;
+        setLoading(false);
         return;
       }
 
@@ -212,19 +225,17 @@ export function useFavourites(
         throw fetchError;
       }
 
-      const formatted = ((data ?? []) as Record<string, unknown>[])
-        .map((row) => mapOutletRow(row, userCoords))
-        .filter(Boolean) as FavouriteOutlet[];
-
-      setFavourites(formatted);
+      setRawRows((data ?? []) as Record<string, unknown>[]);
+      hasLoadedOnceRef.current = true;
     } catch (e) {
       logSupabaseError(e, 'useFavourites.fetchFavourites');
       setError(mapSupabaseError(e as Error, ERROR.favourites.load));
-      setFavourites([]);
+      setRawRows([]);
+      hasLoadedOnceRef.current = false;
     } finally {
       setLoading(false);
     }
-  }, [customerId, supabase, userCoords]);
+  }, [customerId, supabase]);
 
   useEffect(() => {
     fetchFavourites().catch((err) => logError(err, { context: 'useFavourites.fetchFavourites' }));
@@ -245,7 +256,12 @@ export function useFavourites(
       if (!customerId) {
         return { error: 'Not signed in.' };
       }
-      setFavourites((prev) => prev.filter((f) => f.id !== outletId));
+      setRawRows((prev) =>
+        prev.filter((row) => {
+          const out = row.outlet as Record<string, unknown> | undefined;
+          return String(out?.id ?? '') !== outletId;
+        }),
+      );
       const { error: delErr } = await supabase
         .from('favourite_outlets')
         .delete()
@@ -283,9 +299,20 @@ export function useFavourites(
         bagsAvailable: 1,
         category: null,
       };
-      setFavourites((prev) => [
-        ...prev.filter((f) => f.id !== outletId),
-        optimistic,
+      setRawRows((prev) => [
+        ...prev.filter((row) => {
+          const out = row.outlet as Record<string, unknown> | undefined;
+          return String(out?.id ?? '') !== outletId;
+        }),
+        {
+          outlet: {
+            id: outletId,
+            name: optimistic.name,
+            category: optimistic.category,
+            average_rating: optimistic.averageRating,
+            cover_image_url: optimistic.image,
+          },
+        },
       ]);
 
       const { error: insertError } = await supabase

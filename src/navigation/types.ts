@@ -180,6 +180,9 @@ export type RootStackParamList = {
     | {
         chip?: string;
         query?: string;
+        /** Discover feed center — scopes results to the same nearby radius. */
+        lat?: number;
+        lng?: number;
       }
     | undefined;
   Impact: undefined;

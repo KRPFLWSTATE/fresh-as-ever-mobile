@@ -1,0 +1,6 @@
+{"ts":"2026-06-11T19:20:00Z","step":"investigate","actor":"code","result":"pass","detail":"Identified merchant filter dropping flat RPC bags; Favourites userCoords refetch loop; SearchResults layout"}
+{"ts":"2026-06-11T19:45:00Z","step":"fix_favourites_spinner","actor":"code","result":"pass","detail":"useFavourites rawRows + hasLoadedOnceRef"}
+{"ts":"2026-06-11T19:45:00Z","step":"fix_search_scroll","actor":"code","result":"pass","detail":"SearchResults single FlatList flex:1 + geo-scoped fetchScopedNearbyBags"}
+{"ts":"2026-06-11T19:45:00Z","step":"fix_discover_hybrid","actor":"code","result":"pass","detail":"filterDiscoverFeedByMerchantStatus keeps flat bags; supplement shelf-outlet bags"}
+{"ts":"2026-06-11T19:50:00Z","step":"typecheck_jest","actor":"shell","result":"pass","detail":"tsc + 9 jest tests"}
+{"ts":"2026-06-11T19:58:00Z","step":"appium_search_discover_favourites","actor":"appium","result":"pass","detail":"Screenshots in pass11-discover-favourites-fix/screenshots/"}

@@ -172,45 +172,129 @@ function mapRow(row: Record<string, unknown>): DiscoverBag {
   };
 }
 
+async function fetchBagsForOutlets(
+  supabase: ReturnType<typeof getSupabase>,
+  outletIds: string[],
+  includeSoldOut: boolean,
+): Promise<DiscoverBag[]> {
+  const uniqueIds = [...new Set(outletIds.filter(Boolean))];
+  if (!uniqueIds.length) return [];
+
+  let query = supabase
+    .from('rescue_bags')
+    .select(
+      `
+          id,
+          title,
+          category,
+          rescue_price,
+          retail_value_estimate,
+          pickup_start,
+          pickup_end,
+          image_url,
+          quantity_remaining,
+          outlet_id,
+          outlet:outlets (
+            id,
+            name,
+            category,
+            location,
+            trust_score,
+            average_rating,
+            total_reviews,
+            collection_rate_pct,
+            complaint_rate_pct,
+            no_show_rate_pct
+          )
+        `,
+    )
+    .in('outlet_id', uniqueIds)
+    .in('status', ['live', 'draft']);
+  if (!includeSoldOut) {
+    query = query.gt('quantity_remaining', 0);
+  }
+  const { data, error } = await query.order('created_at', { ascending: false });
+  if (error) {
+    logSupabaseError(error, 'useNearbyBags.fetchBagsForOutlets');
+    return [];
+  }
+
+  return (data ?? []).map((raw) => {
+    const mapped = mapRow(raw as Record<string, unknown>);
+    const outlet = (raw as Record<string, unknown>).outlet as
+      | Record<string, unknown>
+      | undefined;
+    if (!outlet) return mapped;
+    return {
+      ...mapped,
+      trust_score:
+        typeof outlet.trust_score === 'number'
+          ? outlet.trust_score
+          : outlet.trust_score != null
+            ? Number(outlet.trust_score)
+            : null,
+      average_rating:
+        typeof outlet.average_rating === 'number'
+          ? outlet.average_rating
+          : outlet.average_rating != null
+            ? Number(outlet.average_rating)
+            : null,
+      total_reviews:
+        typeof outlet.total_reviews === 'number'
+          ? outlet.total_reviews
+          : outlet.total_reviews != null
+            ? Number(outlet.total_reviews)
+            : null,
+      collection_rate_pct:
+        typeof outlet.collection_rate_pct === 'number'
+          ? outlet.collection_rate_pct
+          : outlet.collection_rate_pct != null
+            ? Number(outlet.collection_rate_pct)
+            : null,
+      complaint_rate_pct:
+        typeof outlet.complaint_rate_pct === 'number'
+          ? outlet.complaint_rate_pct
+          : outlet.complaint_rate_pct != null
+            ? Number(outlet.complaint_rate_pct)
+            : null,
+      no_show_rate_pct:
+        typeof outlet.no_show_rate_pct === 'number'
+          ? outlet.no_show_rate_pct
+          : outlet.no_show_rate_pct != null
+            ? Number(outlet.no_show_rate_pct)
+            : null,
+    };
+  });
+}
+
 /**
- * Discover feed. When `includeSoldOut` is true, the fallback path drops the
- * `.gt('quantity_remaining', 0)` filter so sold-out rows surface with the dimmed
- * card chrome / "Sold out" pill. The Discover "Include sold out" chip drives this.
+ * Location-scoped rescue bags for Discover and SearchResults. Includes live bags
+ * from hybrid outlets that publish clearance shelves but sit outside the RPC radius
+ * (e.g. demo outlets with unset map coordinates).
  */
-export function useNearbyBags(
-  env: AppEnv,
+export async function fetchScopedNearbyBags(
+  supabase: ReturnType<typeof getSupabase>,
   lat: number,
   lng: number,
-  options?: { includeSoldOut?: boolean },
-) {
-  const includeSoldOut = options?.includeSoldOut ?? false;
-  const supabase = useMemo(() => getSupabase(env), [env]);
-  const [bags, setBags] = useState<DiscoverBag[]>([]);
-  const [shelves, setShelves] = useState<Record<string, unknown>[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  includeSoldOut = false,
+): Promise<DiscoverBag[]> {
+  const { data, error: rpcErr } = await supabase.rpc('nearby_bags', {
+    user_lat: lat,
+    user_lng: lng,
+    radius_km: 10,
+  });
 
-  const fetchNearby = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const { data, error: rpcErr } = await supabase.rpc('nearby_bags', {
-        user_lat: lat,
-        user_lng: lng,
-        radius_km: 10,
-      });
+  if (rpcErr) {
+    throw rpcErr;
+  }
 
-      if (rpcErr) {
-        throw rpcErr;
-      }
+  let next = (data as Record<string, unknown>[] | null)?.map(mapRow) ?? [];
 
-      let next = (data as Record<string, unknown>[] | null)?.map(mapRow) ?? [];
-
-      if (next.length === 0) {
-        let fallbackQuery = supabase
-          .from('rescue_bags')
-          .select(
-            `
+  if (next.length === 0) {
+    let fallbackQuery = supabase
+      .from('rescue_bags')
+      .select(
+        `
           id,
           title,
           category,
@@ -233,73 +317,128 @@ export function useNearbyBags(
             no_show_rate_pct
           )
         `,
-          )
-          .in('status', ['live', 'draft']);
-        if (!includeSoldOut) {
-          fallbackQuery = fallbackQuery.gt('quantity_remaining', 0);
-        }
-        const { data: fallback, error: fbErr } = await fallbackQuery
-          .order('created_at', { ascending: false })
-          .limit(24);
+      )
+      .in('status', ['live', 'draft']);
+    if (!includeSoldOut) {
+      fallbackQuery = fallbackQuery.gt('quantity_remaining', 0);
+    }
+    const { data: fallback, error: fbErr } = await fallbackQuery
+      .order('created_at', { ascending: false })
+      .limit(24);
 
-        if (fbErr) {
-          throw fbErr;
-        }
+    if (fbErr) {
+      throw fbErr;
+    }
 
-        next = (fallback ?? []).map((raw) => {
-          const mapped = mapRow(raw as Record<string, unknown>);
-          const outlet = (raw as Record<string, unknown>).outlet as
-            | Record<string, unknown>
-            | undefined;
-          if (!outlet) return mapped;
-          return {
-            ...mapped,
-            trust_score:
-              typeof outlet.trust_score === 'number'
-                ? outlet.trust_score
-                : outlet.trust_score != null
-                  ? Number(outlet.trust_score)
-                  : null,
-            average_rating:
-              typeof outlet.average_rating === 'number'
-                ? outlet.average_rating
-                : outlet.average_rating != null
-                  ? Number(outlet.average_rating)
-                  : null,
-            total_reviews:
-              typeof outlet.total_reviews === 'number'
-                ? outlet.total_reviews
-                : outlet.total_reviews != null
-                  ? Number(outlet.total_reviews)
-                  : null,
-            collection_rate_pct:
-              typeof outlet.collection_rate_pct === 'number'
-                ? outlet.collection_rate_pct
-                : outlet.collection_rate_pct != null
-                  ? Number(outlet.collection_rate_pct)
-                  : null,
-            complaint_rate_pct:
-              typeof outlet.complaint_rate_pct === 'number'
-                ? outlet.complaint_rate_pct
-                : outlet.complaint_rate_pct != null
-                  ? Number(outlet.complaint_rate_pct)
-                  : null,
-            no_show_rate_pct:
-              typeof outlet.no_show_rate_pct === 'number'
-                ? outlet.no_show_rate_pct
-                : outlet.no_show_rate_pct != null
-                  ? Number(outlet.no_show_rate_pct)
-                  : null,
-          };
-        });
-      } else if (!includeSoldOut) {
-        next = next.filter(
-          (b) =>
-            typeof b.quantity_remaining !== 'number' || b.quantity_remaining > 0,
-        );
+    next = (fallback ?? []).map((raw) => {
+      const mapped = mapRow(raw as Record<string, unknown>);
+      const outlet = (raw as Record<string, unknown>).outlet as
+        | Record<string, unknown>
+        | undefined;
+      if (!outlet) return mapped;
+      return {
+        ...mapped,
+        trust_score:
+          typeof outlet.trust_score === 'number'
+            ? outlet.trust_score
+            : outlet.trust_score != null
+              ? Number(outlet.trust_score)
+              : null,
+        average_rating:
+          typeof outlet.average_rating === 'number'
+            ? outlet.average_rating
+            : outlet.average_rating != null
+              ? Number(outlet.average_rating)
+              : null,
+        total_reviews:
+          typeof outlet.total_reviews === 'number'
+            ? outlet.total_reviews
+            : outlet.total_reviews != null
+              ? Number(outlet.total_reviews)
+              : null,
+        collection_rate_pct:
+          typeof outlet.collection_rate_pct === 'number'
+            ? outlet.collection_rate_pct
+            : outlet.collection_rate_pct != null
+              ? Number(outlet.collection_rate_pct)
+              : null,
+        complaint_rate_pct:
+          typeof outlet.complaint_rate_pct === 'number'
+            ? outlet.complaint_rate_pct
+            : outlet.complaint_rate_pct != null
+              ? Number(outlet.complaint_rate_pct)
+              : null,
+        no_show_rate_pct:
+          typeof outlet.no_show_rate_pct === 'number'
+            ? outlet.no_show_rate_pct
+            : outlet.no_show_rate_pct != null
+              ? Number(outlet.no_show_rate_pct)
+              : null,
+      };
+    });
+  } else if (!includeSoldOut) {
+    next = next.filter(
+      (b) =>
+        typeof b.quantity_remaining !== 'number' || b.quantity_remaining > 0,
+    );
+  }
+
+  const shelfRows = await fetchPublishedShelves(supabase);
+  const shelfOutletIds = [
+    ...new Set(
+      shelfRows
+        .map((s) => (s.outlet_id != null ? String(s.outlet_id) : ''))
+        .filter(Boolean),
+    ),
+  ];
+  const bagIds = new Set(next.map((b) => b.id));
+  const coveredOutletIds = new Set(
+    next.map((b) => b.outlet_id).filter(Boolean) as string[],
+  );
+  const missingShelfOutletIds = shelfOutletIds.filter(
+    (id) => !coveredOutletIds.has(id),
+  );
+  if (missingShelfOutletIds.length > 0) {
+    const supplemental = await fetchBagsForOutlets(
+      supabase,
+      missingShelfOutletIds,
+      includeSoldOut,
+    );
+    for (const bag of supplemental) {
+      if (!bagIds.has(bag.id)) {
+        next.push(bag);
+        bagIds.add(bag.id);
       }
+    }
+  }
 
-      setBags(await enrichBagsWithOutletTrust(supabase, next));
+  return enrichBagsWithOutletTrust(supabase, next);
+}
+
+/**
+ * Discover feed. When `includeSoldOut` is true, the fallback path drops the
+ * `.gt('quantity_remaining', 0)` filter so sold-out rows surface with the dimmed
+ * card chrome / "Sold out" pill. The Discover "Include sold out" chip drives this.
+ */
+export function useNearbyBags(
+  env: AppEnv,
+  lat: number,
+  lng: number,
+  options?: { includeSoldOut?: boolean },
+) {
+  const includeSoldOut = options?.includeSoldOut ?? false;
+  const supabase = useMemo(() => getSupabase(env), [env]);
+  const [bags, setBags] = useState<DiscoverBag[]>([]);
+  const [shelves, setShelves] = useState<Record<string, unknown>[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchNearby = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const next = await fetchScopedNearbyBags(supabase, lat, lng, includeSoldOut);
+      setBags(next);
       const shelfRows = await fetchPublishedShelves(supabase);
       setShelves(shelfRows);
     } catch (e) {
