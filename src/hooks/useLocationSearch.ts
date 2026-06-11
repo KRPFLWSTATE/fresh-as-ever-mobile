@@ -4,6 +4,7 @@ import {
   fetchLocationSearch,
   type LocationHit,
 } from '@/lib/locationApi';
+import { dedupeLocationHits } from '@/lib/locationSearchHelpers';
 
 export type UseLocationSearchOptions = {
   /** Debounce interval in ms (Discover uses 400). */
@@ -48,7 +49,7 @@ export function useLocationSearch(
     setError(null);
     try {
       const { results, apiBaseUrlMissing } = await fetchLocationSearch(env, q);
-      setSuggestions(results);
+      setSuggestions(dedupeLocationHits(results));
       if (!results.length) {
         setError(
           apiBaseUrlMissing

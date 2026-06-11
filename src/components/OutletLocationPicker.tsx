@@ -140,6 +140,13 @@ export function OutletLocationPicker({
     [applyCoords, onAddressChange],
   );
 
+  const handleCoordsFromText = useCallback(
+    (coords: { lat: number; lng: number }) => {
+      applyCoords(coords.lat, coords.lng, { reverse: false });
+    },
+    [applyCoords],
+  );
+
   const detectCurrentLocation = useCallback(() => {
     setGpsBusy(true);
     Geolocation.getCurrentPosition(
@@ -188,6 +195,7 @@ export function OutletLocationPicker({
       value={address}
       onChangeText={onAddressChange}
       onSelectHit={handleSelectHit}
+      onCoordsFromText={handleCoordsFromText}
       searchEnabled={searchEnabled}
       placeholder="Street, neighbourhood, city"
       multiline={variant === 'stacked'}

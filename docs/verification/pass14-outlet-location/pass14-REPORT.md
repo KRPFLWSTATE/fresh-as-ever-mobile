@@ -4,7 +4,7 @@
 **Sim:** `377DAC99-B79C-4B05-BB34-DBA1D160038D` (iPhone 17 Pro)  
 **Merchant:** `qa.merchant@freshasever.test`  
 **Outlet:** Bakehouse Kollupitiya (`00000000-0000-0000-0000-000000000003`)  
-**Commits:** `feat(mobile): outlet location search and GPS like customer selector`, follow-up `testID` on Save
+**Commits:** `feat(mobile): outlet location search and GPS like customer selector`, follow-up `testID` on Save, `fix(mobile): geocode typed outlet address without suggestion pick`
 
 ## Summary
 
@@ -14,6 +14,8 @@
 | MerchantOutletEditor integration | **PASS** |
 | MerchantOnboarding step 2 integration | **PASS** (code) |
 | Unit tests (typecheck + jest) | **PASS** |
+| Typed-address geocode (no suggestion tap) | **PASS** |
+| Suggestion dedupe (Colombo 07) | **PASS** |
 | Appium MCP — location UI | **PASS** |
 | Appium MCP — save → goBack | **PARTIAL** (automation-only) |
 | Merchant save persistence (auth API) | **PASS** |
@@ -66,6 +68,43 @@ FROM outlets WHERE id = '00000000-0000-0000-0000-000000000003';
 
 Screenshots: `docs/verification/pass14-outlet-location/screenshots/`
 
+## Pass 14 follow-up — typed address geocode (2026-06-12)
+
+### Problem (before)
+
+1. Suggestion list showed near-duplicate Nominatim rows (same venue, long labels).
+2. Map pin and lat/lng updated **only** when the user tapped a suggestion — typing a full address and blurring left coords unchanged.
+
+### Fix (after)
+
+| Behavior | Before | After |
+|----------|--------|-------|
+| Suggestions | Raw API rows, often redundant | Deduped by venue + proximity; shortened labels (`venue, area`) |
+| Type address, blur without tap | No coord update | 800 ms debounce + `onEndEditing` forward-geocode; map pin moves; typed address kept |
+| Suggestion tap | Address + coords | Unchanged |
+| Use current location | GPS + reverse geocode | Unchanged |
+
+### Appium MCP — typing geocode
+
+| Step | Result | Evidence |
+|------|--------|----------|
+| Deep link → outlet editor | **PASS** | `freshasever://merchant/outlets/000…003/edit` |
+| Type `12 Ward Place, Colombo 07` (no suggestion tap) | **PASS** | Address field retains typed text |
+| Blur → map + coords | **PASS** | Advanced lat/lng: `6.904154`, `79.86452` (Ward Place area, not `0,0`) |
+| Type `Colombo 07` suggestions | **PASS** | Distinct rows: Colombo 07/03/05, Nugegoda, Dehiwala (no duplicate Football House variants) |
+
+Screenshots:
+
+- `screenshots/typing-geocode-ward-place.png`
+- `screenshots/typing-geocode-colombo07-suggestions.png`
+
+### New / updated modules
+
+- `src/lib/locationSearchHelpers.ts` — `dedupeLocationHits`, `pickForwardGeocodeHit`, `geocodeTypedAddress`
+- `src/hooks/useLocationSearch.ts` — applies dedupe to suggestion results
+- `src/components/LocationSearchField.tsx` — debounced geocode + blur/submit + “Locating…” hint
+- `src/components/OutletLocationPicker.tsx` — wires `onCoordsFromText` to map pin (keeps typed address)
+
 ## Implementation
 
 ### New modules
@@ -84,7 +123,7 @@ Screenshots: `docs/verification/pass14-outlet-location/screenshots/`
 
 ```
 npm run typecheck — PASS
-jest locationApi|useLocationSearch — 6/6 PASS
+jest locationSearchHelpers|useLocationSearch — 14/14 PASS
 ```
 
 ## Plan

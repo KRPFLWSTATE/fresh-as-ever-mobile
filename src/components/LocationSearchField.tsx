@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -11,6 +11,11 @@ import {
 import type { AppEnv } from '@/config/env';
 import { useLocationSearch } from '@/hooks/useLocationSearch';
 import type { LocationHit } from '@/lib/locationApi';
+import {
+  dedupeLocationHits,
+  geocodeTypedAddress,
+  pickForwardGeocodeHit,
+} from '@/lib/locationSearchHelpers';
 import { useStitchTheme } from '@/theme/StitchThemeContext';
 import { stitchFonts } from '@/theme/stitchTokens';
 import { StitchIcon, StitchText } from '@/ui/stitch';
@@ -20,11 +25,17 @@ export type LocationSearchFieldProps = {
   value: string;
   onChangeText: (text: string) => void;
   onSelectHit: (hit: LocationHit) => void;
+  /** Called when typed text is geocoded without picking a suggestion (coords only). */
+  onCoordsFromText?: (coords: { lat: number; lng: number }) => void;
   placeholder?: string;
   testID?: string;
   multiline?: boolean;
   /** When false, suppresses debounced search (e.g. after a hit is picked). */
   searchEnabled?: boolean;
+  /** Min chars before forward-geocode runs (default 4). */
+  geocodeMinChars?: number;
+  /** Debounce ms after typing stops before geocoding (default 800). */
+  geocodeDebounceMs?: number;
   inputStyle?: TextStyle;
   shellStyle?: ViewStyle;
 };
@@ -37,10 +48,13 @@ export function LocationSearchField({
   value,
   onChangeText,
   onSelectHit,
+  onCoordsFromText,
   placeholder = 'Neighbourhood or landmark…',
   testID = 'outlet.location.search',
   multiline = false,
   searchEnabled = true,
+  geocodeMinChars = 4,
+  geocodeDebounceMs = 800,
   inputStyle,
   shellStyle,
 }: LocationSearchFieldProps): React.ReactElement {
@@ -50,6 +64,10 @@ export function LocationSearchField({
     value,
     { enabled: searchEnabled },
   );
+  const [geocodeBusy, setGeocodeBusy] = useState(false);
+  const pickedRef = useRef(false);
+  const lastGeocodedQueryRef = useRef('');
+  const geocodeRequestIdRef = useRef(0);
 
   const styles = useMemo(
     () =>
@@ -74,7 +92,7 @@ export function LocationSearchField({
         searchInput: {
           flex: 1,
           paddingLeft: 44,
-          paddingRight: busy ? 40 : spacing.md,
+          paddingRight: busy || geocodeBusy ? 40 : spacing.md,
           paddingVertical: multiline ? spacing.sm : 12,
           fontFamily: stitchFonts.regular,
           fontSize: 15,
@@ -95,14 +113,96 @@ export function LocationSearchField({
           paddingVertical: spacing.sm,
           paddingHorizontal: spacing.xs,
         },
+        locatingHint: {
+          paddingHorizontal: spacing.xs,
+        },
       }),
-    [busy, colors, multiline, spacing],
+    [busy, colors, geocodeBusy, multiline, spacing],
   );
 
+  const applyGeocodeHit = useCallback(
+    (hit: LocationHit | null, query: string) => {
+      if (!hit || !onCoordsFromText) return;
+      lastGeocodedQueryRef.current = query;
+      onCoordsFromText({ lat: hit.lat, lng: hit.lng });
+    },
+    [onCoordsFromText],
+  );
+
+  const runGeocode = useCallback(
+    async (query: string, preferSuggestions = true) => {
+      if (!onCoordsFromText) return;
+      const q = query.trim();
+      if (q.length < geocodeMinChars) return;
+      if (lastGeocodedQueryRef.current === q) return;
+
+      const requestId = ++geocodeRequestIdRef.current;
+      setGeocodeBusy(true);
+      try {
+        let hit: LocationHit | null = null;
+        if (preferSuggestions && suggestions.length > 0) {
+          hit = pickForwardGeocodeHit(q, dedupeLocationHits(suggestions));
+        }
+        if (!hit) {
+          hit = await geocodeTypedAddress(env, q, geocodeMinChars);
+        }
+        if (requestId !== geocodeRequestIdRef.current || value.trim() !== q) return;
+        applyGeocodeHit(hit, q);
+      } finally {
+        if (requestId === geocodeRequestIdRef.current) {
+          setGeocodeBusy(false);
+        }
+      }
+    },
+    [
+      applyGeocodeHit,
+      env,
+      geocodeMinChars,
+      onCoordsFromText,
+      suggestions,
+      value,
+    ],
+  );
+
+  useEffect(() => {
+    if (!searchEnabled || !onCoordsFromText) return;
+    if (pickedRef.current) {
+      pickedRef.current = false;
+      return;
+    }
+    const q = value.trim();
+    if (q.length < geocodeMinChars) return;
+    if (lastGeocodedQueryRef.current === q) return;
+
+    const timer = setTimeout(() => {
+      void runGeocode(q, true);
+    }, geocodeDebounceMs);
+    return () => clearTimeout(timer);
+  }, [
+    geocodeDebounceMs,
+    geocodeMinChars,
+    onCoordsFromText,
+    runGeocode,
+    searchEnabled,
+    value,
+  ]);
+
   const handleSelect = (hit: LocationHit) => {
+    pickedRef.current = true;
+    lastGeocodedQueryRef.current = value.trim();
     clearSuggestions();
     onSelectHit(hit);
   };
+
+  const handleEndEditing = () => {
+    void runGeocode(value, true);
+  };
+
+  const handleSubmitEditing = () => {
+    void runGeocode(value, true);
+  };
+
+  const showLocating = geocodeBusy && !busy;
 
   return (
     <View style={{ gap: spacing.xs }}>
@@ -119,18 +219,25 @@ export function LocationSearchField({
             onChangeText(t);
             if (error && t.trim().length >= 2) clearError();
           }}
+          onEndEditing={handleEndEditing}
+          onSubmitEditing={handleSubmitEditing}
           style={[styles.searchInput, inputStyle]}
           returnKeyType="search"
           autoCorrect={false}
           autoCapitalize="words"
           multiline={multiline}
         />
-        {busy ? (
+        {busy || geocodeBusy ? (
           <View style={styles.searchBusy}>
             <ActivityIndicator size="small" color={colors.primaryContainer} />
           </View>
         ) : null}
       </View>
+      {showLocating ? (
+        <StitchText variant="body-sm" colorKey="textMuted" style={styles.locatingHint}>
+          Locating…
+        </StitchText>
+      ) : null}
       {error ? (
         <StitchText variant="body-sm" colorKey="error">
           {error}
