@@ -30,6 +30,7 @@ import MapView from 'react-native-maps';
 import type { Camera, MapType, Region } from 'react-native-maps';
 import * as Haptics from 'expo-haptics';
 import {
+  discoverMapLoadingForScheme,
   discoverMapProvider,
   discoverMapStyleForScheme,
   discoverMapUsesGoogleTiles,
@@ -902,6 +903,10 @@ export function DiscoverScreen() {
     () => discoverMapStyleForScheme(colorScheme),
     [colorScheme],
   );
+  const mapLoadingChrome = useMemo(
+    () => discoverMapLoadingForScheme(colorScheme),
+    [colorScheme],
+  );
   const searchRef = useRef<TextInput>(null);
   const mapRef = useRef<MapView>(null);
   const feedListRef = useRef<FlatList<DiscoverFeedItem>>(null);
@@ -1627,53 +1632,22 @@ export function DiscoverScreen() {
     [discoverMapMarkers, selectedMarkerKey],
   );
 
-  const highlightedOutletId = selectedRescueMarker?.outletId ?? null;
-
-  /** Keep the feed in view when a pin is selected — map preview + list row stay linked. */
-  const scrollFeedToMarker = useCallback(
-    (marker: DiscoverMapOutletMarker) => {
-      const idx = listFeed.findIndex((item) => {
-        const outletId =
-          item.kind === 'bag'
-            ? (item as unknown as DiscoverBag).outlet_id
-            : item.outlet_id;
-        if (marker.outletId && outletId) {
-          return String(outletId) === marker.outletId;
-        }
-        return item.id === marker.feedItemId;
-      });
-      if (idx < 0) return;
-      feedListRef.current?.scrollToIndex({
-        index: idx,
-        animated: true,
-        viewPosition: 0.4,
-      });
-    },
-    [listFeed],
-  );
-
   /**
-   * First tap on a pin selects it: haptic tick, pin swells, camera eases over,
-   * and the preview card slides up — the page deliberately does NOT jump away
-   * from the map. Tapping the already-selected pin (or the preview card)
-   * opens the rescue.
+   * Pin tap selects only — haptic tick, pin swells, camera eases over, and
+   * the preview card slides up. Feed scroll position and row highlight stay
+   * untouched; open the rescue from the preview card instead.
    */
   const onRescueMarkerPress = useCallback(
     (marker: DiscoverMapOutletMarker) => {
-      if (selectedMarkerKey === marker.markerKey) {
-        openRescueMarker(marker);
-        return;
-      }
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
       setSelectedMarkerKey(marker.markerKey);
       setFollowingUser(false);
-      scrollFeedToMarker(marker);
       mapRef.current?.animateCamera(
         { center: marker.coordinate },
         { duration: 320 },
       );
     },
-    [openRescueMarker, scrollFeedToMarker, selectedMarkerKey],
+    [],
   );
 
   const openRescueFromPreview = useCallback(
@@ -2242,6 +2216,8 @@ export function DiscoverScreen() {
              * (Podfile `Google` subspec + `GMSApiKey` in Info.plist).
              */
             customMapStyle={customMapStyle}
+            loadingBackgroundColor={mapLoadingChrome.background}
+            loadingIndicatorColor={mapLoadingChrome.indicator}
             userInterfaceStyle={colorScheme}
             /**
              * The native blue dot lags in nested maps / simulators; the pulsing
@@ -2501,18 +2477,8 @@ export function DiscoverScreen() {
               </View>
             )
           }
-          renderItem={({ item }) => {
-            const outletId =
-              item.kind === 'bag'
-                ? (item as unknown as DiscoverBag).outlet_id
-                : item.outlet_id;
-            const mapHighlighted =
-              highlightedOutletId != null &&
-              outletId != null &&
-              String(outletId) === highlightedOutletId;
-            return (
+          renderItem={({ item }) => (
             <View style={styles.listRowGutter}>
-              <View style={mapHighlighted ? styles.feedRowMapLinked : undefined}>
               {item.kind === 'shelf' && isClearanceShelvesEnabled() ? (
                 <DiscoverShelfCard
                   item={item}
@@ -2532,10 +2498,8 @@ export function DiscoverScreen() {
                   radii={radii}
                 />
               ) : null}
-              </View>
             </View>
-            );
-          }}
+          )}
         />
       )}
 
@@ -2955,11 +2919,6 @@ function useDiscoverStyles(
         },
         listRowGutter: {
           paddingHorizontal: spacing.pageMarginMobile,
-        },
-        feedRowMapLinked: {
-          borderWidth: 2,
-          borderColor: colors.primaryContainer,
-          borderRadius: radii.xl + 2,
         },
         listHdrBlock: {
           flexDirection: 'row',
