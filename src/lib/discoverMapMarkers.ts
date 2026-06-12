@@ -36,6 +36,16 @@ export type DiscoverFeedMarkerSource = {
   outlet_category?: string | null;
 };
 
+export type DiscoverMarkerKind =
+  | 'bakery'
+  | 'cafe'
+  | 'meals'
+  | 'groceries'
+  | 'supermarket'
+  | 'shelf'
+  | 'hybrid'
+  | 'default';
+
 export type DiscoverMapOutletMarker = {
   markerKey: string;
   outletId: string | null;
@@ -43,10 +53,22 @@ export type DiscoverMapOutletMarker = {
   lat: number;
   lng: number;
   category: string | null;
+  markerKind: DiscoverMarkerKind;
   feedKind: 'bag' | 'shelf';
   feedItemId: string;
   title: string;
   coordinate: { latitude: number; longitude: number };
+};
+
+const MARKER_KIND_PRIORITY: Record<DiscoverMarkerKind, number> = {
+  hybrid: 100,
+  shelf: 90,
+  bakery: 80,
+  cafe: 70,
+  meals: 60,
+  groceries: 50,
+  supermarket: 40,
+  default: 0,
 };
 
 function markerCategory(item: DiscoverFeedMarkerSource): string | null {
@@ -70,6 +92,82 @@ function markerOutletKey(item: DiscoverFeedMarkerSource, lat: number, lng: numbe
   return discoverMarkerCoordGroupKey(lat, lng);
 }
 
+/** Map a feed row to a typed pin kind (before outlet-level merge). */
+export function resolveDiscoverMarkerKindFromItem(
+  item: DiscoverFeedMarkerSource,
+): DiscoverMarkerKind {
+  if (item.kind === 'shelf') {
+    const c = String(item.category ?? '').toLowerCase();
+    if (c.includes('super')) return 'supermarket';
+    if (
+      c.includes('groc') ||
+      c.includes('hybrid') ||
+      c.includes('veg') ||
+      c.includes('produce')
+    ) {
+      return 'groceries';
+    }
+    return 'shelf';
+  }
+
+  const c = String(item.category ?? item.outlet_category ?? '').toLowerCase();
+  if (c.includes('bake') || c.includes('pastry') || c === 'bakery') return 'bakery';
+  if (c.includes('cafe') || c.includes('coffee')) return 'cafe';
+  if (
+    c.includes('meal') ||
+    c.includes('lunch') ||
+    c.includes('dinner') ||
+    c.includes('food') ||
+    c.includes('restaurant') ||
+    c.includes('mixed')
+  ) {
+    return 'meals';
+  }
+  if (c.includes('super')) return 'supermarket';
+  if (
+    c.includes('groc') ||
+    c.includes('hybrid') ||
+    c.includes('veg') ||
+    c.includes('produce')
+  ) {
+    return 'groceries';
+  }
+  return 'default';
+}
+
+/** Prefer hybrid when an outlet publishes both bags and shelves; else highest-priority kind. */
+export function mergeDiscoverMarkerKinds(
+  kinds: readonly DiscoverMarkerKind[],
+  hasBag: boolean,
+  hasShelf: boolean,
+): DiscoverMarkerKind {
+  if (hasBag && hasShelf) return 'hybrid';
+  let best: DiscoverMarkerKind = 'default';
+  let bestScore = -1;
+  for (const kind of kinds) {
+    const score = MARKER_KIND_PRIORITY[kind] ?? 0;
+    if (score > bestScore) {
+      best = kind;
+      bestScore = score;
+    }
+  }
+  return best;
+}
+
+function pickPrimaryFeedItem(
+  items: readonly DiscoverFeedMarkerSource[],
+  markerKind: DiscoverMarkerKind,
+): DiscoverFeedMarkerSource {
+  if (markerKind === 'hybrid') {
+    return items.find((i) => i.kind === 'bag') ?? items[0]!;
+  }
+  const kindMatch = items.find(
+    (i) => resolveDiscoverMarkerKindFromItem(i) === markerKind,
+  );
+  if (kindMatch) return kindMatch;
+  return items.find((i) => i.kind === 'bag') ?? items[0]!;
+}
+
 /**
  * Build one map pin per outlet from the same filtered Discover feed list. Skips
  * invalid coordinates (including POINT(0 0)) with an optional dev-only callback.
@@ -85,7 +183,10 @@ export function buildDiscoverMapMarkersFromFeed(
   },
 ): DiscoverMapOutletMarker[] {
   const demo = options?.demo ?? false;
-  const byKey = new Map<string, DiscoverMapOutletMarker>();
+  const buckets = new Map<
+    string,
+    { lat: number; lng: number; items: DiscoverFeedMarkerSource[] }
+  >();
 
   for (const item of feedItems) {
     const lat = item.outlet_lat;
@@ -100,32 +201,49 @@ export function buildDiscoverMapMarkersFromFeed(
     }
 
     const key = markerOutletKey(item, lat, lng);
-    if (byKey.has(key)) continue;
+    const bucket = buckets.get(key);
+    if (bucket) {
+      bucket.items.push(item);
+    } else {
+      buckets.set(key, { lat, lng, items: [item] });
+    }
+  }
 
-    byKey.set(key, {
+  const draft: DiscoverMapOutletMarker[] = [];
+  for (const [key, bucket] of buckets) {
+    const { lat, lng, items } = bucket;
+    const hasBag = items.some((i) => i.kind === 'bag');
+    const hasShelf = items.some((i) => i.kind === 'shelf');
+    const markerKind = mergeDiscoverMarkerKinds(
+      items.map(resolveDiscoverMarkerKindFromItem),
+      hasBag,
+      hasShelf,
+    );
+    const primary = pickPrimaryFeedItem(items, markerKind);
+    draft.push({
       markerKey: key,
-      outletId: item.outlet_id?.trim() ? String(item.outlet_id) : null,
-      outletName: item.outlet_name?.trim() || 'Local partner',
+      outletId: primary.outlet_id?.trim() ? String(primary.outlet_id) : null,
+      outletName: primary.outlet_name?.trim() || 'Local partner',
       lat,
       lng,
-      category: markerCategory(item),
-      feedKind: item.kind,
-      feedItemId: item.id,
-      title: markerTitle(item),
+      category: markerCategory(primary),
+      markerKind,
+      feedKind: primary.kind,
+      feedItemId: primary.id,
+      title: markerTitle(primary),
       coordinate: { latitude: lat, longitude: lng },
     });
   }
 
-  const markers = [...byKey.values()];
-  if (markers.length === 0) return markers;
+  if (draft.length === 0) return draft;
 
-  const coordInputs = markers.map((m) => ({
+  const coordInputs = draft.map((m) => ({
     id: m.markerKey,
     outlet_lat: m.lat,
     outlet_lng: m.lng,
   }));
 
-  return markers.map((m) => ({
+  return draft.map((m) => ({
     ...m,
     coordinate: getDiscoverMarkerCoordinate(
       { id: m.markerKey, outlet_lat: m.lat, outlet_lng: m.lng },

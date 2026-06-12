@@ -78,6 +78,7 @@ import {
   buildDiscoverMapMarkersFromFeed,
   type DiscoverFeedMarkerSource,
 } from '@/lib/discoverMapMarkers';
+import { DiscoverMapMarker } from '@/components/DiscoverMapMarker';
 import { discoverMapAnimateCamera, DISCOVER_MAP_ZOOM } from '@/lib/mapCamera';
 import { getSupabase } from '@/lib/supabase';
 import type { StitchTheme } from '@/theme/StitchThemeContext';
@@ -206,73 +207,43 @@ function shelfMatchesChip(
   return discoverCategoryMatchesChip(item.category, chip);
 }
 
-function discoverMarkerChip(
-  bag: DiscoverBag,
-): (typeof DISCOVER_CHIPS)[number] {
-  const ordered = DISCOVER_CHIPS.filter((c) => c.id !== 'all');
-  for (const chip of ordered) {
-    if (bagMatchesChip(bag, chip.id)) return chip;
-  }
-  return DISCOVER_CHIPS[0];
+function shortenDiscoverLocationLabel(label: string, maxLen = 24): string {
+  const trimmed = label.trim();
+  if (!trimmed) return 'Colombo, LK';
+  const primary = trimmed.split(',')[0]?.trim() || trimmed;
+  if (primary.length <= maxLen) return primary;
+  return `${primary.slice(0, maxLen - 1)}…`;
 }
 
-type DiscoverMapBagMarkerProps = {
-  bag: DiscoverBag;
-  demo: boolean;
-  coordinate: { latitude: number; longitude: number };
-  colors: StitchTheme['colors'];
-  styles: ReturnType<typeof useDiscoverStyles>;
-  onPress: () => void;
-};
+/** Nav header pill: city + country/region when space is tight. */
+function discoverNavPillLocationLabel(label: string): string {
+  const trimmed = label.trim();
+  if (!trimmed) return 'Colombo, LK';
+  const parts = trimmed.split(',').map((p) => p.trim()).filter(Boolean);
+  if (parts.length >= 2) {
+    const compact = `${parts[0]}, ${parts[parts.length - 1]}`;
+    if (compact.length <= 28) return compact;
+    return shortenDiscoverLocationLabel(compact, 26);
+  }
+  return shortenDiscoverLocationLabel(trimmed, 26);
+}
 
-function DiscoverMapBagMarker({
-  bag,
-  demo,
-  coordinate,
-  colors,
-  styles,
-  onPress,
-}: DiscoverMapBagMarkerProps) {
-  const chip = discoverMarkerChip(bag);
-  return (
-    <Marker
-      coordinate={coordinate}
-      title={bag.title}
-      description={demo ? 'Demo data' : chip.label}
-      onPress={onPress}
-      testID={`discover.mapMarker.${bag.id}`}
-      anchor={{ x: 0.5, y: 0.5 }}
-      zIndex={demo ? 160 : 12}
-      /**
-       * Custom Marker children can paint as 0×0 on first layout when
-       * `tracksViewChanges={false}` (MapKit / Google both). Keep true so feed
-       * pins reliably appear; marker count is small on Discover.
-       */
-      tracksViewChanges
-      accessibilityLabel={
-        demo
-          ? `${bag.title}, demo venue, ${chip.label}`
-          : `${bag.title}, ${chip.label}`
-      }
-    >
-      <View
-        collapsable={false}
-        style={[
-          styles.discoverMapMarkerOuter,
-          demo ? styles.discoverMapMarkerOuterDemo : null,
-          {
-            borderColor: demo ? colors.accent : colors.primaryContainer,
-          },
-        ]}
-      >
-        <StitchIcon
-          name={chip.icon}
-          size={demo ? 26 : 24}
-          colorKey={demo ? 'accent' : 'primary'}
-        />
-      </View>
-    </Marker>
-  );
+/** Current-location row: prefer readable locality + country over full reverse-geocode. */
+function discoverMainLocationLabel(label: string): string {
+  const trimmed = label.trim();
+  if (!trimmed) return 'Colombo, LK';
+  if (trimmed.length <= 36) return trimmed;
+  const parts = trimmed.split(',').map((p) => p.trim()).filter(Boolean);
+  if (parts.length >= 2) {
+    const country = parts[parts.length - 1]!;
+    const locality =
+      parts.find((p) => /colombo|^\d{5}$/i.test(p)) ??
+      parts.slice(0, 2).join(', ');
+    const compact = `${locality}, ${country}`;
+    if (compact.length <= 36) return compact;
+    return shortenDiscoverLocationLabel(compact, 34);
+  }
+  return shortenDiscoverLocationLabel(trimmed, 34);
 }
 
 function formatLkr(n: number): string {
@@ -317,13 +288,22 @@ function DiscoverLocationPill(props: {
         paddingHorizontal: spacing.sm,
         paddingVertical: 6,
         borderRadius: 999,
-        maxWidth: 200,
+        maxWidth: 168,
+        minWidth: 0,
+        flexShrink: 1,
+        flex: 1,
         opacity: pressed ? 0.85 : 1,
         backgroundColor: pressed ? colors.surface2 : 'transparent',
       })}
     >
       <StitchIcon name="location_on" size={18} colorKey="textMuted" />
-      <StitchText variant="label" colorKey="textMuted" numberOfLines={1}>
+      <StitchText
+        variant="label"
+        colorKey="textMuted"
+        numberOfLines={1}
+        ellipsizeMode="tail"
+        style={{ flexShrink: 1, minWidth: 0 }}
+      >
         {props.label}
       </StitchText>
       <StitchIcon name="expand_more" size={18} colorKey="textMuted" />
@@ -895,6 +875,7 @@ export function DiscoverScreen() {
   const customMapStyle = useMemo(() => mapStyleForScheme(colorScheme), [colorScheme]);
   const searchRef = useRef<TextInput>(null);
   const mapRef = useRef<MapView>(null);
+  const feedListRef = useRef<FlatList<DiscoverFeedItem>>(null);
   /** Skips the first pitch `animateCamera` after prefs hydrate (`initialCamera` is enough). */
   const mapPitchIntroSkippedRef = useRef(false);
   const {
@@ -1029,6 +1010,16 @@ export function DiscoverScreen() {
   const locationDisplayLabel =
     regionLabel ?? geoLabel ?? profileCity ?? 'Colombo, LK';
 
+  const locationShortLabel = useMemo(
+    () => discoverMainLocationLabel(locationDisplayLabel),
+    [locationDisplayLabel],
+  );
+
+  const locationPillLabel = useMemo(
+    () => discoverNavPillLocationLabel(locationDisplayLabel),
+    [locationDisplayLabel],
+  );
+
   const isGuestDiscover = session == null;
   const showGuestFeedSignIn = shouldShowDiscoverGuestSignIn({
     isGuest: isGuestDiscover,
@@ -1155,6 +1146,7 @@ export function DiscoverScreen() {
 
   useEffect(() => {
     if (!mapViewPrefsHydrated || discoverMapMarkers.length === 0) return;
+    setFollowingUser(false);
     mapRef.current?.fitToCoordinates(
       discoverMapMarkers.map((m) => m.coordinate),
       {
@@ -1203,9 +1195,9 @@ export function DiscoverScreen() {
 
   const renderHeaderRight = useCallback(
     () => (
-      <DiscoverLocationPill label={locationDisplayLabel} onPress={openLocationSheet} />
+      <DiscoverLocationPill label={locationPillLabel} onPress={openLocationSheet} />
     ),
-    [locationDisplayLabel, openLocationSheet],
+    [locationPillLabel, openLocationSheet],
   );
   useLayoutEffect(() => {
     navigation.setOptions({ headerRight: renderHeaderRight });
@@ -1377,10 +1369,11 @@ export function DiscoverScreen() {
       bootstrappedToUserRef.current = true;
       setCenter({ lat: userLocation.lat, lng: userLocation.lng });
       setViewportCenter({ lat: userLocation.lat, lng: userLocation.lng });
-      // `animateCamera` preserves the user's pitch preference so the very
-      // first auto-snap doesn't flatten an already-toggled 3D view (the
-      // hydration `useEffect` may fire ordering-first depending on the
-      // device's location latency).
+      // Outlet pins take priority over follow-user camera on first paint.
+      if (discoverMapMarkers.length > 0) {
+        setFollowingUser(false);
+        return;
+      }
       mapRef.current?.animateCamera(
         discoverMapAnimateCamera(
           { lat: userLocation.lat, lng: userLocation.lng },
@@ -1390,7 +1383,13 @@ export function DiscoverScreen() {
         { duration: 450 },
       );
     }
-  }, [hasLiveUserLocation, map3DEnabled, userLocation.lat, userLocation.lng]);
+  }, [
+    discoverMapMarkers.length,
+    hasLiveUserLocation,
+    map3DEnabled,
+    userLocation.lat,
+    userLocation.lng,
+  ]);
 
   /**
    * When following is on, gently animate the camera to keep the blue dot centred as
@@ -1517,6 +1516,34 @@ export function DiscoverScreen() {
     [navigation],
   );
 
+  const scrollFeedToMarker = useCallback(
+    (marker: (typeof discoverMapMarkers)[number]) => {
+      const idx = listFeed.findIndex((item) => item.id === marker.feedItemId);
+      if (idx < 0) return;
+      feedListRef.current?.scrollToIndex({
+        index: idx,
+        animated: true,
+        viewPosition: 0.15,
+      });
+    },
+    [listFeed],
+  );
+
+  const onDiscoverMapMarkerPress = useCallback(
+    (marker: (typeof discoverMapMarkers)[number]) => {
+      if (marker.outletId) {
+        openOutlet(marker.outletId);
+        return;
+      }
+      if (marker.feedKind === 'shelf') {
+        openShelf(marker.feedItemId);
+        return;
+      }
+      openBag(marker.feedItemId);
+    },
+    [openBag, openOutlet, openShelf],
+  );
+
   /**
    * First paint after prefs hydrate: pitch matches saved 2D/3D (MapView mounts only
    * once `mapViewPrefsHydrated` is true so `initialCamera` is never wrong).
@@ -1541,6 +1568,17 @@ export function DiscoverScreen() {
    * the map later mounts, snap once if we already committed to the user’s GPS.
    */
   const onMapReady = useCallback(() => {
+    if (discoverMapMarkers.length > 0) {
+      setFollowingUser(false);
+      mapRef.current?.fitToCoordinates(
+        discoverMapMarkers.map((m) => m.coordinate),
+        {
+          edgePadding: { top: 48, right: 48, bottom: 48, left: 48 },
+          animated: false,
+        },
+      );
+      return;
+    }
     if (!bootstrappedToUserRef.current || !hasLiveUserLocation) {
       return;
     }
@@ -1552,7 +1590,13 @@ export function DiscoverScreen() {
       ),
       { duration: 0 },
     );
-  }, [hasLiveUserLocation, map3DEnabled, userLocation.lat, userLocation.lng]);
+  }, [
+    discoverMapMarkers,
+    hasLiveUserLocation,
+    map3DEnabled,
+    userLocation.lat,
+    userLocation.lng,
+  ]);
 
   const handleRegionChangeComplete = useCallback(
     (next: Region) => {
@@ -1848,33 +1892,49 @@ export function DiscoverScreen() {
   const discoverTopChrome = (
     <>
       <Pressable onPress={openLocationSheet} style={styles.locBlock}>
-        <StitchIcon name="location_on" size={22} colorKey="primaryContainer" />
-        <View style={{ flex: 1 }}>
-          <StitchText variant="label-caps" colorKey="textMuted">
-            Current location
-          </StitchText>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-            <StitchText variant="h3" colorKey="text" numberOfLines={1}>
-              {locationDisplayLabel}
+        <View style={styles.locMainRow}>
+          <View style={styles.locIconWrap}>
+            <StitchIcon name="location_on" size={22} colorKey="primaryContainer" />
+          </View>
+          <View style={styles.locCopy}>
+            <StitchText variant="label-caps" colorKey="textMuted">
+              Current location
             </StitchText>
-            <StitchIcon name="expand_more" size={18} colorKey="text" />
+            <View style={styles.locTitleRow}>
+              <StitchText
+                variant="h3"
+                colorKey="text"
+                numberOfLines={2}
+                ellipsizeMode="tail"
+                style={styles.locTitle}
+              >
+                {locationShortLabel}
+              </StitchText>
+              <StitchIcon name="expand_more" size={18} colorKey="text" />
+            </View>
           </View>
         </View>
         {locationStatus === 'granted' ? (
-          <View style={styles.updatedChip}>
-            <View
-              style={[
-                styles.updatedDot,
-                {
-                  backgroundColor: isUsingFallback
-                    ? colors.outline
-                    : colors.accent,
-                },
-              ]}
-            />
-            <StitchText variant="body-sm" colorKey="textMuted">
-              {updatedLabel}
-            </StitchText>
+          <View style={styles.updatedChipRow}>
+            <View style={styles.updatedChip}>
+              <View
+                style={[
+                  styles.updatedDot,
+                  {
+                    backgroundColor: isUsingFallback
+                      ? colors.outline
+                      : colors.accent,
+                  },
+                ]}
+              />
+              <StitchText
+                variant="body-sm"
+                colorKey="textMuted"
+                numberOfLines={1}
+              >
+                {updatedLabel}
+              </StitchText>
+            </View>
           </View>
         ) : null}
       </Pressable>
@@ -1988,6 +2048,11 @@ export function DiscoverScreen() {
     <View style={styles.mapWrap}>
       {mapViewPrefsHydrated ? (
         <MapView
+          key={
+            discoverMapMarkers.length > 0
+              ? discoverMapMarkers.map((m) => m.markerKey).join('|')
+              : 'discover-map-empty'
+          }
           ref={mapRef}
           provider={PROVIDER_DEFAULT}
           style={styles.map}
@@ -2024,36 +2089,20 @@ export function DiscoverScreen() {
           onMapReady={onMapReady}
           onRegionChangeComplete={handleRegionChangeComplete}
         >
-          {discoverMapMarkers.map((marker) => {
-            const chipBag: DiscoverBag = {
-              id: marker.feedItemId,
-              title: marker.title,
-              rescue_price: 0,
-              category: marker.category,
-              outlet_category: marker.category,
-            };
-            return (
-              <DiscoverMapBagMarker
-                key={marker.markerKey}
-                bag={chipBag}
-                demo={discoverMapMarkersDemo}
-                coordinate={marker.coordinate}
-                colors={colors}
-                styles={styles}
-                onPress={() => {
-                  if (marker.outletId) {
-                    openOutlet(marker.outletId);
-                    return;
-                  }
-                  if (marker.feedKind === 'shelf') {
-                    openShelf(marker.feedItemId);
-                    return;
-                  }
-                  openBag(marker.feedItemId);
-                }}
-              />
-            );
-          })}
+          {discoverMapMarkers.map((marker) => (
+            <DiscoverMapMarker
+              key={marker.markerKey}
+              marker={marker}
+              onPress={() => {
+                if (marker.outletId) {
+                  openOutlet(marker.outletId);
+                  return;
+                }
+                scrollFeedToMarker(marker);
+                onDiscoverMapMarkerPress(marker);
+              }}
+            />
+          ))}
           {/**
            * Fallback "you are here" ring: `showsUserLocation` uses the map SDK's own
            * location pipeline, which can lag or omit the blue dot in nested-scroll maps
@@ -2288,6 +2337,7 @@ export function DiscoverScreen() {
         </ScrollView>
       ) : (
         <FlatList
+          ref={feedListRef}
           data={loading ? [] : listFeed}
           style={styles.list}
           keyExtractor={(item) => `${item.kind}-${item.id}`}
@@ -2295,6 +2345,12 @@ export function DiscoverScreen() {
           nestedScrollEnabled
           keyboardShouldPersistTaps="handled"
           removeClippedSubviews={false}
+          onScrollToIndexFailed={(info) => {
+            feedListRef.current?.scrollToOffset({
+              offset: Math.max(0, info.averageItemLength * info.index),
+              animated: true,
+            });
+          }}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -2581,11 +2637,34 @@ function useDiscoverStyles(
       StyleSheet.create({
         flex: { flex: 1, backgroundColor: colors.background },
         locBlock: {
+          gap: spacing.xs,
+          paddingHorizontal: spacing.pageMarginMobile,
+          paddingTop: spacing.sm,
+          paddingBottom: spacing.md,
+        },
+        locMainRow: {
+          flexDirection: 'row',
+          alignItems: 'flex-start',
+          gap: spacing.sm,
+          minWidth: 0,
+        },
+        locIconWrap: {
+          flexShrink: 0,
+          paddingTop: 2,
+        },
+        locCopy: {
+          flex: 1,
+          minWidth: 0,
+        },
+        locTitleRow: {
           flexDirection: 'row',
           alignItems: 'center',
-          gap: spacing.sm,
-          paddingHorizontal: spacing.pageMarginMobile,
-          paddingVertical: spacing.md,
+          gap: 4,
+          minWidth: 0,
+        },
+        locTitle: {
+          flex: 1,
+          minWidth: 0,
         },
         searchShell: {
           marginHorizontal: spacing.pageMarginMobile,
@@ -2666,6 +2745,9 @@ function useDiscoverStyles(
           gap: 4,
         },
         forcedBody: { marginTop: 4 },
+        updatedChipRow: {
+          paddingLeft: 22 + spacing.sm,
+        },
         updatedChip: {
           flexDirection: 'row',
           alignItems: 'center',
@@ -2674,6 +2756,7 @@ function useDiscoverStyles(
           paddingVertical: 4,
           borderRadius: 999,
           backgroundColor: colors.surfaceContainerLow,
+          alignSelf: 'flex-start',
         },
         updatedDot: {
           width: 8,

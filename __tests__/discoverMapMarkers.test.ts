@@ -4,6 +4,8 @@ import {
   countFeedItemsWithValidMapCoords,
   getDiscoverMarkerCoordinate,
   isValidDiscoverOutletCoord,
+  mergeDiscoverMarkerKinds,
+  resolveDiscoverMarkerKindFromItem,
 } from '@/lib/discoverMapMarkers';
 
 describe('assertUniqueNearbyBagIds', () => {
@@ -30,10 +32,56 @@ describe('isValidDiscoverOutletCoord', () => {
   });
 });
 
+describe('resolveDiscoverMarkerKindFromItem', () => {
+  test('maps bakery bag category', () => {
+    expect(
+      resolveDiscoverMarkerKindFromItem({
+        kind: 'bag',
+        id: '1',
+        category: 'bakery',
+      }),
+    ).toBe('bakery');
+  });
+
+  test('maps clearance shelf to shelf kind', () => {
+    expect(
+      resolveDiscoverMarkerKindFromItem({
+        kind: 'shelf',
+        id: '1',
+        category: 'cafe',
+      }),
+    ).toBe('shelf');
+  });
+
+  test('maps mixed meals bag', () => {
+    expect(
+      resolveDiscoverMarkerKindFromItem({
+        kind: 'bag',
+        id: '1',
+        category: 'mixed_meals',
+      }),
+    ).toBe('meals');
+  });
+});
+
+describe('mergeDiscoverMarkerKinds', () => {
+  test('prefers hybrid when bag and shelf share outlet', () => {
+    expect(
+      mergeDiscoverMarkerKinds(['bakery', 'supermarket'], true, true),
+    ).toBe('hybrid');
+  });
+
+  test('picks highest priority single kind', () => {
+    expect(mergeDiscoverMarkerKinds(['cafe', 'meals'], false, false)).toBe(
+      'cafe',
+    );
+  });
+});
+
 describe('buildDiscoverMapMarkersFromFeed', () => {
   const outletId = '00000000-0000-0000-0000-000000000003';
 
-  test('dedupes bag and shelf at same outlet', () => {
+  test('dedupes bag and shelf at same outlet as hybrid', () => {
     const markers = buildDiscoverMapMarkersFromFeed([
       {
         kind: 'bag',
@@ -58,7 +106,7 @@ describe('buildDiscoverMapMarkersFromFeed', () => {
 
     expect(markers).toHaveLength(1);
     expect(markers[0]?.outletId).toBe(outletId);
-    expect(markers[0]?.feedKind).toBe('bag');
+    expect(markers[0]?.markerKind).toBe('hybrid');
   });
 
   test('skips invalid coords and reports reason', () => {
@@ -77,6 +125,7 @@ describe('buildDiscoverMapMarkersFromFeed', () => {
           outlet_id: 'other',
           outlet_lat: 6.9,
           outlet_lng: 79.86,
+          category: 'cafe',
         },
       ],
       {
@@ -87,6 +136,7 @@ describe('buildDiscoverMapMarkersFromFeed', () => {
     );
 
     expect(markers).toHaveLength(1);
+    expect(markers[0]?.markerKind).toBe('cafe');
     expect(skipped).toEqual(['invalid-coords']);
   });
 
