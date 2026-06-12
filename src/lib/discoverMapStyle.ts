@@ -5,8 +5,10 @@ import type { MapStyleElement } from 'react-native-maps';
 /**
  * Discover map surface — Fresh As Ever branded Google Maps JSON styles.
  *
- * Rescue Radar markers / controls stay untouched; only the tile surface
- * (land, parks, water, roads, labels, buildings) is restyled here.
+ * Palette anchored on Stitch tokens (`stitchColorsLight` / `stitchColorsDark`):
+ * background `#f7f6f2`, surface `#ffffff`, primary `#004f54`, primaryContainer
+ * `#01696f`, primaryHighlight `#d0e8e6`, accent `#da7101`, accentHighlight
+ * `#fde8cc`. Rescue Radar markers / controls stay untouched.
  *
  * Apple MapKit ignores `customMapStyle`, so Discover uses `PROVIDER_GOOGLE`
  * on iOS once the Google Maps SDK + API key are configured in the native
@@ -22,15 +24,15 @@ export const discoverMapProvider = discoverMapUsesGoogleTiles
   ? PROVIDER_GOOGLE
   : PROVIDER_DEFAULT;
 
-/** MapView loading chrome — matches parchment / night-rescue surfaces. */
+/** MapView loading chrome — matches fresh canvas / night-rescue surfaces. */
 export const DISCOVER_MAP_LOADING_LIGHT = {
-  background: '#f0ebe3',
+  background: '#f7f6f2',
   indicator: '#01696f',
 } as const;
 
 export const DISCOVER_MAP_LOADING_DARK = {
-  background: '#121110',
-  indicator: '#85d3da',
+  background: '#141412',
+  indicator: '#02b3be',
 } as const;
 
 export function discoverMapLoadingForScheme(scheme: 'light' | 'dark') {
@@ -40,15 +42,14 @@ export function discoverMapLoadingForScheme(scheme: 'light' | 'dark') {
 }
 
 /**
- * Light — "fresh rescue canvas": warm civic parchment with saturated sage
- * parks, lagoon teal water, and a stone road hierarchy. Layered land-use
- * tiers stay separated by hue (not a flat beige wash) so typed rescue pins
- * remain the loudest accent on the canvas.
+ * Light — "fresh rescue canvas": Stitch cream/white land, lagoon teal water,
+ * teal-sage parks, crisp cool-grey road hierarchy, and warm accentHighlight
+ * civic blocks. Reads as the same product as white cards + teal CTAs.
  */
 export const DISCOVER_MAP_STYLE_LIGHT: MapStyleElement[] = [
-  { elementType: 'geometry', stylers: [{ color: '#f0ebe3' }] },
-  { elementType: 'labels.text.fill', stylers: [{ color: '#3a3834' }] },
-  { elementType: 'labels.text.stroke', stylers: [{ color: '#f0ebe3' }, { weight: 2.5 }] },
+  { elementType: 'geometry', stylers: [{ color: '#f7f6f2' }] },
+  { elementType: 'labels.text.fill', stylers: [{ color: '#3f4949' }] },
+  { elementType: 'labels.text.stroke', stylers: [{ color: '#f7f6f2' }, { weight: 2.5 }] },
   {
     elementType: 'labels.icon',
     stylers: [{ visibility: 'off' }],
@@ -56,67 +57,67 @@ export const DISCOVER_MAP_STYLE_LIGHT: MapStyleElement[] = [
   {
     featureType: 'administrative',
     elementType: 'geometry',
-    stylers: [{ color: '#e4dfd4' }],
+    stylers: [{ color: '#f1f4f4' }],
   },
   {
     featureType: 'administrative',
     elementType: 'geometry.stroke',
-    stylers: [{ color: '#b8b0a4' }, { weight: 0.8 }],
+    stylers: [{ color: '#bec8c9' }, { weight: 0.8 }],
   },
   {
     featureType: 'administrative.country',
     elementType: 'geometry.stroke',
-    stylers: [{ color: '#9a9286' }, { weight: 1.4 }],
+    stylers: [{ color: '#6f797a' }, { weight: 1.4 }],
   },
   {
     featureType: 'administrative.province',
     elementType: 'geometry.stroke',
-    stylers: [{ color: '#c4bcb0' }, { weight: 1 }],
+    stylers: [{ color: '#d7dbda' }, { weight: 1 }],
   },
   {
     featureType: 'administrative.locality',
     elementType: 'labels.text.fill',
-    stylers: [{ color: '#003d42' }],
+    stylers: [{ color: '#004f54' }],
   },
   {
     featureType: 'administrative.neighborhood',
     elementType: 'labels.text.fill',
-    stylers: [{ color: '#4a4540' }],
+    stylers: [{ color: '#3f4949' }],
   },
   {
     featureType: 'administrative.land_parcel',
     elementType: 'labels.text.fill',
-    stylers: [{ color: '#6a645c' }],
+    stylers: [{ color: '#6b6762' }],
   },
   {
     featureType: 'landscape',
     elementType: 'geometry',
-    stylers: [{ color: '#e8e3d8' }],
+    stylers: [{ color: '#f3f0ec' }],
   },
   {
     featureType: 'landscape.man_made',
     elementType: 'geometry',
-    stylers: [{ color: '#ded8ce' }],
+    stylers: [{ color: '#faf6f0' }],
   },
   {
     featureType: 'landscape.natural',
     elementType: 'geometry',
-    stylers: [{ color: '#d8e6d0' }],
+    stylers: [{ color: '#eef5f3' }],
   },
   {
     featureType: 'landscape.natural.landcover',
     elementType: 'geometry',
-    stylers: [{ color: '#c0d8b8' }],
+    stylers: [{ color: '#d0e8e6' }],
   },
   {
     featureType: 'landscape.natural.terrain',
     elementType: 'geometry',
-    stylers: [{ color: '#b0ccb0' }],
+    stylers: [{ color: '#c4ddd8' }],
   },
   {
     featureType: 'poi',
     elementType: 'geometry',
-    stylers: [{ color: '#dce8d4' }],
+    stylers: [{ color: '#eef4f2' }],
   },
   {
     featureType: 'poi',
@@ -126,7 +127,7 @@ export const DISCOVER_MAP_STYLE_LIGHT: MapStyleElement[] = [
   {
     featureType: 'poi',
     elementType: 'labels.text.fill',
-    stylers: [{ color: '#3e6b48' }],
+    stylers: [{ color: '#01696f' }],
   },
   {
     featureType: 'poi.business',
@@ -136,77 +137,77 @@ export const DISCOVER_MAP_STYLE_LIGHT: MapStyleElement[] = [
   {
     featureType: 'poi.medical',
     elementType: 'geometry',
-    stylers: [{ color: '#e0dbd2' }],
+    stylers: [{ color: '#f1f4f4' }],
   },
   {
     featureType: 'poi.government',
     elementType: 'geometry',
-    stylers: [{ color: '#dcd6cc' }],
+    stylers: [{ color: '#f3f0ec' }],
   },
   {
     featureType: 'poi.school',
     elementType: 'geometry',
-    stylers: [{ color: '#d8e4d8' }],
+    stylers: [{ color: '#fef6ec' }],
   },
   {
     featureType: 'poi.park',
     elementType: 'geometry.fill',
-    stylers: [{ color: '#b8d8be' }],
+    stylers: [{ color: '#c5e8dc' }],
   },
   {
     featureType: 'poi.park',
     elementType: 'geometry.stroke',
-    stylers: [{ color: '#6a9e74' }, { weight: 1 }],
+    stylers: [{ color: '#01696f' }, { weight: 0.8 }],
   },
   {
     featureType: 'poi.park',
     elementType: 'labels.text.fill',
-    stylers: [{ color: '#2d5a38' }],
+    stylers: [{ color: '#004f54' }],
   },
   {
     featureType: 'poi.sports_complex',
     elementType: 'geometry',
-    stylers: [{ color: '#a8d0b0' }],
+    stylers: [{ color: '#b8e0d4' }],
   },
   {
     featureType: 'road',
     elementType: 'geometry',
-    stylers: [{ color: '#e0dbd0' }],
+    stylers: [{ color: '#ebe8e4' }],
   },
   {
     featureType: 'road',
     elementType: 'geometry.stroke',
-    stylers: [{ color: '#b8b0a4' }, { weight: 0.6 }],
+    stylers: [{ color: '#d7dbda' }, { weight: 0.6 }],
   },
   {
     featureType: 'road',
     elementType: 'labels.text.fill',
-    stylers: [{ color: '#4a4640' }],
+    stylers: [{ color: '#3f4949' }],
   },
   {
     featureType: 'road.local',
     elementType: 'geometry',
-    stylers: [{ color: '#e8e3da' }],
+    stylers: [{ color: '#f3f0ec' }],
   },
   {
     featureType: 'road.local',
     elementType: 'geometry.stroke',
-    stylers: [{ color: '#c4bcb0' }, { weight: 0.6 }],
+    stylers: [{ color: '#e0e3e3' }, { weight: 0.6 }],
   },
   {
     featureType: 'road.arterial',
     elementType: 'geometry',
-    stylers: [{ color: '#faf6ee' }],
+    stylers: [{ color: '#ffffff' }],
   },
   {
     featureType: 'road.arterial',
     elementType: 'geometry.stroke',
-    stylers: [{ color: '#a8a094' }, { weight: 0.8 }],
+    stylers: [{ color: '#bec8c9' }, { weight: 0.8 }],
   },
   {
     featureType: 'road.arterial',
     elementType: 'labels.text.fill',
-    stylers: [{ color: '#3a3834' }],
+    stylers: [{ color: '#181c1d' }],
   },
   {
     featureType: 'road.highway',
@@ -216,22 +217,22 @@ export const DISCOVER_MAP_STYLE_LIGHT: MapStyleElement[] = [
   {
     featureType: 'road.highway',
     elementType: 'geometry.stroke',
-    stylers: [{ color: '#a8a094' }, { weight: 1 }],
+    stylers: [{ color: '#6f797a' }, { weight: 1 }],
   },
   {
     featureType: 'road.highway',
     elementType: 'labels.text.fill',
-    stylers: [{ color: '#003d42' }],
+    stylers: [{ color: '#004f54' }],
   },
   {
     featureType: 'road.highway.controlled_access',
     elementType: 'geometry',
-    stylers: [{ color: '#fffdf8' }],
+    stylers: [{ color: '#ffffff' }],
   },
   {
     featureType: 'road.highway.controlled_access',
     elementType: 'geometry.stroke',
-    stylers: [{ color: '#5ab0bc' }, { weight: 1.2 }],
+    stylers: [{ color: '#01696f' }, { weight: 1.2 }],
   },
   {
     featureType: 'transit',
@@ -241,49 +242,49 @@ export const DISCOVER_MAP_STYLE_LIGHT: MapStyleElement[] = [
   {
     featureType: 'transit.line',
     elementType: 'geometry',
-    stylers: [{ color: '#b8d8d4' }],
+    stylers: [{ color: '#d0e8e6' }],
   },
   {
     featureType: 'transit.station',
     elementType: 'geometry',
-    stylers: [{ color: '#ccdcd8' }],
+    stylers: [{ color: '#fde8cc' }],
   },
   {
     featureType: 'water',
     elementType: 'geometry',
-    stylers: [{ color: '#64c8d2' }],
+    stylers: [{ color: '#6ec4cc' }],
   },
   {
     featureType: 'water',
     elementType: 'geometry.stroke',
-    stylers: [{ color: '#2a98a8' }, { weight: 0.8 }],
+    stylers: [{ color: '#01696f' }, { weight: 0.8 }],
   },
   {
     featureType: 'water',
     elementType: 'labels.text.fill',
-    stylers: [{ color: '#01696f' }],
+    stylers: [{ color: '#004f54' }],
   },
   {
     featureType: 'building',
     elementType: 'geometry',
-    stylers: [{ color: '#d0cac0' }],
+    stylers: [{ color: '#e6e9e9' }],
   },
   {
     featureType: 'building',
     elementType: 'geometry.stroke',
-    stylers: [{ color: '#a8a094' }, { weight: 0.6 }],
+    stylers: [{ color: '#bec8c9' }, { weight: 0.5 }],
   },
 ];
 
 /**
- * Dark — "night rescue lagoon": umber civic blocks, forest parks, deep teal
- * water, charcoal road tiers with teal highway glow, and muted building
- * silhouettes so saturated rescue pins stay forward.
+ * Dark — "night rescue lagoon": Stitch dark surfaces, teal water glow,
+ * charcoal road tiers with primaryContainer highway accents, and forest-teal
+ * parks so saturated rescue pins stay forward.
  */
 export const DISCOVER_MAP_STYLE_DARK: MapStyleElement[] = [
-  { elementType: 'geometry', stylers: [{ color: '#121110' }] },
-  { elementType: 'labels.text.fill', stylers: [{ color: '#a8e8ec' }] },
-  { elementType: 'labels.text.stroke', stylers: [{ color: '#121110' }, { weight: 2.5 }] },
+  { elementType: 'geometry', stylers: [{ color: '#141412' }] },
+  { elementType: 'labels.text.fill', stylers: [{ color: '#97e6ec' }] },
+  { elementType: 'labels.text.stroke', stylers: [{ color: '#141412' }, { weight: 2.5 }] },
   {
     elementType: 'labels.icon',
     stylers: [{ visibility: 'off' }],
@@ -296,17 +297,17 @@ export const DISCOVER_MAP_STYLE_DARK: MapStyleElement[] = [
   {
     featureType: 'administrative',
     elementType: 'geometry.stroke',
-    stylers: [{ color: '#4a4840' }, { weight: 0.8 }],
+    stylers: [{ color: '#3f3c36' }, { weight: 0.8 }],
   },
   {
     featureType: 'administrative.country',
     elementType: 'geometry.stroke',
-    stylers: [{ color: '#5c5a52' }, { weight: 1.4 }],
+    stylers: [{ color: '#4a4742' }, { weight: 1.4 }],
   },
   {
     featureType: 'administrative.province',
     elementType: 'geometry.stroke',
-    stylers: [{ color: '#3a3832' }, { weight: 1 }],
+    stylers: [{ color: '#35332f' }, { weight: 1 }],
   },
   {
     featureType: 'administrative.locality',
@@ -316,27 +317,27 @@ export const DISCOVER_MAP_STYLE_DARK: MapStyleElement[] = [
   {
     featureType: 'administrative.neighborhood',
     elementType: 'labels.text.fill',
-    stylers: [{ color: '#9a948c' }],
+    stylers: [{ color: '#c4bfb6' }],
   },
   {
     featureType: 'administrative.land_parcel',
     elementType: 'labels.text.fill',
-    stylers: [{ color: '#7a746c' }],
+    stylers: [{ color: '#7a736b' }],
   },
   {
     featureType: 'landscape',
     elementType: 'geometry',
-    stylers: [{ color: '#171614' }],
+    stylers: [{ color: '#1c1b18' }],
   },
   {
     featureType: 'landscape.man_made',
     elementType: 'geometry',
-    stylers: [{ color: '#1e1c18' }],
+    stylers: [{ color: '#252420' }],
   },
   {
     featureType: 'landscape.natural',
     elementType: 'geometry',
-    stylers: [{ color: '#141a16' }],
+    stylers: [{ color: '#141a18' }],
   },
   {
     featureType: 'landscape.natural.landcover',
@@ -351,7 +352,7 @@ export const DISCOVER_MAP_STYLE_DARK: MapStyleElement[] = [
   {
     featureType: 'poi',
     elementType: 'geometry',
-    stylers: [{ color: '#1a1916' }],
+    stylers: [{ color: '#1c1b18' }],
   },
   {
     featureType: 'poi',
@@ -361,7 +362,7 @@ export const DISCOVER_MAP_STYLE_DARK: MapStyleElement[] = [
   {
     featureType: 'poi',
     elementType: 'labels.text.fill',
-    stylers: [{ color: '#6ab892' }],
+    stylers: [{ color: '#85d3da' }],
   },
   {
     featureType: 'poi.business',
@@ -371,42 +372,42 @@ export const DISCOVER_MAP_STYLE_DARK: MapStyleElement[] = [
   {
     featureType: 'poi.medical',
     elementType: 'geometry',
-    stylers: [{ color: '#1e1c1a' }],
+    stylers: [{ color: '#252420' }],
   },
   {
     featureType: 'poi.government',
     elementType: 'geometry',
-    stylers: [{ color: '#22201c' }],
+    stylers: [{ color: '#2a2824' }],
   },
   {
     featureType: 'poi.school',
     elementType: 'geometry',
-    stylers: [{ color: '#1c221e' }],
+    stylers: [{ color: '#2f2a24' }],
   },
   {
     featureType: 'poi.park',
     elementType: 'geometry.fill',
-    stylers: [{ color: '#1a382e' }],
+    stylers: [{ color: '#1e4038' }],
   },
   {
     featureType: 'poi.park',
     elementType: 'geometry.stroke',
-    stylers: [{ color: '#2a5848' }, { weight: 1 }],
+    stylers: [{ color: '#01696f' }, { weight: 1 }],
   },
   {
     featureType: 'poi.park',
     elementType: 'labels.text.fill',
-    stylers: [{ color: '#6ab892' }],
+    stylers: [{ color: '#85d3da' }],
   },
   {
     featureType: 'poi.sports_complex',
     elementType: 'geometry',
-    stylers: [{ color: '#1e4038' }],
+    stylers: [{ color: '#1a3830' }],
   },
   {
     featureType: 'road',
     elementType: 'geometry',
-    stylers: [{ color: '#2a2e32' }],
+    stylers: [{ color: '#2a2d30' }],
   },
   {
     featureType: 'road',
@@ -416,27 +417,27 @@ export const DISCOVER_MAP_STYLE_DARK: MapStyleElement[] = [
   {
     featureType: 'road',
     elementType: 'labels.text.fill',
-    stylers: [{ color: '#c8c4be' }],
+    stylers: [{ color: '#c4bfb6' }],
   },
   {
     featureType: 'road.local',
     elementType: 'geometry',
-    stylers: [{ color: '#262a2e' }],
+    stylers: [{ color: '#252420' }],
   },
   {
     featureType: 'road.local',
     elementType: 'geometry.stroke',
-    stylers: [{ color: '#1a1c1e' }, { weight: 0.5 }],
+    stylers: [{ color: '#1a1916' }, { weight: 0.5 }],
   },
   {
     featureType: 'road.arterial',
     elementType: 'geometry',
-    stylers: [{ color: '#3a4248' }],
+    stylers: [{ color: '#353a3f' }],
   },
   {
     featureType: 'road.arterial',
     elementType: 'geometry.stroke',
-    stylers: [{ color: '#2a2e32' }, { weight: 0.8 }],
+    stylers: [{ color: '#2a2d30' }, { weight: 0.8 }],
   },
   {
     featureType: 'road.arterial',
@@ -446,7 +447,7 @@ export const DISCOVER_MAP_STYLE_DARK: MapStyleElement[] = [
   {
     featureType: 'road.highway',
     elementType: 'geometry',
-    stylers: [{ color: '#4a5a64' }],
+    stylers: [{ color: '#3d4a52' }],
   },
   {
     featureType: 'road.highway',
@@ -456,17 +457,17 @@ export const DISCOVER_MAP_STYLE_DARK: MapStyleElement[] = [
   {
     featureType: 'road.highway',
     elementType: 'labels.text.fill',
-    stylers: [{ color: '#97e6ec' }],
+    stylers: [{ color: '#85d3da' }],
   },
   {
     featureType: 'road.highway.controlled_access',
     elementType: 'geometry',
-    stylers: [{ color: '#526470' }],
+    stylers: [{ color: '#455560' }],
   },
   {
     featureType: 'road.highway.controlled_access',
     elementType: 'geometry.stroke',
-    stylers: [{ color: '#0a6870' }, { weight: 1.4 }],
+    stylers: [{ color: '#02b3be' }, { weight: 1.4 }],
   },
   {
     featureType: 'transit',
@@ -476,12 +477,12 @@ export const DISCOVER_MAP_STYLE_DARK: MapStyleElement[] = [
   {
     featureType: 'transit.line',
     elementType: 'geometry',
-    stylers: [{ color: '#1a4048' }],
+    stylers: [{ color: '#1a3f42' }],
   },
   {
     featureType: 'transit.station',
     elementType: 'geometry',
-    stylers: [{ color: '#1e3438' }],
+    stylers: [{ color: '#4a3520' }],
   },
   {
     featureType: 'water',
@@ -491,22 +492,22 @@ export const DISCOVER_MAP_STYLE_DARK: MapStyleElement[] = [
   {
     featureType: 'water',
     elementType: 'geometry.stroke',
-    stylers: [{ color: '#0d6870' }, { weight: 0.8 }],
+    stylers: [{ color: '#02b3be' }, { weight: 0.8 }],
   },
   {
     featureType: 'water',
     elementType: 'labels.text.fill',
-    stylers: [{ color: '#5aa8b4' }],
+    stylers: [{ color: '#4f98a3' }],
   },
   {
     featureType: 'building',
     elementType: 'geometry',
-    stylers: [{ color: '#22201c' }],
+    stylers: [{ color: '#252420' }],
   },
   {
     featureType: 'building',
     elementType: 'geometry.stroke',
-    stylers: [{ color: '#3a3630' }, { weight: 0.6 }],
+    stylers: [{ color: '#3f3c36' }, { weight: 0.6 }],
   },
 ];
 
