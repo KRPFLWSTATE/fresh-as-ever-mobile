@@ -220,17 +220,27 @@ function shortenDiscoverLocationLabel(label: string, maxLen = 24): string {
   return `${primary.slice(0, maxLen - 1)}…`;
 }
 
-/** Nav header pill: city + country/region when space is tight. */
+/** Nav header pill: city + short country code — ~16 chars fits the header slot. */
 function discoverNavPillLocationLabel(label: string): string {
-  const trimmed = label.trim();
-  if (!trimmed) return 'Colombo, LK';
-  const parts = trimmed.split(',').map((p) => p.trim()).filter(Boolean);
+  const main = discoverMainLocationLabel(label);
+  const parts = main.split(',').map((p) => p.trim()).filter(Boolean);
   if (parts.length >= 2) {
-    const compact = `${parts[0]}, ${parts[parts.length - 1]}`;
-    if (compact.length <= 28) return compact;
-    return shortenDiscoverLocationLabel(compact, 26);
+    const country = parts[parts.length - 1]!;
+    const countryShort =
+      country === 'Sri Lanka'
+        ? 'LK'
+        : country.length <= 6
+          ? country
+          : country.slice(0, 6);
+    const city =
+      parts.find((p) =>
+        /colombo|dehiwala|kandy|galle|negombo|jaffna|matara/i.test(p),
+      ) ?? parts[0]!;
+    const compact = `${city}, ${countryShort}`;
+    if (compact.length <= 18) return compact;
+    return shortenDiscoverLocationLabel(city, 16);
   }
-  return shortenDiscoverLocationLabel(trimmed, 26);
+  return shortenDiscoverLocationLabel(main, 16);
 }
 
 /** Current-location row: prefer readable locality + country over full reverse-geocode. */
@@ -242,7 +252,10 @@ function discoverMainLocationLabel(label: string): string {
   if (parts.length >= 2) {
     const country = parts[parts.length - 1]!;
     const locality =
-      parts.find((p) => /colombo|^\d{5}$/i.test(p)) ??
+      parts.find((p) =>
+        /colombo|dehiwala|kandy|galle|negombo|jaffna|matara/i.test(p),
+      ) ??
+      parts.find((p) => /^\d{5}$/.test(p)) ??
       parts.slice(0, 2).join(', ');
     const compact = `${locality}, ${country}`;
     if (compact.length <= 36) return compact;
@@ -293,10 +306,9 @@ function DiscoverLocationPill(props: {
         paddingHorizontal: spacing.sm,
         paddingVertical: 6,
         borderRadius: 999,
-        maxWidth: 168,
+        maxWidth: 188,
         minWidth: 0,
         flexShrink: 1,
-        flex: 1,
         opacity: pressed ? 0.85 : 1,
         backgroundColor: pressed ? colors.surface2 : 'transparent',
       })}
@@ -1039,8 +1051,8 @@ export function DiscoverScreen() {
   );
 
   const locationPillLabel = useMemo(
-    () => discoverNavPillLocationLabel(locationDisplayLabel),
-    [locationDisplayLabel],
+    () => discoverNavPillLocationLabel(locationShortLabel),
+    [locationShortLabel],
   );
 
   const isGuestDiscover = session == null;
@@ -1254,15 +1266,17 @@ export function DiscoverScreen() {
     });
   }, [locationSheetOpen, locationSheetMode, focusPlaceSearchInput]);
 
-  const renderHeaderRight = useCallback(
-    () => (
-      <DiscoverLocationPill label={locationPillLabel} onPress={openLocationSheet} />
-    ),
-    [locationPillLabel, openLocationSheet],
-  );
   useLayoutEffect(() => {
-    navigation.setOptions({ headerRight: renderHeaderRight });
-  }, [navigation, renderHeaderRight]);
+    navigation.setOptions({
+      headerRight: () => (
+        <DiscoverLocationPill
+          key={locationPillLabel}
+          label={locationPillLabel}
+          onPress={openLocationSheet}
+        />
+      ),
+    });
+  }, [navigation, locationPillLabel, openLocationSheet]);
 
   useEffect(() => {
     scheduleMicrotask(() => {
@@ -1606,6 +1620,31 @@ export function DiscoverScreen() {
     [discoverMapMarkers, selectedMarkerKey],
   );
 
+  const highlightedOutletId = selectedRescueMarker?.outletId ?? null;
+
+  /** Keep the feed in view when a pin is selected — map preview + list row stay linked. */
+  const scrollFeedToMarker = useCallback(
+    (marker: DiscoverMapOutletMarker) => {
+      const idx = listFeed.findIndex((item) => {
+        const outletId =
+          item.kind === 'bag'
+            ? (item as unknown as DiscoverBag).outlet_id
+            : item.outlet_id;
+        if (marker.outletId && outletId) {
+          return String(outletId) === marker.outletId;
+        }
+        return item.id === marker.feedItemId;
+      });
+      if (idx < 0) return;
+      feedListRef.current?.scrollToIndex({
+        index: idx,
+        animated: true,
+        viewPosition: 0.4,
+      });
+    },
+    [listFeed],
+  );
+
   /**
    * First tap on a pin selects it: haptic tick, pin swells, camera eases over,
    * and the preview card slides up — the page deliberately does NOT jump away
@@ -1621,12 +1660,13 @@ export function DiscoverScreen() {
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
       setSelectedMarkerKey(marker.markerKey);
       setFollowingUser(false);
+      scrollFeedToMarker(marker);
       mapRef.current?.animateCamera(
         { center: marker.coordinate },
         { duration: 320 },
       );
     },
-    [openRescueMarker, selectedMarkerKey],
+    [openRescueMarker, scrollFeedToMarker, selectedMarkerKey],
   );
 
   const openRescueFromPreview = useCallback(
@@ -2456,8 +2496,18 @@ export function DiscoverScreen() {
               </View>
             )
           }
-          renderItem={({ item }) => (
+          renderItem={({ item }) => {
+            const outletId =
+              item.kind === 'bag'
+                ? (item as unknown as DiscoverBag).outlet_id
+                : item.outlet_id;
+            const mapHighlighted =
+              highlightedOutletId != null &&
+              outletId != null &&
+              String(outletId) === highlightedOutletId;
+            return (
             <View style={styles.listRowGutter}>
+              <View style={mapHighlighted ? styles.feedRowMapLinked : undefined}>
               {item.kind === 'shelf' && isClearanceShelvesEnabled() ? (
                 <DiscoverShelfCard
                   item={item}
@@ -2477,8 +2527,10 @@ export function DiscoverScreen() {
                   radii={radii}
                 />
               ) : null}
+              </View>
             </View>
-          )}
+            );
+          }}
         />
       )}
 
@@ -2898,6 +2950,11 @@ function useDiscoverStyles(
         },
         listRowGutter: {
           paddingHorizontal: spacing.pageMarginMobile,
+        },
+        feedRowMapLinked: {
+          borderWidth: 2,
+          borderColor: colors.primaryContainer,
+          borderRadius: radii.xl + 2,
         },
         listHdrBlock: {
           flexDirection: 'row',
