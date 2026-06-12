@@ -1,0 +1,6 @@
+{"ts":"2026-06-13T00:00:00Z","step":"supabase_bakehouse_coords","result":"pass","detail":"POINT(79.8521 6.908); EWKB hex decodes to lat=6.908 lng=79.8521"}
+{"ts":"2026-06-13T00:01:00Z","step":"supabase_nearby_bags_rpc","result":"pass","detail":"1 bag within 15km; outlet_name=Bakehouse Kollupitiya; distance_km=2.34"}
+{"ts":"2026-06-13T00:02:00Z","step":"supabase_merchant_name_propagation","result":"pass","detail":"Temp rename to Bakehouse QA Pass16 visible in nearby_bags; reverted"}
+{"ts":"2026-06-13T00:03:00Z","step":"jest_coord_markers_feed","result":"pass","detail":"33/33 tests parseOutletCoords discoverMapMarkers fetchScopedNearbyBags discoverFeed"}
+{"ts":"2026-06-13T00:04:00Z","step":"typecheck","result":"pass","detail":"tsc --noEmit exit 0"}
+{"ts":"2026-06-13T00:05:00Z","step":"appium_customer_discover","result":"pass","detail":"4 map markers; Bakehouse bag+shelf in feed; screenshot 01-customer-discover-map-feed.png"}
