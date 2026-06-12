@@ -35,6 +35,8 @@
 		7A6B19F1D565C8A512FA07E7 /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-FreshAsEverMobile/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
 		81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = FreshAsEverMobile/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		9DB1417C72A34333B697B35F /* PlusJakartaSans-SemiBold.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "PlusJakartaSans-SemiBold.ttf"; path = "../assets/fonts/PlusJakartaSans-SemiBold.ttf"; sourceTree = "<group>"; };
+		A1B2C3D41E5F678901234501 /* Maps.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = Maps.debug.xcconfig; path = Maps.debug.xcconfig; sourceTree = "<group>"; };
+		A1B2C3D41E5F678901234502 /* Maps.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = Maps.release.xcconfig; path = Maps.release.xcconfig; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 		F1A2B3C32E5F6789012345A6 /* FreshAsEverEnvironment.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = FreshAsEverEnvironment.mm; path = FreshAsEverMobile/FreshAsEverEnvironment.mm; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -100,6 +102,7 @@
 				83CBBA001A601CBA00E9B192 /* Products */,
 				2D16E6871FA4F8E400B85C8A /* Frameworks */,
 				BBD78D7AC51CEA395F1C20DB /* Pods */,
+				A1B2C3D41E5F678901234503 /* Config */,
 				23881FBC16A448BEAAF359B4 /* Resources */,
 				EAC592969999145415EDA4DA /* ExpoModulesProviders */,
 			);
@@ -114,6 +117,15 @@
 				13B07F961A680F5B00A75B9A /* FreshAsEverMobile.app */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		A1B2C3D41E5F678901234503 /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				A1B2C3D41E5F678901234501 /* Maps.debug.xcconfig */,
+				A1B2C3D41E5F678901234502 /* Maps.release.xcconfig */,
+			);
+			name = Config;
 			sourceTree = "<group>";
 		};
 		BBD78D7AC51CEA395F1C20DB /* Pods */ = {
@@ -328,7 +340,7 @@
 /* Begin XCBuildConfiguration section */
 		13B07F941A680F5B00A75B9A /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 3B4392A12AC88292D35C810B /* Pods-FreshAsEverMobile.debug.xcconfig */;
+			baseConfigurationReference = A1B2C3D41E5F678901234501 /* Maps.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
@@ -360,7 +372,7 @@
 		};
 		13B07F951A680F5B00A75B9A /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 5709B34CF0A7D63546082F79 /* Pods-FreshAsEverMobile.release.xcconfig */;
+			baseConfigurationReference = A1B2C3D41E5F678901234502 /* Maps.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;

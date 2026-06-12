@@ -87,6 +87,7 @@ jest.mock('react-native-maps', () => {
     default: MockMap,
     Marker: () => React.createElement('mock-marker'),
     PROVIDER_DEFAULT: 'default',
+    PROVIDER_GOOGLE: 'google',
   };
 });
 

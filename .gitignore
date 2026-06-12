@@ -41,6 +41,7 @@ local.properties
 .env.*.local
 !.env.example
 .env.sentry-build-plugin
+ios/Maps.local.xcconfig
 
 # node.js
 #

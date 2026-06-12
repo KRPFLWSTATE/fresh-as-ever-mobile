@@ -26,10 +26,14 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Svg, { Defs, LinearGradient as SvgLinearGradient, Rect, Stop } from 'react-native-svg';
-import MapView, { PROVIDER_DEFAULT } from 'react-native-maps';
+import MapView from 'react-native-maps';
 import type { Camera, MapType, Region } from 'react-native-maps';
 import * as Haptics from 'expo-haptics';
-import { mapStyleForScheme } from '@/lib/mapStyles';
+import {
+  discoverMapProvider,
+  discoverMapStyleForScheme,
+  discoverMapUsesGoogleTiles,
+} from '@/lib/discoverMapStyle';
 
 import {
   RouteProp,
@@ -894,7 +898,10 @@ export function DiscoverScreen() {
     [windowHeight],
   );
   const styles = useDiscoverStyles(colors, spacing, radii, mapHeight);
-  const customMapStyle = useMemo(() => mapStyleForScheme(colorScheme), [colorScheme]);
+  const customMapStyle = useMemo(
+    () => discoverMapStyleForScheme(colorScheme),
+    [colorScheme],
+  );
   const searchRef = useRef<TextInput>(null);
   const mapRef = useRef<MapView>(null);
   const feedListRef = useRef<FlatList<DiscoverFeedItem>>(null);
@@ -1828,7 +1835,7 @@ export function DiscoverScreen() {
         const p =
           typeof cam.pitch === 'number' && Number.isFinite(cam.pitch) ? cam.pitch : pitch;
 
-        if (Platform.OS === 'android') {
+        if (Platform.OS === 'android' || discoverMapUsesGoogleTiles) {
           let z =
             typeof cam.zoom === 'number' && Number.isFinite(cam.zoom) ? cam.zoom : 14;
           z +=
@@ -2216,7 +2223,7 @@ export function DiscoverScreen() {
         <Animated.View style={[styles.mapInner, mapIntroStyle]}>
           <MapView
             ref={mapRef}
-            provider={PROVIDER_DEFAULT}
+            provider={discoverMapProvider}
             style={styles.map}
             mapType={discoverMapType}
             zoomEnabled
@@ -2230,11 +2237,9 @@ export function DiscoverScreen() {
             scrollEnabled
             initialCamera={initialCamera}
             /**
-             * `customMapStyle` only affects the Google Maps provider (Android, or
-             * iOS with `PROVIDER_GOOGLE`) — on iOS with `PROVIDER_DEFAULT` (Apple
-             * Maps) it's ignored. We instead pass `userInterfaceStyle` so Apple
-             * Maps re-renders in the matching scheme regardless of the OS-level
-             * appearance.
+             * Branded Fresh As Ever surface via Google Maps JSON styles
+             * (`discoverMapStyle.ts`). Requires the Google Maps SDK on iOS
+             * (Podfile `Google` subspec + `GMSApiKey` in Info.plist).
              */
             customMapStyle={customMapStyle}
             userInterfaceStyle={colorScheme}

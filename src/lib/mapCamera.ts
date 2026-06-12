@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
 import type { Camera } from 'react-native-maps';
+import { discoverMapUsesGoogleTiles } from '@/lib/discoverMapStyle';
 
 const IOS_MAP_ALTITUDE_MIN_M = 120;
 const IOS_MAP_ALTITUDE_MAX_M = 45_000_000;
@@ -27,7 +28,7 @@ export function discoverMapAnimateCamera(
     center: { latitude: center.lat, longitude: center.lng },
     pitch,
   };
-  if (Platform.OS === 'ios') {
+  if (Platform.OS === 'ios' && !discoverMapUsesGoogleTiles) {
     cam.altitude = iosMapAltitudeForZoom(zoom);
   } else {
     cam.zoom = zoom;

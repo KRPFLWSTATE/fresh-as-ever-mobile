@@ -16,4 +16,6 @@ declare module '@env' {
   export const EXPO_PUBLIC_CLEARANCE_SHELVES_ENABLED: string | undefined;
   /** Sentry client DSN — optional; omit to disable crash reporting locally. */
   export const SENTRY_DSN: string | undefined;
+  /** Google Maps SDK key — branded Discover map tiles (see `.env.example`). */
+  export const GOOGLE_MAPS_API_KEY: string | undefined;
 }
