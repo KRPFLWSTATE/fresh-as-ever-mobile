@@ -34,6 +34,8 @@ export type DiscoverFeedMarkerSource = {
   outlet_lng?: number | null;
   category?: string | null;
   outlet_category?: string | null;
+  /** Remaining bag stock (bags only) — surfaces low-stock urgency on the map pin. */
+  quantity_remaining?: number | null;
 };
 
 export type DiscoverMarkerKind =
@@ -57,6 +59,13 @@ export type DiscoverMapOutletMarker = {
   feedKind: 'bag' | 'shelf';
   feedItemId: string;
   title: string;
+  /**
+   * Total rescue bags left across the outlet's bag listings, or null when no
+   * bag row carries a finite `quantity_remaining` (e.g. shelf-only outlets).
+   */
+  bagsLeft: number | null;
+  /** Outlet also has a live clearance shelf in the current feed. */
+  hasShelf: boolean;
   coordinate: { latitude: number; longitude: number };
 };
 
@@ -175,14 +184,12 @@ function pickPrimaryFeedItem(
 export function buildDiscoverMapMarkersFromFeed(
   feedItems: readonly DiscoverFeedMarkerSource[],
   options?: {
-    demo?: boolean;
     onSkipInvalid?: (
       item: DiscoverFeedMarkerSource,
       reason: 'missing-coords' | 'invalid-coords',
     ) => void;
   },
 ): DiscoverMapOutletMarker[] {
-  const demo = options?.demo ?? false;
   const buckets = new Map<
     string,
     { lat: number; lng: number; items: DiscoverFeedMarkerSource[] }
@@ -220,6 +227,14 @@ export function buildDiscoverMapMarkersFromFeed(
       hasShelf,
     );
     const primary = pickPrimaryFeedItem(items, markerKind);
+    let bagsLeft: number | null = null;
+    for (const item of items) {
+      if (item.kind !== 'bag') continue;
+      const qty = item.quantity_remaining;
+      if (typeof qty === 'number' && Number.isFinite(qty) && qty >= 0) {
+        bagsLeft = (bagsLeft ?? 0) + qty;
+      }
+    }
     draft.push({
       markerKey: key,
       outletId: primary.outlet_id?.trim() ? String(primary.outlet_id) : null,
@@ -231,6 +246,8 @@ export function buildDiscoverMapMarkersFromFeed(
       feedKind: primary.kind,
       feedItemId: primary.id,
       title: markerTitle(primary),
+      bagsLeft,
+      hasShelf,
       coordinate: { latitude: lat, longitude: lng },
     });
   }
@@ -243,12 +260,18 @@ export function buildDiscoverMapMarkersFromFeed(
     outlet_lng: m.lng,
   }));
 
+  /**
+   * Markers are already deduped per outlet, so two pins in the same coord
+   * group are two *different outlets* in the same building. Fan them out a
+   * few metres (not just in demo mode) so both stay visible and tappable —
+   * a ~22 m nudge is sub-pixel at city zoom and honest enough up close.
+   */
   return draft.map((m) => ({
     ...m,
     coordinate: getDiscoverMarkerCoordinate(
       { id: m.markerKey, outlet_lat: m.lat, outlet_lng: m.lng },
       coordInputs,
-      demo,
+      true,
     ),
   }));
 }

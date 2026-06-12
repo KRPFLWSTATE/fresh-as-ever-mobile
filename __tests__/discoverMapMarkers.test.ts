@@ -107,6 +107,50 @@ describe('buildDiscoverMapMarkersFromFeed', () => {
     expect(markers).toHaveLength(1);
     expect(markers[0]?.outletId).toBe(outletId);
     expect(markers[0]?.markerKind).toBe('hybrid');
+    expect(markers[0]?.hasShelf).toBe(true);
+  });
+
+  test('sums remaining bag stock per outlet for low-stock pins', () => {
+    const markers = buildDiscoverMapMarkersFromFeed([
+      {
+        kind: 'bag',
+        id: 'bag-1',
+        outlet_id: outletId,
+        outlet_lat: 6.9147,
+        outlet_lng: 79.8655,
+        category: 'bakery',
+        quantity_remaining: 2,
+      },
+      {
+        kind: 'bag',
+        id: 'bag-2',
+        outlet_id: outletId,
+        outlet_lat: 6.9147,
+        outlet_lng: 79.8655,
+        category: 'bakery',
+        quantity_remaining: 1,
+      },
+    ]);
+
+    expect(markers).toHaveLength(1);
+    expect(markers[0]?.bagsLeft).toBe(3);
+    expect(markers[0]?.hasShelf).toBe(false);
+  });
+
+  test('bagsLeft is null when no bag carries a finite quantity', () => {
+    const markers = buildDiscoverMapMarkersFromFeed([
+      {
+        kind: 'shelf',
+        id: 'shelf-1',
+        outlet_id: outletId,
+        outlet_lat: 6.9147,
+        outlet_lng: 79.8655,
+        category: 'supermarket',
+      },
+    ]);
+
+    expect(markers).toHaveLength(1);
+    expect(markers[0]?.bagsLeft).toBeNull();
   });
 
   test('skips invalid coords and reports reason', () => {

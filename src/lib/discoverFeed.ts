@@ -5,6 +5,7 @@ import {
   canPublishClearanceShelves,
   canPublishRescueBags,
 } from '@/lib/outletListingMode';
+import { parseOutletCoords } from '@/lib/parseOutletCoords';
 import type { getSupabase } from '@/lib/supabase';
 
 export type DiscoverFeedItem =
@@ -79,8 +80,8 @@ export function mapShelfToFeedItem(shelf: Record<string, unknown>): DiscoverFeed
     savingsPercents.length > 0 ? Math.max(...savingsPercents) : undefined;
   const outlet = (shelf.outlet ?? {}) as Record<string, unknown>;
   const merchant = outlet.merchant as Record<string, unknown> | undefined;
-  const loc = outlet.location as { coordinates?: number[] } | undefined;
-  const coords = loc?.coordinates;
+  // Handles GeoJSON, WKT, and the raw EWKB hex PostgREST actually returns.
+  const coords = parseOutletCoords(outlet.location);
   return {
     kind: 'shelf',
     id: String(shelf.id),
@@ -91,8 +92,8 @@ export function mapShelfToFeedItem(shelf: Record<string, unknown>): DiscoverFeed
     pickup_end: shelf.pickup_end as string | undefined,
     outlet_id: shelf.outlet_id as string | undefined,
     outlet_name: (outlet.name ?? outlet.business_name) as string | undefined,
-    outlet_lat: coords?.[1] ?? null,
-    outlet_lng: coords?.[0] ?? null,
+    outlet_lat: coords?.lat ?? null,
+    outlet_lng: coords?.lng ?? null,
     category: outlet.category as string | undefined,
     merchant_name: merchant?.business_name as string | undefined,
     trust_score: outlet.trust_score as number | undefined,

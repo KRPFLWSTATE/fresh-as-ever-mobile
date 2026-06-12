@@ -208,7 +208,14 @@ function mapRow(row: Record<string, unknown>): DiscoverBag {
     outlet_id: outletIdRaw,
     outlet_lat: outletLat ?? undefined,
     outlet_lng: outletLng ?? undefined,
-    outlet_name: outlet?.name != null ? String(outlet.name) : null,
+    // `nearby_bags` RPC rows are flat (outlet_name column); fallback/supplement
+    // paths nest the outlet join. Read both so names survive either shape.
+    outlet_name:
+      row.outlet_name != null
+        ? String(row.outlet_name)
+        : outlet?.name != null
+          ? String(outlet.name)
+          : null,
     distance_km: Number.isFinite(distance) ? distance : null,
     quantity_remaining:
       typeof row.quantity_remaining === 'number'

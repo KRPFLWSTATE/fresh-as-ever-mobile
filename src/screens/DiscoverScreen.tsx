@@ -26,8 +26,9 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Svg, { Defs, LinearGradient as SvgLinearGradient, Rect, Stop } from 'react-native-svg';
-import MapView, { Marker, PROVIDER_DEFAULT } from 'react-native-maps';
+import MapView, { PROVIDER_DEFAULT } from 'react-native-maps';
 import type { Camera, MapType, Region } from 'react-native-maps';
+import * as Haptics from 'expo-haptics';
 import { mapStyleForScheme } from '@/lib/mapStyles';
 
 import {
@@ -64,7 +65,6 @@ import {
 } from '@/lib/locationApi';
 import { isRunningInSimulator } from '@/lib/isRunningInSimulator';
 import { isPlausibleUserCoords } from '@/lib/normalizeUserCoords';
-import { isDemoMode } from '@/config/demoMode';
 import {
   DISCOVER_EMPTY_COPY,
   parseDiscoverState,
@@ -77,8 +77,13 @@ import {
   assertUniqueNearbyBagIds,
   buildDiscoverMapMarkersFromFeed,
   type DiscoverFeedMarkerSource,
+  type DiscoverMapOutletMarker,
 } from '@/lib/discoverMapMarkers';
-import { DiscoverMapMarker } from '@/components/DiscoverMapMarker';
+import { RescueMarker } from '@/components/discover-map/RescueMarker';
+import { UserLocationPulse } from '@/components/discover-map/UserLocationPulse';
+import { MapControlRail } from '@/components/discover-map/MapControlRail';
+import { RescueCountChip } from '@/components/discover-map/RescueCountChip';
+import { SelectedRescuePreview } from '@/components/discover-map/SelectedRescuePreview';
 import { discoverMapAnimateCamera, DISCOVER_MAP_ZOOM } from '@/lib/mapCamera';
 import { getSupabase } from '@/lib/supabase';
 import type { StitchTheme } from '@/theme/StitchThemeContext';
@@ -867,8 +872,13 @@ export function DiscoverScreen() {
   const { height: windowHeight } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const isFocused = useIsFocused();
+  /**
+   * Taller than the old 34% block — the map is now a direct pan/zoom surface
+   * (map-first touch zone), so it earns more room while the feed stays the
+   * dominant scroll area below.
+   */
   const mapHeight = useMemo(
-    () => Math.round(Math.min(Math.max(windowHeight * 0.34, 220), 400)),
+    () => Math.round(Math.min(Math.max(windowHeight * 0.42, 250), 460)),
     [windowHeight],
   );
   const styles = useDiscoverStyles(colors, spacing, radii, mapHeight);
@@ -930,6 +940,19 @@ export function DiscoverScreen() {
   /** After AsyncStorage map prefs load — gates MapView mount + pitch animation. */
   const [mapViewPrefsHydrated, setMapViewPrefsHydrated] = useState(false);
   const [locationSheetOpen, setLocationSheetOpen] = useState(false);
+  /**
+   * Map pin selection — drives the swollen pin state and the slide-up rescue
+   * preview card. Cleared by tapping the map background or the card's ×.
+   */
+  const [selectedMarkerKey, setSelectedMarkerKey] = useState<string | null>(null);
+  /**
+   * True once the user pans/zooms the map themselves — programmatic camera
+   * moves (fit-to-pins, follow, recenter) shouldn't surface "Search this
+   * area", only a deliberate exploration gesture should.
+   */
+  const [mapExploredByGesture, setMapExploredByGesture] = useState(false);
+  /** One-time entry motion for the whole map block after prefs hydrate. */
+  const mapIntro = useRef(new Animated.Value(0)).current;
 
   /**
    * Road/vector map only — `hybrid` / `hybridFlyover` read as satellite-style to users.
@@ -1100,8 +1123,6 @@ export function DiscoverScreen() {
     userLocation.lat,
     userLocation.lng,
   ]);
-  const discoverMapMarkersDemo = isDemoMode();
-
   const discoverMapMarkerFeed = useMemo((): DiscoverFeedMarkerSource[] => {
     return listFeed.map((item) => {
       if (item.kind === 'shelf') {
@@ -1126,6 +1147,7 @@ export function DiscoverScreen() {
         outlet_lng: bag.outlet_lng,
         category: bag.category,
         outlet_category: bag.outlet_category,
+        quantity_remaining: bag.quantity_remaining,
       };
     });
   }, [listFeed]);
@@ -1133,7 +1155,6 @@ export function DiscoverScreen() {
   const discoverMapMarkers = useMemo(
     () =>
       buildDiscoverMapMarkersFromFeed(discoverMapMarkerFeed, {
-        demo: discoverMapMarkersDemo,
         onSkipInvalid: __DEV__
           ? (item, reason) => {
               // eslint-disable-next-line no-console -- dev-only map QA
@@ -1141,20 +1162,60 @@ export function DiscoverScreen() {
             }
           : undefined,
       }),
-    [discoverMapMarkerFeed, discoverMapMarkersDemo],
+    [discoverMapMarkerFeed],
   );
 
+  /**
+   * Camera framing for the rescue pin set. A single pin gets a comfortable
+   * city-block zoom (fitToCoordinates on one point slams to max zoom);
+   * multiple pins are fitted with padding that clears the floating chrome.
+   */
+  const frameRescuePins = useCallback(
+    (animated: boolean) => {
+      const map = mapRef.current;
+      if (!map || discoverMapMarkers.length === 0) return;
+      if (discoverMapMarkers.length === 1) {
+        const only = discoverMapMarkers[0]!;
+        map.animateCamera(
+          discoverMapAnimateCamera(
+            { lat: only.coordinate.latitude, lng: only.coordinate.longitude },
+            map3DEnabled ? PITCHED_CAMERA_DEGREES : FLAT_CAMERA_DEGREES,
+            DISCOVER_MAP_ZOOM,
+          ),
+          { duration: animated ? 420 : 0 },
+        );
+        return;
+      }
+      map.fitToCoordinates(
+        discoverMapMarkers.map((m) => m.coordinate),
+        {
+          edgePadding: { top: 90, right: 70, bottom: 100, left: 70 },
+          animated,
+        },
+      );
+    },
+    [discoverMapMarkers, map3DEnabled],
+  );
+
+  /**
+   * Frame all rescue pins when the *set of outlets* changes — not on every
+   * feed refetch (identity churn) and never while the user is mid-exploration
+   * with the same pins, so panning is never yanked back by a background
+   * refresh. First framing is instant; later ones glide.
+   */
+  const lastMarkerFitSignatureRef = useRef<string | null>(null);
   useEffect(() => {
     if (!mapViewPrefsHydrated || discoverMapMarkers.length === 0) return;
+    const signature = discoverMapMarkers
+      .map((m) => m.markerKey)
+      .sort()
+      .join('|');
+    if (lastMarkerFitSignatureRef.current === signature) return;
+    const firstFit = lastMarkerFitSignatureRef.current === null;
+    lastMarkerFitSignatureRef.current = signature;
     setFollowingUser(false);
-    mapRef.current?.fitToCoordinates(
-      discoverMapMarkers.map((m) => m.coordinate),
-      {
-        edgePadding: { top: 48, right: 48, bottom: 48, left: 48 },
-        animated: false,
-      },
-    );
-  }, [discoverMapMarkers, mapViewPrefsHydrated]);
+    frameRescuePins(!firstFit);
+  }, [discoverMapMarkers, frameRescuePins, mapViewPrefsHydrated]);
 
   const openLocationSheet = useCallback(() => {
     setLocationSheetMode('menu');
@@ -1516,21 +1577,9 @@ export function DiscoverScreen() {
     [navigation],
   );
 
-  const scrollFeedToMarker = useCallback(
-    (marker: (typeof discoverMapMarkers)[number]) => {
-      const idx = listFeed.findIndex((item) => item.id === marker.feedItemId);
-      if (idx < 0) return;
-      feedListRef.current?.scrollToIndex({
-        index: idx,
-        animated: true,
-        viewPosition: 0.15,
-      });
-    },
-    [listFeed],
-  );
-
-  const onDiscoverMapMarkerPress = useCallback(
-    (marker: (typeof discoverMapMarkers)[number]) => {
+  /** Open the rescue behind a pin: outlet detail first, else bag/shelf detail. */
+  const openRescueMarker = useCallback(
+    (marker: DiscoverMapOutletMarker) => {
       if (marker.outletId) {
         openOutlet(marker.outletId);
         return;
@@ -1542,6 +1591,49 @@ export function DiscoverScreen() {
       openBag(marker.feedItemId);
     },
     [openBag, openOutlet, openShelf],
+  );
+
+  const deselectRescueMarker = useCallback(() => {
+    setSelectedMarkerKey(null);
+  }, []);
+
+  const selectedRescueMarker = useMemo(
+    () =>
+      selectedMarkerKey == null
+        ? null
+        : discoverMapMarkers.find((m) => m.markerKey === selectedMarkerKey) ??
+          null,
+    [discoverMapMarkers, selectedMarkerKey],
+  );
+
+  /**
+   * First tap on a pin selects it: haptic tick, pin swells, camera eases over,
+   * and the preview card slides up — the page deliberately does NOT jump away
+   * from the map. Tapping the already-selected pin (or the preview card)
+   * opens the rescue.
+   */
+  const onRescueMarkerPress = useCallback(
+    (marker: DiscoverMapOutletMarker) => {
+      if (selectedMarkerKey === marker.markerKey) {
+        openRescueMarker(marker);
+        return;
+      }
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+      setSelectedMarkerKey(marker.markerKey);
+      setFollowingUser(false);
+      mapRef.current?.animateCamera(
+        { center: marker.coordinate },
+        { duration: 320 },
+      );
+    },
+    [openRescueMarker, selectedMarkerKey],
+  );
+
+  const openRescueFromPreview = useCallback(
+    (marker: DiscoverMapOutletMarker) => {
+      openRescueMarker(marker);
+    },
+    [openRescueMarker],
   );
 
   /**
@@ -1569,14 +1661,12 @@ export function DiscoverScreen() {
    */
   const onMapReady = useCallback(() => {
     if (discoverMapMarkers.length > 0) {
+      lastMarkerFitSignatureRef.current = discoverMapMarkers
+        .map((m) => m.markerKey)
+        .sort()
+        .join('|');
       setFollowingUser(false);
-      mapRef.current?.fitToCoordinates(
-        discoverMapMarkers.map((m) => m.coordinate),
-        {
-          edgePadding: { top: 48, right: 48, bottom: 48, left: 48 },
-          animated: false,
-        },
-      );
+      frameRescuePins(false);
       return;
     }
     if (!bootstrappedToUserRef.current || !hasLiveUserLocation) {
@@ -1592,42 +1682,38 @@ export function DiscoverScreen() {
     );
   }, [
     discoverMapMarkers,
+    frameRescuePins,
     hasLiveUserLocation,
     map3DEnabled,
     userLocation.lat,
     userLocation.lng,
   ]);
 
+  /**
+   * Fires only for real finger drags on the map (never for programmatic
+   * camera moves) — the reliable "user is exploring" signal. Some iOS builds
+   * don't deliver `isGesture` on `onRegionChangeComplete`, so this is the
+   * primary hook; the region-change check below is a fallback.
+   */
+  const onMapPanDrag = useCallback(() => {
+    setMapExploredByGesture(true);
+    setFollowingUser(false);
+  }, []);
+
   const handleRegionChangeComplete = useCallback(
-    (next: Region) => {
+    (next: Region, details?: { isGesture?: boolean }) => {
       setViewportCenter({ lat: next.latitude, lng: next.longitude });
-      // If the user has dragged the map away from where the blue dot currently is,
-      // stop snapping back. The "Recenter" FAB flips this on again.
-      // Map pan is disabled; only treat region drift as "user panned away" on device.
-      // Simulator follow animations can report >250 m lag and would spuriously stop follow.
-      if (
-        followingUser &&
-        hasLiveUserLocation &&
-        !simulatorLocationMode
-      ) {
-        const drift = haversineKm(
-          next.latitude,
-          next.longitude,
-          userLocation.lat,
-          userLocation.lng,
-        );
-        if (Number.isFinite(drift) && drift > 0.25) {
-          setFollowingUser(false);
-        }
+      // A finger on the map means the user is exploring — stop snapping the
+      // camera back to the blue dot and arm the "Search this area" pill.
+      // `isGesture` distinguishes their pan from our own programmatic camera
+      // moves (follow, fit, recenter), so this is reliable on simulator and
+      // device alike. The recenter rail button flips follow back on.
+      if (details?.isGesture) {
+        setMapExploredByGesture(true);
+        if (followingUser) setFollowingUser(false);
       }
     },
-    [
-      followingUser,
-      hasLiveUserLocation,
-      simulatorLocationMode,
-      userLocation.lat,
-      userLocation.lng,
-    ],
+    [followingUser],
   );
 
   const recenterOnUser = useCallback(() => {
@@ -1636,6 +1722,7 @@ export function DiscoverScreen() {
       return;
     }
     setFollowingUser(true);
+    setMapExploredByGesture(false);
     setCenter({ lat: userLocation.lat, lng: userLocation.lng });
     // Mirror the recenter target into `viewportCenter` synchronously so the
     // drift calc against `center` sees the matched value immediately. Without
@@ -1759,6 +1846,7 @@ export function DiscoverScreen() {
 
   const searchThisArea = useCallback(() => {
     setFollowingUser(false);
+    setMapExploredByGesture(false);
     const next = { lat: viewportCenter.lat, lng: viewportCenter.lng };
     setCenter(next);
     setViewportCenter(next);
@@ -1786,6 +1874,43 @@ export function DiscoverScreen() {
     viewportCenter.lng,
   ]);
 
+  /** Count chip tap: frame every pin, or pull fresh results when none in view. */
+  const frameAllRescues = useCallback(() => {
+    if (discoverMapMarkers.length === 0) {
+      searchThisArea();
+      return;
+    }
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    setFollowingUser(false);
+    frameRescuePins(true);
+  }, [discoverMapMarkers.length, frameRescuePins, searchThisArea]);
+
+  /** Map block entry: a quiet rise + fade once prefs hydrate and it mounts. */
+  useEffect(() => {
+    if (!mapViewPrefsHydrated) return;
+    Animated.timing(mapIntro, {
+      toValue: 1,
+      duration: 460,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [mapIntro, mapViewPrefsHydrated]);
+
+  const mapIntroStyle = useMemo(
+    () => ({
+      opacity: mapIntro,
+      transform: [
+        {
+          translateY: mapIntro.interpolate({
+            inputRange: [0, 1],
+            outputRange: [16, 0],
+          }),
+        },
+      ],
+    }),
+    [mapIntro],
+  );
+
   const viewportDriftKm = useMemo(
     () =>
       haversineKm(
@@ -1797,6 +1922,7 @@ export function DiscoverScreen() {
     [viewportCenter.lat, viewportCenter.lng, center.lat, center.lng],
   );
   const showSearchAreaCta =
+    mapExploredByGesture &&
     Number.isFinite(viewportDriftKm) &&
     viewportDriftKm >= SEARCH_AREA_KM_THRESHOLD;
 
@@ -2047,193 +2173,126 @@ export function DiscoverScreen() {
   const discoverMapBlock = (
     <View style={styles.mapWrap}>
       {mapViewPrefsHydrated ? (
-        <MapView
-          key={
-            discoverMapMarkers.length > 0
-              ? discoverMapMarkers.map((m) => m.markerKey).join('|')
-              : 'discover-map-empty'
-          }
-          ref={mapRef}
-          provider={PROVIDER_DEFAULT}
-          style={styles.map}
-          mapType={discoverMapType}
-          zoomEnabled
-          rotateEnabled
-          /**
-           * Nested in the screen `FlatList` / `ScrollView` so vertical drags scroll the
-           * page. Pinch / rotate / pitch still work; one-finger map pan is disabled —
-           * users scroll the feed vertically and use search / recenter / "Search this
-           * area" to reposition (RN nested-scroll pattern).
-           */
-          scrollEnabled={false}
-          initialCamera={initialCamera}
-          /**
-           * `customMapStyle` only affects the Google Maps provider (Android, or
-           * iOS with `PROVIDER_GOOGLE`) — on iOS with `PROVIDER_DEFAULT` (Apple
-           * Maps) it's ignored. We instead pass `userInterfaceStyle` so Apple
-           * Maps re-renders in the matching scheme regardless of the OS-level
-           * appearance, which keeps the live map in sync when the user
-           * overrides the theme via the `ProfileTheme` picker. In light mode
-           * `customMapStyle` is `undefined` so Google Maps falls back to its
-           * built-in standard style; in dark mode the inline Aubergine palette
-           * (`MAP_STYLE_DARK`) is applied.
-           */
-          customMapStyle={customMapStyle}
-          userInterfaceStyle={colorScheme}
-          showsUserLocation={hasLiveUserLocation}
-          showsMyLocationButton={false}
-          showsBuildings={map3DEnabled}
-          showsPointsOfInterests
-          pitchEnabled={map3DEnabled}
-          toolbarEnabled={false}
-          onMapReady={onMapReady}
-          onRegionChangeComplete={handleRegionChangeComplete}
-        >
-          {discoverMapMarkers.map((marker) => (
-            <DiscoverMapMarker
-              key={marker.markerKey}
-              marker={marker}
-              onPress={() => {
-                if (marker.outletId) {
-                  openOutlet(marker.outletId);
-                  return;
-                }
-                scrollFeedToMarker(marker);
-                onDiscoverMapMarkerPress(marker);
-              }}
-            />
-          ))}
-          {/**
-           * Fallback "you are here" ring: `showsUserLocation` uses the map SDK's own
-           * location pipeline, which can lag or omit the blue dot in nested-scroll maps
-           * or on simulators even when `@react-native-community/geolocation` already has
-           * a fix via `useUserLocation`. Mirroring the hook's coordinates keeps the user
-           * visible without fighting the native dot when it does appear (small hollow ring).
-           */}
-          {hasLiveUserLocation ? (
-            <Marker
-              coordinate={{
-                latitude: userLocation.lat,
-                longitude: userLocation.lng,
-              }}
-              anchor={{ x: 0.5, y: 0.5 }}
-              zIndex={2000}
-              tracksViewChanges={false}
-            >
-              <View
-                style={styles.discoverUserLocationRing}
-                pointerEvents="none"
-                accessibilityLabel="Your location"
+        <Animated.View style={[styles.mapInner, mapIntroStyle]}>
+          <MapView
+            ref={mapRef}
+            provider={PROVIDER_DEFAULT}
+            style={styles.map}
+            mapType={discoverMapType}
+            zoomEnabled
+            rotateEnabled
+            /**
+             * Map-first touch zone: one-finger pan, pinch, rotate and pitch all
+             * belong to the map now. The Discover page still scrolls naturally
+             * from the chrome above and the feed below — the map is no longer
+             * a dead rectangle you can only look at.
+             */
+            scrollEnabled
+            initialCamera={initialCamera}
+            /**
+             * `customMapStyle` only affects the Google Maps provider (Android, or
+             * iOS with `PROVIDER_GOOGLE`) — on iOS with `PROVIDER_DEFAULT` (Apple
+             * Maps) it's ignored. We instead pass `userInterfaceStyle` so Apple
+             * Maps re-renders in the matching scheme regardless of the OS-level
+             * appearance.
+             */
+            customMapStyle={customMapStyle}
+            userInterfaceStyle={colorScheme}
+            /**
+             * The native blue dot lags in nested maps / simulators; the pulsing
+             * `UserLocationPulse` marker below mirrors `useUserLocation` instead.
+             * Apple POI pins are hidden so rescue pins are the only food story
+             * on the surface.
+             */
+            showsUserLocation={false}
+            showsMyLocationButton={false}
+            showsBuildings={map3DEnabled}
+            showsPointsOfInterests={false}
+            pitchEnabled={map3DEnabled}
+            toolbarEnabled={false}
+            onMapReady={onMapReady}
+            onPress={deselectRescueMarker}
+            onPanDrag={onMapPanDrag}
+            onRegionChangeComplete={handleRegionChangeComplete}
+          >
+            {discoverMapMarkers.map((marker, index) => (
+              <RescueMarker
+                key={marker.markerKey}
+                marker={marker}
+                index={index}
+                selected={marker.markerKey === selectedMarkerKey}
+                onPress={() => onRescueMarkerPress(marker)}
               />
-            </Marker>
-          ) : null}
-        </MapView>
+            ))}
+            {hasLiveUserLocation ? (
+              <UserLocationPulse
+                coordinate={{
+                  latitude: userLocation.lat,
+                  longitude: userLocation.lng,
+                }}
+                color={colors.primaryContainer}
+              />
+            ) : null}
+          </MapView>
+
+          {movingFast ? (
+            <View style={styles.mapTopBanner}>
+              <StitchIcon
+                name="directions_car"
+                size={18}
+                colorKey="primaryContainer"
+              />
+              <StitchText
+                variant="body-sm"
+                colorKey="text"
+                style={styles.mapTopBannerTxt}
+                numberOfLines={2}
+              >
+                You're moving — auto-refresh paused. Pull down or tap below to update.
+              </StitchText>
+            </View>
+          ) : (
+            <>
+              <RescueCountChip
+                count={discoverMapMarkers.length}
+                onPress={frameAllRescues}
+              />
+              {showSearchAreaCta ? (
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={searchThisArea}
+                  style={styles.searchAreaBtn}
+                >
+                  <StitchIcon name="refresh" size={16} colorKey="onPrimary" />
+                  <StitchText variant="label" colorKey="onPrimary">
+                    Search this area
+                  </StitchText>
+                </Pressable>
+              ) : null}
+            </>
+          )}
+
+          <MapControlRail
+            showRecenter={locationStatus === 'granted'}
+            followingUser={followingUser}
+            map3DEnabled={map3DEnabled}
+            onRecenter={recenterOnUser}
+            onToggle3D={toggleMap3D}
+            onZoomIn={() => nudgeDiscoverMapZoom('in')}
+            onZoomOut={() => nudgeDiscoverMapZoom('out')}
+          />
+
+          <SelectedRescuePreview
+            marker={selectedRescueMarker}
+            onOpen={openRescueFromPreview}
+            onDismiss={deselectRescueMarker}
+          />
+        </Animated.View>
       ) : (
         <View style={styles.mapPlaceholder} accessibilityLabel="Loading map preferences">
           <ActivityIndicator size="small" color={colors.primaryContainer} />
         </View>
       )}
-
-        {movingFast ? (
-          <View style={styles.mapTopBanner}>
-            <StitchIcon
-              name="directions_car"
-              size={18}
-              colorKey="primaryContainer"
-            />
-            <StitchText
-              variant="body-sm"
-              colorKey="text"
-              style={styles.mapTopBannerTxt}
-              numberOfLines={2}
-            >
-              You're moving — auto-refresh paused. Pull down or tap below to update.
-            </StitchText>
-          </View>
-        ) : showSearchAreaCta ? (
-          <Pressable
-            accessibilityRole="button"
-            onPress={searchThisArea}
-            style={styles.searchAreaBtn}
-          >
-            <StitchIcon name="refresh" size={18} colorKey="onPrimary" />
-            <StitchText variant="label" colorKey="onPrimary">
-              Search this area
-            </StitchText>
-          </Pressable>
-        ) : null}
-
-        {mapViewPrefsHydrated ? (
-          <View style={styles.mapZoomStack} pointerEvents="box-none">
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Zoom map in"
-              onPress={() => nudgeDiscoverMapZoom('in')}
-              style={({ pressed }) => [
-                styles.mapZoomBtn,
-                pressed ? styles.mapZoomBtnPressed : null,
-              ]}
-            >
-              <StitchIcon name="add" size={22} colorKey="text" />
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Zoom map out"
-              onPress={() => nudgeDiscoverMapZoom('out')}
-              style={({ pressed }) => [
-                styles.mapZoomBtn,
-                pressed ? styles.mapZoomBtnPressed : null,
-              ]}
-            >
-              <StitchIcon name="remove" size={22} colorKey="text" />
-            </Pressable>
-          </View>
-        ) : null}
-
-        <Pressable
-          accessibilityRole="switch"
-          accessibilityState={{ checked: map3DEnabled }}
-          accessibilityLabel={
-            map3DEnabled ? 'Switch map to 2D view' : 'Switch map to 3D view'
-          }
-          onPress={toggleMap3D}
-          style={[
-            styles.mapDimToggleBtn,
-            locationStatus === 'granted'
-              ? styles.mapDimToggleAboveRecenter
-              : null,
-          ]}
-        >
-          <StitchIcon
-            name="terrain"
-            size={18}
-            colorKey={map3DEnabled ? 'primary' : 'textMuted'}
-          />
-          <StitchText
-            variant="label"
-            colorKey={map3DEnabled ? 'primary' : 'textMuted'}
-            style={styles.mapDimToggleLabel}
-          >
-            {map3DEnabled ? '3D' : '2D'}
-          </StitchText>
-        </Pressable>
-
-        {locationStatus === 'granted' ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={
-              followingUser ? 'Following your location' : 'Recenter on me'
-            }
-            onPress={recenterOnUser}
-            style={styles.recenterBtn}
-          >
-            <StitchIcon
-              name="my_location"
-              size={20}
-              colorKey={followingUser ? 'primary' : 'textMuted'}
-            />
-          </Pressable>
-        ) : null}
     </View>
   );
 
@@ -2793,6 +2852,7 @@ function useDiscoverStyles(
           backgroundColor: colors.surfaceContainerLow,
         },
         map: { flex: 1 },
+        mapInner: { flex: 1 },
         mapPlaceholder: {
           flex: 1,
           alignItems: 'center',
@@ -2814,102 +2874,19 @@ function useDiscoverStyles(
           ...stitchAmbientShadow,
         },
         mapTopBannerTxt: { flex: 1 },
-        discoverMapMarkerOuter: {
-          width: 48,
-          height: 48,
-          borderRadius: 24,
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: colors.surface,
-          borderWidth: 2.5,
-          ...stitchAmbientShadow,
-        },
-        discoverMapMarkerOuterDemo: {
-          width: 58,
-          height: 58,
-          borderRadius: 29,
-          borderWidth: 3.5,
-          ...stitchAmbientShadow,
-        },
-        discoverUserLocationRing: {
-          width: 34,
-          height: 34,
-          borderRadius: 17,
-          borderWidth: 3,
-          borderColor: colors.accent,
-          backgroundColor: 'transparent',
-        },
+        /** "Search this area" — top-right, opposite the rescue count chip. */
         searchAreaBtn: {
           position: 'absolute',
-          top: spacing.sm,
-          alignSelf: 'center',
+          top: 10,
+          right: spacing.sm,
           flexDirection: 'row',
           alignItems: 'center',
           gap: 6,
-          paddingHorizontal: spacing.md,
-          paddingVertical: 10,
+          paddingHorizontal: spacing.sm,
+          paddingVertical: 8,
           borderRadius: 999,
           backgroundColor: colors.primaryContainer,
           ...stitchAmbientShadow,
-        },
-        /**
-         * Zoom +/- FABs — left gutter mirrors the recenter / 2D·3D cluster on the right.
-         */
-        mapZoomStack: {
-          position: 'absolute',
-          left: spacing.md,
-          bottom: spacing.md,
-          gap: spacing.xs,
-        },
-        mapZoomBtn: {
-          width: 44,
-          height: 44,
-          borderRadius: 22,
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: colors.surface,
-          ...stitchAmbientShadow,
-        },
-        mapZoomBtnPressed: {
-          opacity: 0.92,
-        },
-        recenterBtn: {
-          position: 'absolute',
-          right: spacing.md,
-          bottom: spacing.md,
-          width: 44,
-          height: 44,
-          borderRadius: 22,
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: colors.surface,
-          ...stitchAmbientShadow,
-        },
-        /**
-         * 2D/3D toggle pill — sits in the same bottom-right column as the recenter
-         * FAB, stacked above it when location permission is granted (so they share
-         * the affordance gutter), or in the FAB's own slot when location is
-         * denied/pending.
-         */
-        mapDimToggleBtn: {
-          position: 'absolute',
-          right: spacing.md,
-          bottom: spacing.md,
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: spacing.xs,
-          paddingHorizontal: spacing.sm,
-          height: 36,
-          borderRadius: 18,
-          backgroundColor: colors.surface,
-          ...stitchAmbientShadow,
-        },
-        mapDimToggleAboveRecenter: {
-          bottom: spacing.md + 44 + spacing.xs,
-        },
-        mapDimToggleLabel: {
-          minWidth: 18,
-          textAlign: 'center',
         },
         list: {
           flex: 1,
