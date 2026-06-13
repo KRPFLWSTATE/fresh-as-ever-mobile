@@ -141,4 +141,32 @@ describe('filterDiscoverFeedByMerchantStatus', () => {
       }),
     ).toBe(false);
   });
+
+  it('hides seed_demo shelves when outlet use_demo_listings is false', () => {
+    const feed = filterDiscoverFeedByMerchantStatus([
+      mapShelfToFeedItem({
+        id: 's-demo',
+        seed_demo: true,
+        outlet: {
+          category: 'hybrid',
+          is_active: true,
+          use_demo_listings: false,
+          merchant: { status: 'approved' },
+        },
+        items: [{ status: 'live', quantity_remaining: 1, rescue_price: 10 }],
+      }),
+      mapShelfToFeedItem({
+        id: 's-real',
+        seed_demo: false,
+        outlet: {
+          category: 'hybrid',
+          is_active: true,
+          use_demo_listings: false,
+          merchant: { status: 'approved' },
+        },
+        items: [{ status: 'live', quantity_remaining: 1, rescue_price: 10 }],
+      }),
+    ]);
+    expect(feed.map((f) => f.id)).toEqual(['s-real']);
+  });
 });

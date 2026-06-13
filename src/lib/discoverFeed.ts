@@ -134,6 +134,7 @@ export async function fetchPublishedShelves(
       pickup_start,
       pickup_end,
       status,
+      seed_demo,
       items:clearance_shelf_items (
         id, status, quantity_remaining, rescue_price, retail_price,
         name_snapshot, brand_snapshot, product_id, category_snapshot,
@@ -141,7 +142,7 @@ export async function fetchPublishedShelves(
         product:product_catalog (category)
       ),
       outlet:outlets (
-        id, name, category, location, is_active,
+        id, name, category, location, is_active, use_demo_listings,
         trust_score, average_rating, total_reviews,
         merchant:merchants (business_name, status)
       )
@@ -159,6 +160,7 @@ export async function fetchPublishedShelves(
       Array.isArray(rawOutlet) ? rawOutlet[0] : rawOutlet
     ) as Record<string, unknown> | undefined;
     if (!isOutletDiscoverVisible(outlet)) return false;
+    if (!isDemoListingVisible(s.seed_demo, outlet)) return false;
     return ((s.items as unknown[]) ?? []).some(
       (i) =>
         (i as Record<string, unknown>).status === 'live' &&
@@ -178,6 +180,14 @@ export function isOutletDiscoverVisible(
   return String(merchant.status) === 'approved';
 }
 
+function isDemoListingVisible(
+  seedDemo: unknown,
+  outlet: Record<string, unknown> | undefined,
+): boolean {
+  if (seedDemo !== true) return true;
+  return outlet?.use_demo_listings !== false;
+}
+
 export function filterDiscoverFeedByMerchantStatus(
   items: DiscoverFeedItem[],
 ): DiscoverFeedItem[] {
@@ -190,7 +200,8 @@ export function filterDiscoverFeedByMerchantStatus(
       // their nested `outlet:outlets(...)` join from `fetchPublishedShelves`.
       return item.kind === 'bag';
     }
-    return isOutletDiscoverVisible(outlet);
+    if (!isOutletDiscoverVisible(outlet)) return false;
+    return isDemoListingVisible(payload.seed_demo, outlet);
   });
 }
 
