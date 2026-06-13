@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, StyleSheet, View } from 'react-native';
 import { Marker } from 'react-native-maps';
 
@@ -6,6 +6,11 @@ export type UserLocationPulseProps = {
   coordinate: { latitude: number; longitude: number };
   /** Brand color for the core dot + rings. */
   color: string;
+  /**
+   * When false the radar loop pauses and rasterisation stops — use while the
+   * feed scrolls or the map block is off-screen to avoid nested-map jank.
+   */
+  active?: boolean;
 };
 
 const CANVAS = 72;
@@ -19,11 +24,25 @@ const CANVAS = 72;
 export function UserLocationPulse({
   coordinate,
   color,
+  active = true,
 }: UserLocationPulseProps): React.ReactElement {
   const pulseA = useRef(new Animated.Value(0)).current;
   const pulseB = useRef(new Animated.Value(0)).current;
+  const [tracksViewChanges, setTracksViewChanges] = useState(true);
+  const loopsRef = useRef<Animated.CompositeAnimation[]>([]);
 
   useEffect(() => {
+    loopsRef.current.forEach((l) => l.stop());
+    loopsRef.current = [];
+
+    if (!active) {
+      pulseA.setValue(0);
+      pulseB.setValue(0);
+      setTracksViewChanges(false);
+      return;
+    }
+
+    setTracksViewChanges(true);
     const makeLoop = (v: Animated.Value, delay: number) =>
       Animated.loop(
         Animated.sequence([
@@ -39,13 +58,16 @@ export function UserLocationPulse({
       );
     const a = makeLoop(pulseA, 0);
     const b = makeLoop(pulseB, 1_200);
+    loopsRef.current = [a, b];
     a.start();
     b.start();
+    const settle = setTimeout(() => setTracksViewChanges(false), 900);
     return () => {
-      a.stop();
-      b.stop();
+      clearTimeout(settle);
+      loopsRef.current.forEach((l) => l.stop());
+      loopsRef.current = [];
     };
-  }, [pulseA, pulseB]);
+  }, [active, pulseA, pulseB]);
 
   const ringStyle = (v: Animated.Value) => ({
     opacity: v.interpolate({
@@ -64,7 +86,7 @@ export function UserLocationPulse({
       coordinate={coordinate}
       anchor={{ x: 0.5, y: 0.5 }}
       zIndex={2000}
-      tracksViewChanges
+      tracksViewChanges={tracksViewChanges}
       pointerEvents="none"
       accessibilityLabel="Your location"
     >

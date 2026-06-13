@@ -15,6 +15,8 @@ import {
   InteractionManager,
   KeyboardAvoidingView,
   Modal,
+  NativeSyntheticEvent,
+  NativeScrollEvent,
   Platform,
   Pressable,
   RefreshControl,
@@ -89,6 +91,10 @@ import { UserLocationPulse } from '@/components/discover-map/UserLocationPulse';
 import { MapControlRail } from '@/components/discover-map/MapControlRail';
 import { RescueCountChip } from '@/components/discover-map/RescueCountChip';
 import { SelectedRescuePreview } from '@/components/discover-map/SelectedRescuePreview';
+import {
+  MapPanAmbience,
+  mapChromeParallaxStyle,
+} from '@/components/discover-map/MapPanAmbience';
 import { discoverMapAnimateCamera, DISCOVER_MAP_ZOOM } from '@/lib/mapCamera';
 import { getSupabase } from '@/lib/supabase';
 import type { StitchTheme } from '@/theme/StitchThemeContext';
@@ -951,7 +957,8 @@ export function DiscoverScreen() {
    * What the map is currently centred on (driven by `onRegionChangeComplete`). When this
    * drifts >SEARCH_AREA_KM_THRESHOLD from `center`, the "Search this area" CTA appears.
    */
-  const [viewportCenter, setViewportCenter] = useState(DEFAULT_CENTER);
+  /** What the map is centred on — ref only so panning doesn't re-render the feed. */
+  const viewportCenterRef = useRef<LatLng>(DEFAULT_CENTER);
   /** Re-renders the "Updated X min ago" pill every 30 seconds. */
   const [tick, setTick] = useState(() => Date.now());
   /**
@@ -977,6 +984,13 @@ export function DiscoverScreen() {
   const [mapExploredByGesture, setMapExploredByGesture] = useState(false);
   /** One-time entry motion for the whole map block after prefs hydrate. */
   const mapIntro = useRef(new Animated.Value(0)).current;
+  /** Shared parallax driver for map chrome during pan gestures. */
+  const mapChromeParallax = useRef(new Animated.Value(0)).current;
+  const [mapPanning, setMapPanning] = useState(false);
+  const [panSettleToken, setPanSettleToken] = useState(0);
+  const [feedScrolling, setFeedScrolling] = useState(false);
+  const [mapBlockInView, setMapBlockInView] = useState(true);
+  const [showSearchAreaCta, setShowSearchAreaCta] = useState(false);
 
   /**
    * Road/vector map only — `hybrid` / `hybridFlyover` read as satellite-style to users.
@@ -1431,7 +1445,7 @@ export function DiscoverScreen() {
       const next = { lat: userLocation.lat, lng: userLocation.lng };
       setCenter(next);
       if (followingUser) {
-        setViewportCenter(next);
+        viewportCenterRef.current = next;
       }
     }
   }, [
@@ -1455,7 +1469,10 @@ export function DiscoverScreen() {
     if (!bootstrappedToUserRef.current && hasLiveUserLocation) {
       bootstrappedToUserRef.current = true;
       setCenter({ lat: userLocation.lat, lng: userLocation.lng });
-      setViewportCenter({ lat: userLocation.lat, lng: userLocation.lng });
+      viewportCenterRef.current = {
+        lat: userLocation.lat,
+        lng: userLocation.lng,
+      };
       // Outlet pins take priority over follow-user camera on first paint.
       if (discoverMapMarkers.length > 0) {
         setFollowingUser(false);
@@ -1717,24 +1734,66 @@ export function DiscoverScreen() {
    * primary hook; the region-change check below is a fallback.
    */
   const onMapPanDrag = useCallback(() => {
+    setMapPanning(true);
     setMapExploredByGesture(true);
     setFollowingUser(false);
   }, []);
 
+  const syncSearchAreaCta = useCallback(
+    (nextCenter: LatLng, explored: boolean) => {
+      const drift = haversineKm(
+        nextCenter.lat,
+        nextCenter.lng,
+        center.lat,
+        center.lng,
+      );
+      const nextShow =
+        explored &&
+        Number.isFinite(drift) &&
+        drift >= SEARCH_AREA_KM_THRESHOLD;
+      setShowSearchAreaCta((prev) => (prev === nextShow ? prev : nextShow));
+    },
+    [center.lat, center.lng],
+  );
+
+  const runPanSettleChoreography = useCallback(() => {
+    if (!map3DEnabled || !mapRef.current) return;
+    void mapRef.current
+      .getCamera()
+      .then((cam) => {
+        const basePitch = PITCHED_CAMERA_DEGREES;
+        const p =
+          typeof cam.pitch === 'number' && Number.isFinite(cam.pitch)
+            ? cam.pitch
+            : basePitch;
+        if (p < 24) return;
+        const map = mapRef.current;
+        if (!map) return;
+        map.animateCamera({ pitch: Math.min(p + 6, 54) }, { duration: 200 });
+        setTimeout(() => {
+          map.animateCamera({ pitch: basePitch }, { duration: 460 });
+        }, 220);
+      })
+      .catch(() => {});
+  }, [map3DEnabled]);
+
   const handleRegionChangeComplete = useCallback(
     (next: Region, details?: { isGesture?: boolean }) => {
-      setViewportCenter({ lat: next.latitude, lng: next.longitude });
-      // A finger on the map means the user is exploring — stop snapping the
-      // camera back to the blue dot and arm the "Search this area" pill.
-      // `isGesture` distinguishes their pan from our own programmatic camera
-      // moves (follow, fit, recenter), so this is reliable on simulator and
-      // device alike. The recenter rail button flips follow back on.
+      const nextCenter = { lat: next.latitude, lng: next.longitude };
+      viewportCenterRef.current = nextCenter;
+      setMapPanning(false);
       if (details?.isGesture) {
         setMapExploredByGesture(true);
         if (followingUser) setFollowingUser(false);
+        setPanSettleToken((t) => t + 1);
+        runPanSettleChoreography();
       }
+      syncSearchAreaCta(
+        nextCenter,
+        details?.isGesture ? true : mapExploredByGesture,
+      );
     },
-    [followingUser],
+    [followingUser, mapExploredByGesture, runPanSettleChoreography, syncSearchAreaCta],
   );
 
   const recenterOnUser = useCallback(() => {
@@ -1744,13 +1803,10 @@ export function DiscoverScreen() {
     }
     setFollowingUser(true);
     setMapExploredByGesture(false);
-    setCenter({ lat: userLocation.lat, lng: userLocation.lng });
-    // Mirror the recenter target into `viewportCenter` synchronously so the
-    // drift calc against `center` sees the matched value immediately. Without
-    // this the ~450 ms `animateCamera` window leaves `viewportCenter` stale
-    // and the "Search this area" pill can momentarily flash before
-    // `onRegionChangeComplete` confirms the same coords.
-    setViewportCenter({ lat: userLocation.lat, lng: userLocation.lng });
+    setShowSearchAreaCta(false);
+    const next = { lat: userLocation.lat, lng: userLocation.lng };
+    setCenter(next);
+    viewportCenterRef.current = next;
     setRegionLabel(null);
     void refreshLocation().then(() => {
       void fetchLocationReverse(env, userLocation.lat, userLocation.lng)
@@ -1852,8 +1908,8 @@ export function DiscoverScreen() {
           logError(err, { context: 'DiscoverScreen.nudgeMapZoom.getCamera' });
           apply({
             center: {
-              latitude: viewportCenter.lat,
-              longitude: viewportCenter.lng,
+              latitude: viewportCenterRef.current.lat,
+              longitude: viewportCenterRef.current.lng,
             },
             heading: 0,
             pitch,
@@ -1862,15 +1918,15 @@ export function DiscoverScreen() {
           });
         });
     },
-    [map3DEnabled, mapViewPrefsHydrated, viewportCenter.lat, viewportCenter.lng],
+    [map3DEnabled, mapViewPrefsHydrated],
   );
 
   const searchThisArea = useCallback(() => {
     setFollowingUser(false);
     setMapExploredByGesture(false);
-    const next = { lat: viewportCenter.lat, lng: viewportCenter.lng };
+    setShowSearchAreaCta(false);
+    const next = viewportCenterRef.current;
     setCenter(next);
-    setViewportCenter(next);
     setRegionLabel(null);
     setGeoLabel(null);
     void fetchLocationReverse(env, next.lat, next.lng)
@@ -1887,13 +1943,7 @@ export function DiscoverScreen() {
     refetch().catch((err) =>
       logError(err, { context: 'DiscoverScreen.searchThisArea.refetch' }),
     );
-  }, [
-    env,
-    persistProfileCity,
-    refetch,
-    viewportCenter.lat,
-    viewportCenter.lng,
-  ]);
+  }, [env, persistProfileCity, refetch]);
 
   /** Count chip tap: frame every pin, or pull fresh results when none in view. */
   const frameAllRescues = useCallback(() => {
@@ -1932,20 +1982,27 @@ export function DiscoverScreen() {
     [mapIntro],
   );
 
-  const viewportDriftKm = useMemo(
-    () =>
-      haversineKm(
-        viewportCenter.lat,
-        viewportCenter.lng,
-        center.lat,
-        center.lng,
-      ),
-    [viewportCenter.lat, viewportCenter.lng, center.lat, center.lng],
+  const countChipParallax = useMemo(
+    () => mapChromeParallaxStyle(mapChromeParallax, 'up'),
+    [mapChromeParallax],
   );
-  const showSearchAreaCta =
-    mapExploredByGesture &&
-    Number.isFinite(viewportDriftKm) &&
-    viewportDriftKm >= SEARCH_AREA_KM_THRESHOLD;
+  const railParallax = useMemo(
+    () => mapChromeParallaxStyle(mapChromeParallax, 'down'),
+    [mapChromeParallax],
+  );
+
+  const locationPulseActive =
+    isFocused && !feedScrolling && mapBlockInView && hasLiveUserLocation;
+
+  const onFeedScrollBegin = useCallback(() => setFeedScrolling(true), []);
+  const onFeedScrollEnd = useCallback(() => setFeedScrolling(false), []);
+  const onFeedScroll = useCallback(
+    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const y = e.nativeEvent.contentOffset.y;
+      setMapBlockInView(y < mapHeight * 0.65);
+    },
+    [mapHeight],
+  );
 
   const movingFast =
     !simulatorLocationMode &&
@@ -2016,7 +2073,8 @@ export function DiscoverScreen() {
     (hit: LocationHit) => {
       setFollowingUser(false);
       setCenter({ lat: hit.lat, lng: hit.lng });
-      setViewportCenter({ lat: hit.lat, lng: hit.lng });
+      viewportCenterRef.current = { lat: hit.lat, lng: hit.lng };
+      setShowSearchAreaCta(false);
       setRegionLabel(hit.label);
       setGeoLabel(null);
       setPlaceSuggestions([]);
@@ -2192,10 +2250,15 @@ export function DiscoverScreen() {
   );
 
   const discoverMapBlock = (
-    <View style={styles.mapWrap}>
+    <View style={styles.mapWrap} collapsable={false}>
       {mapViewPrefsHydrated ? (
-        <Animated.View style={[styles.mapInner, mapIntroStyle]}>
+        <Animated.View
+          style={[styles.mapInner, mapIntroStyle]}
+          collapsable={false}
+          pointerEvents="box-none"
+        >
           <MapView
+            key="discover-rescue-map"
             ref={mapRef}
             provider={discoverMapProvider}
             style={styles.map}
@@ -2252,9 +2315,16 @@ export function DiscoverScreen() {
                   longitude: userLocation.lng,
                 }}
                 color={colors.primaryContainer}
+                active={locationPulseActive}
               />
             ) : null}
           </MapView>
+
+          <MapPanAmbience
+            panning={mapPanning}
+            panSettleToken={panSettleToken}
+            parallax={mapChromeParallax}
+          />
 
           {movingFast ? (
             <View style={styles.mapTopBanner}>
@@ -2274,10 +2344,12 @@ export function DiscoverScreen() {
             </View>
           ) : (
             <>
-              <RescueCountChip
-                count={discoverMapMarkers.length}
-                onPress={frameAllRescues}
-              />
+              <Animated.View style={countChipParallax} pointerEvents="box-none">
+                <RescueCountChip
+                  count={discoverMapMarkers.length}
+                  onPress={frameAllRescues}
+                />
+              </Animated.View>
               {showSearchAreaCta ? (
                 <Pressable
                   accessibilityRole="button"
@@ -2293,15 +2365,17 @@ export function DiscoverScreen() {
             </>
           )}
 
-          <MapControlRail
-            showRecenter={locationStatus === 'granted'}
-            followingUser={followingUser}
-            map3DEnabled={map3DEnabled}
-            onRecenter={recenterOnUser}
-            onToggle3D={toggleMap3D}
-            onZoomIn={() => nudgeDiscoverMapZoom('in')}
-            onZoomOut={() => nudgeDiscoverMapZoom('out')}
-          />
+          <Animated.View style={railParallax} pointerEvents="box-none">
+            <MapControlRail
+              showRecenter={locationStatus === 'granted'}
+              followingUser={followingUser}
+              map3DEnabled={map3DEnabled}
+              onRecenter={recenterOnUser}
+              onToggle3D={toggleMap3D}
+              onZoomIn={() => nudgeDiscoverMapZoom('in')}
+              onZoomOut={() => nudgeDiscoverMapZoom('out')}
+            />
+          </Animated.View>
 
           <SelectedRescuePreview
             marker={selectedRescueMarker}
@@ -2424,7 +2498,16 @@ export function DiscoverScreen() {
           contentContainerStyle={styles.listContent}
           nestedScrollEnabled
           keyboardShouldPersistTaps="handled"
-          removeClippedSubviews={false}
+          removeClippedSubviews={Platform.OS === 'android'}
+          windowSize={7}
+          maxToRenderPerBatch={6}
+          initialNumToRender={5}
+          updateCellsBatchingPeriod={50}
+          onScroll={onFeedScroll}
+          scrollEventThrottle={32}
+          onScrollBeginDrag={onFeedScrollBegin}
+          onScrollEndDrag={onFeedScrollEnd}
+          onMomentumScrollEnd={onFeedScrollEnd}
           onScrollToIndexFailed={(info) => {
             feedListRef.current?.scrollToOffset({
               offset: Math.max(0, info.averageItemLength * info.index),
