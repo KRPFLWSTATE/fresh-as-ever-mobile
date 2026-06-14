@@ -182,6 +182,7 @@ export function ImpactScreen() {
           refreshing={loading}
           onRefresh={() => {
             refetch().catch((err) => logError(err, { context: 'ImpactScreen.refetch' }));
+            refetchStreak().catch((err) => logError(err, { context: 'ImpactScreen.streakRefetch' }));
           }}
         />
       }

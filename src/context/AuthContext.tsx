@@ -403,9 +403,10 @@ export function AuthProvider({
   }, [supabase, hydrate]);
 
   const signOut = useCallback(async () => {
-    await supabase.auth.signOut();
+    await supabase.auth.signOut({ scope: 'local' });
     resetMerchantContextStore(env);
     setUser(null);
+    setSession(null);
     setResolvedRole('customer');
     setIsSuspended(false);
     scheduleMicrotask(() => {

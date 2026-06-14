@@ -545,6 +545,7 @@ export function ProfileScreen() {
             accessibilityRole="button"
             disabled={initializing}
             onPress={() => void signOut()}
+            testID="profile.logOut"
             style={({ pressed }) => [
               styles.logOut,
               {

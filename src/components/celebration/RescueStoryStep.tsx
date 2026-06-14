@@ -146,6 +146,7 @@ export function RescueStoryStep({
         accessibilityRole="button"
         onPress={() => void pickPhoto()}
         style={styles.photoBtn}
+        testID="celebration.storyAddPhoto"
       >
         {photoUri ? (
           <Image source={{ uri: photoUri }} style={styles.photoPreview} resizeMode="cover" />
