@@ -15,6 +15,8 @@ export const ERROR = {
     soldOut: 'This bag just sold out. Plenty more rescues are live nearby.',
     shelfSoldOut: 'This clearance item just sold out. Plenty more shelf picks are still live nearby.',
     paymentTimeout: 'Payment setup timed out. Check your connection and try again.',
+    paymentApiUnreachable:
+      'Could not reach the payment server. Check your connection or try again in a moment.',
     paymentFailed: 'We could not start payment. Try again in a moment.',
     reserveFailed: 'We could not complete your reservation. Try again shortly.',
     loadBag: 'Could not load bag details.',

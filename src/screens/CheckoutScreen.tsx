@@ -27,7 +27,9 @@ import { getSupabase } from '@/lib/supabase';
 import { useAuthContext } from '@/context/AuthContext';
 import { usePlatformSettings } from '@/hooks/usePlatformSettings';
 import { buildSandboxPayHereCheckoutHtml } from '@/lib/payHereHtml';
+import { fetchPayHereHash, PayHereApiError } from '@/lib/payhereApi';
 import { scheduleMicrotask } from '@/lib/microtask';
+import { logError } from '@/observability/logError';
 import { ERROR } from '@/lib/messages/errors';
 import { mapCheckoutError } from '@/lib/messages/rpc';
 import { mapSupabaseError } from '@/lib/supabaseError';
@@ -511,30 +513,11 @@ export function CheckoutScreen() {
         }
         const accessToken = session?.access_token;
         if (!accessToken) throw new Error('Session expired. Sign in again.');
-        const ac = new AbortController();
-        const timer = setTimeout(() => ac.abort(), 45_000);
-        let res: Response;
-        try {
-          res = await fetch(`${env.apiBaseUrl}/api/payhere/hash`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${accessToken}`,
-            },
-            body: JSON.stringify({
-              order_id: clearanceOrderId,
-              amount: totalCost,
-              currency: 'LKR',
-            }),
-            signal: ac.signal,
-          });
-        } finally {
-          clearTimeout(timer);
-        }
-        const data = await res.json();
-        if (!res.ok || !data.hash || !data.merchant_id) {
-          throw new Error(data?.error ?? 'Payment setup failed.');
-        }
+        const data = await fetchPayHereHash(env.apiBaseUrl, accessToken, {
+          order_id: clearanceOrderId,
+          amount: totalCost,
+          currency: 'LKR',
+        });
         const base = env.payHereReturnHost || env.apiBaseUrl;
         const returnUrl = `${base}/orders/${clearanceOrderId}?payment=success`;
         const cancelQuery = new URLSearchParams({
@@ -616,31 +599,11 @@ export function CheckoutScreen() {
           throw new Error('Session expired. Sign in again.');
         }
 
-        const ac = new AbortController();
-        const timer = setTimeout(() => ac.abort(), 45_000);
-        let res: Response;
-        try {
-          res = await fetch(`${env.apiBaseUrl}/api/payhere/hash`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${accessToken}`,
-            },
-            body: JSON.stringify({
-              group_id: groupId,
-              amount: totalCost,
-              currency: 'LKR',
-            }),
-            signal: ac.signal,
-          });
-        } finally {
-          clearTimeout(timer);
-        }
-
-        const data = await res.json();
-        if (!res.ok || !data.hash || !data.merchant_id) {
-          throw new Error(data?.error ?? 'Payment setup failed.');
-        }
+        const data = await fetchPayHereHash(env.apiBaseUrl, accessToken, {
+          group_id: groupId,
+          amount: totalCost,
+          currency: 'LKR',
+        });
 
         const base = env.payHereReturnHost || env.apiBaseUrl;
         const returnUrl = `${base}/orders/${groupId}?payment=success`;
@@ -740,32 +703,11 @@ export function CheckoutScreen() {
         throw new Error('Session expired. Sign in again.');
       }
 
-      const ac = new AbortController();
-      const timeoutMs = 45_000;
-      const timer = setTimeout(() => ac.abort(), timeoutMs);
-      let res: Response;
-      try {
-        res = await fetch(`${env.apiBaseUrl}/api/payhere/hash`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${accessToken}`,
-          },
-          body: JSON.stringify({
-            order_id: orderId,
-            amount: totalCost,
-            currency: 'LKR',
-          }),
-          signal: ac.signal,
-        });
-      } finally {
-        clearTimeout(timer);
-      }
-
-      const data = await res.json();
-      if (!res.ok || !data.hash || !data.merchant_id) {
-        throw new Error(data?.error ?? 'Payment setup failed.');
-      }
+      const data = await fetchPayHereHash(env.apiBaseUrl, accessToken, {
+        order_id: orderId,
+        amount: totalCost,
+        currency: 'LKR',
+      });
 
       const base = env.payHereReturnHost || env.apiBaseUrl;
       const returnUrl = `${base}/orders/${orderId}?payment=success`;
@@ -801,14 +743,26 @@ export function CheckoutScreen() {
       });
       setPayHtml(html);
     } catch (e) {
+      logError(e, {
+        context: 'CheckoutScreen.confirm',
+        extra: {
+          bagId,
+          paymentMethod,
+          isGroupCheckout,
+          isShelfCheckout,
+          apiBaseUrlConfigured: Boolean(env.apiBaseUrl?.trim()),
+        },
+      });
       const msg =
-        e instanceof Error && e.name === 'AbortError'
-          ? ERROR.checkout.paymentTimeout
-          : mapCheckoutError(
-              e instanceof Error ? e.message : e,
-              mapSupabaseError(e as Error, ERROR.checkout.reserveFailed),
-              isShelfCheckout ? 'shelf' : 'bag',
-            );
+        e instanceof PayHereApiError
+          ? e.message
+          : e instanceof Error && e.name === 'AbortError'
+            ? ERROR.checkout.paymentTimeout
+            : mapCheckoutError(
+                e instanceof Error ? e.message : e,
+                mapSupabaseError(e as Error, ERROR.checkout.reserveFailed),
+                isShelfCheckout ? 'shelf' : 'bag',
+              );
       setErr(msg);
     } finally {
       setProcessing(false);
@@ -1287,6 +1241,7 @@ export function CheckoutScreen() {
               </StitchText>
             </View>
             <StitchButton
+              testID="checkout.reserveNow"
               title={reserveButtonTitle}
               loading={processing}
               disabled={processing || platformFlags.maintenance || Boolean(pickupOverlapIssue)}

@@ -1,0 +1,9 @@
+{
+  "name": "pass24-reserve-hang",
+  "version": "1.0.0",
+  "private": true,
+  "type": "commonjs",
+  "dependencies": {
+    "webdriverio": "^9.28.0"
+  }
+}
