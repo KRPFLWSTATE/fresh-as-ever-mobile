@@ -34,6 +34,7 @@ import { getSupabase } from '@/lib/supabase';
 import { useStitchTheme, type StitchTheme } from '@/theme/StitchThemeContext';
 import { stitchAmbientShadow, stitchFonts } from '@/theme/stitchTokens';
 import { OutletTrustBadge } from '@/components/OutletTrustBadge';
+import { GroupReservationCartBar } from '@/components/group/GroupReservationCartBar';
 import { isGroupReservationsEnabled } from '@/config/groupReservations';
 import { isClearanceShelvesEnabled } from '@/config/clearanceShelves';
 import { canPublishClearanceShelves, canPublishRescueBags } from '@/lib/outletListingMode';
@@ -419,6 +420,7 @@ export function OutletDetailScreen(): React.ReactElement {
   const venue = outlet.merchant_name ?? outlet.name;
 
   return (
+    <View style={{ flex: 1 }}>
     <ScrollView style={styles.fillScroll} contentContainerStyle={styles.scrollContent}>
       <View style={styles.heroWrap}>
         {outlet.cover_image_url ? (
@@ -812,6 +814,20 @@ export function OutletDetailScreen(): React.ReactElement {
         </StitchSurface>
       </View>
     </ScrollView>
+    {groupReservationsEnabled && cart.count >= 2 && cart.cart.outletId === outletId ? (
+      <GroupReservationCartBar
+        bags={cart.cart.bags}
+        visible
+        testID="outlet.groupCartBar"
+        onPress={() =>
+          navigation.navigate('Checkout', {
+            draft: selectedBagIds[0] ?? cart.cart.bagIds[0]!,
+            group: cart.cart.bagIds.join(','),
+          })
+        }
+      />
+    ) : null}
+    </View>
   );
 }
 

@@ -41,6 +41,9 @@ import {
   StitchText,
 } from '@/ui/stitch';
 import { isGroupReservationsEnabled } from '@/config/groupReservations';
+import { describePickupOverlapIssue } from '@/lib/groupPickupOverlap';
+import { useReservationCart } from '@/hooks/useReservationCart';
+import { GroupCheckoutStrip } from '@/components/group/GroupCheckoutStrip';
 import { isClearanceShelvesEnabled } from '@/config/clearanceShelves';
 import { CLEARANCE_FOOD_SAFETY_NOTICE } from '@/lib/foodSafetyCopy';
 import { formatPickupByLabel } from '@/lib/shelfDisplay';
@@ -104,6 +107,7 @@ export function CheckoutScreen() {
   const isShelfCheckout = Boolean(shelfId && shelfItems.length > 0);
   const isGroupCheckout = !isShelfCheckout && groupBagIds.length > 1;
   const hasCheckoutTarget = Boolean(bagId) || groupBagIds.length > 0 || isShelfCheckout;
+  const reservationCart = useReservationCart();
   /**
    * Stitch ships two header variants for checkout: `_1` keeps a title-bar header,
    * `_2` centers the brand logo. We honor either via the route param so deep links
@@ -403,6 +407,10 @@ export function CheckoutScreen() {
 
       if (isGroupCheckout && paymentMethod === 'cash') {
         throw new Error('Group reservations require card payment.');
+      }
+
+      if (pickupOverlapIssue) {
+        throw new Error(pickupOverlapIssue);
       }
 
       if (paymentMethod === 'cash' && completedPickups < 1) {
@@ -905,6 +913,15 @@ export function CheckoutScreen() {
     retail != null && retail > rescuePrice ? retail - rescuePrice : null;
   const promoDiscount = appliedPromo?.discountAmount ?? 0;
   const totalToPay = Math.max(0, rescuePrice - promoDiscount);
+  const pickupOverlapIssue = useMemo(() => {
+    if (!isGroupCheckout) return null;
+    return describePickupOverlapIssue(
+      groupBags.map((b) => ({
+        pickup_start: typeof b.pickup_start === 'string' ? b.pickup_start : null,
+        pickup_end: typeof b.pickup_end === 'string' ? b.pickup_end : null,
+      })),
+    );
+  }, [groupBags, isGroupCheckout]);
   const priceBreakdownLabel = isShelfCheckout
     ? 'Shelf total'
     : isGroupCheckout
@@ -1037,6 +1054,41 @@ export function CheckoutScreen() {
               </View>
             </View>
           </StitchCard>
+
+          {isGroupCheckout ? (
+            <View style={{ marginTop: spacing.lg }}>
+              <GroupCheckoutStrip
+                bags={groupBags.map((b) => ({
+                  id: String(b.id),
+                  title: typeof b.title === 'string' ? b.title : 'Rescue bag',
+                  rescue_price: typeof b.rescue_price === 'number' ? b.rescue_price : null,
+                }))}
+                onRemove={async (removeId) => {
+                  await reservationCart.removeBag(removeId);
+                  const next = groupBagIds.filter((id) => id !== removeId);
+                  if (next.length === 0) {
+                    navigation.goBack();
+                    return;
+                  }
+                  if (next.length === 1) {
+                    navigation.replace('Checkout', { draft: next[0] });
+                    return;
+                  }
+                  navigation.replace('Checkout', { draft: next[0], group: next.join(',') });
+                }}
+              />
+              {pickupOverlapIssue ? (
+                <StitchText
+                  variant="body-sm"
+                  colorKey="error"
+                  style={{ marginTop: spacing.sm }}
+                  testID="checkout.overlapError"
+                >
+                  {pickupOverlapIssue}
+                </StitchText>
+              ) : null}
+            </View>
+          ) : null}
 
           {/* Payment method */}
           <View style={{ marginTop: spacing.lg }}>
@@ -1209,7 +1261,7 @@ export function CheckoutScreen() {
             <StitchButton
               title={platformFlags.maintenance ? 'Paused' : 'Reserve Now'}
               loading={processing}
-              disabled={processing || platformFlags.maintenance}
+              disabled={processing || platformFlags.maintenance || Boolean(pickupOverlapIssue)}
               onPress={() => void confirm()}
               style={styles.reserveBtn}
             />

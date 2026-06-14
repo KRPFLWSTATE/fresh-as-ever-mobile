@@ -1,19 +1,25 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import {
   ActivityIndicator,
+  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
   View,
 } from 'react-native';
+import ViewShot from 'react-native-view-shot';
 import { useCustomerImpact } from '@/hooks/useCustomerImpact';
+import { useCustomerWeeklyStreak } from '@/hooks/useCustomerWeeklyStreak';
 import { useAuthContext } from '@/context/AuthContext';
 import { useStitchTheme } from '@/theme/StitchThemeContext';
 import { stitchAmbientShadow } from '@/theme/stitchTokens';
 import { StitchIcon } from '@/ui/stitch/StitchIcon';
 import { StitchSurface } from '@/ui/stitch/StitchSurface';
 import { StitchText } from '@/ui/stitch/StitchText';
+import { WeeklyStreakRing } from '@/components/impact/WeeklyStreakRing';
+import { ImpactShareCard } from '@/components/impact/ImpactShareCard';
+import { captureViewShot, shareCardGraphic } from '@/lib/shareCard';
 import { logError } from '@/observability/logError';
 
 /** Rough equivalents aligned to Stitch demo ratios (~105 kg CO₂ → 400 km / 12k charges / 5 trees). */
@@ -34,6 +40,9 @@ export function ImpactScreen() {
   const { env, user } = useAuthContext();
   const { bagsRescued, co2SavedKg, totalSavedRs, loading, refetch } =
     useCustomerImpact(env, user?.id ?? null);
+  const { streak, refetch: refetchStreak } = useCustomerWeeklyStreak(env, user?.id ?? null);
+  const shareRef = useRef<React.ElementRef<typeof ViewShot>>(null);
+  const [sharing, setSharing] = useState(false);
 
   const { colors, spacing, radii } = useStitchTheme();
   const equiv = useMemo(() => co2Equivalents(co2SavedKg), [co2SavedKg]);
@@ -41,8 +50,23 @@ export function ImpactScreen() {
   useFocusEffect(
     useCallback(() => {
       refetch().catch((err) => logError(err, { context: 'ImpactScreen.focusRefetch' }));
-    }, [refetch]),
+      refetchStreak().catch((err) => logError(err, { context: 'ImpactScreen.streakRefetch' }));
+    }, [refetch, refetchStreak]),
   );
+
+  const onShareImpact = useCallback(async () => {
+    setSharing(true);
+    try {
+      const uri = await captureViewShot(shareRef);
+      await shareCardGraphic({
+        title: 'My Fresh As Ever impact',
+        message: `I've rescued ${bagsRescued} bags and prevented ${co2SavedKg} kg CO₂e with Fresh As Ever.`,
+        imageUri: uri,
+      });
+    } finally {
+      setSharing(false);
+    }
+  }, [bagsRescued, co2SavedKg]);
 
   const styles = useMemo(
     () =>
@@ -129,6 +153,22 @@ export function ImpactScreen() {
           borderRadius: radii.lg,
         },
         loader: { marginTop: spacing.lg },
+        streakShell: {
+          alignItems: 'center',
+          padding: spacing.lg,
+          borderRadius: radii.xl,
+          borderWidth: StyleSheet.hairlineWidth,
+          borderColor: `${colors.divider}CC`,
+          gap: spacing.md,
+        },
+        shareRow: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: spacing.sm,
+          paddingVertical: spacing.md,
+        },
+        offscreen: { position: 'absolute', left: -9999, top: 0 },
       }),
     [colors.divider, colors.errorContainer, colors.surface, radii.full, radii.lg, radii.xl, spacing],
   );
@@ -169,6 +209,18 @@ export function ImpactScreen() {
         <ActivityIndicator style={styles.loader} color={colors.primaryContainer} />
       ) : (
         <>
+          {user ? (
+            <StitchSurface elevated padding="md" style={styles.streakShell}>
+              <WeeklyStreakRing
+                count={streak.count}
+                goal={streak.goal}
+                goalMet={streak.goalMet}
+                remaining={streak.remaining}
+                progress={streak.progress}
+              />
+            </StitchSurface>
+          ) : null}
+
           <View style={styles.bento}>
             <StitchSurface elevated padding="md" style={styles.card}>
               <View style={styles.cardTop}>
@@ -273,6 +325,21 @@ export function ImpactScreen() {
             </View>
           </View>
 
+          {user && bagsRescued > 0 ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Share your impact"
+              testID="impact.shareButton"
+              onPress={() => void onShareImpact()}
+              style={({ pressed }) => [styles.shareRow, { opacity: pressed || sharing ? 0.85 : 1 }]}
+            >
+              <StitchIcon name="ios_share" size={22} colorKey="primary" />
+              <StitchText variant="label" colorKey="primary">
+                {sharing ? 'Preparing share…' : 'Share your impact'}
+              </StitchText>
+            </Pressable>
+          ) : null}
+
           <View style={styles.methodology}>
             <View style={styles.methodologyRule}>
               <StitchText variant="h2" colorKey="primary">
@@ -305,6 +372,18 @@ export function ImpactScreen() {
           </View>
         </>
       )}
+      {user ? (
+        <View style={styles.offscreen} pointerEvents="none">
+          <ImpactShareCard
+            ref={shareRef}
+            bagsRescued={bagsRescued}
+            co2SavedKg={co2SavedKg}
+            totalSavedRs={totalSavedRs}
+            kmEquiv={equiv.km}
+            treesEquiv={equiv.trees}
+          />
+        </View>
+      ) : null}
     </ScrollView>
   );
 }

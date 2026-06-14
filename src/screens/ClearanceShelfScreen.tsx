@@ -39,6 +39,7 @@ import {
   formatUnitLabel,
   sumRetailSavings,
 } from '@/lib/shelfDisplay';
+import { BasketTimerPill } from '@/components/shelf/BasketTimerPill';
 import { useStitchTheme } from '@/theme/StitchThemeContext';
 import { StitchIcon, StitchSurface, StitchText } from '@/ui/stitch';
 import {
@@ -80,7 +81,7 @@ export function ClearanceShelfScreen({ navigation, route }: Props) {
     return typeof outlet?.id === 'string' ? outlet.id : null;
   }, [shelf?.outlet]);
   const { isSaved, toggleFavourite } = useFavourites(env, user?.id ?? null);
-  const { shelfId: basketShelfId, items, setQuantity } = useClearanceBasket();
+  const { shelfId: basketShelfId, items, startedAtMs, setQuantity } = useClearanceBasket();
   const { colors, spacing, radii } = useStitchTheme();
   const insets = useSafeAreaInsets();
   const [searchQuery, setSearchQuery] = useState('');
@@ -462,6 +463,16 @@ export function ClearanceShelfScreen({ navigation, route }: Props) {
             <StitchText variant="label" colorKey="primaryContainer">
               Halal-certified outlet
             </StitchText>
+          </View>
+        ) : null}
+        {lineCount > 0 && basketShelfId === shelfId && startedAtMs ? (
+          <View style={{ marginTop: spacing.md }}>
+            <BasketTimerPill
+              startedAtMs={startedAtMs}
+              onExpired={() => {
+                void refreshShelf();
+              }}
+            />
           </View>
         ) : null}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.md }}>

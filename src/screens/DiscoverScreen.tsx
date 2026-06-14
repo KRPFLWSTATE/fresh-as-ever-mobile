@@ -61,6 +61,9 @@ import {
   type DiscoverCategoryChipId,
 } from '@/lib/discoverCategoryChip';
 import { isClearanceShelvesEnabled } from '@/config/clearanceShelves';
+import { isGroupReservationsEnabled } from '@/config/groupReservations';
+import { useReservationCart } from '@/hooks/useReservationCart';
+import { GroupReservationCartBar } from '@/components/group/GroupReservationCartBar';
 import { useUserLocation } from '@/hooks/useUserLocation';
 import { FALLBACK_COORDS } from '@/lib/fallbackCoords';
 import { haversineKm } from '@/lib/haversine';
@@ -895,6 +898,8 @@ export function DiscoverScreen() {
   const { height: windowHeight } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const isFocused = useIsFocused();
+  const reservationCart = useReservationCart();
+  const groupReservationsEnabled = isGroupReservationsEnabled();
   /**
    * Taller than the old 34% block — the map is now a direct pan/zoom surface
    * (map-first touch zone), so it earns more room while the feed stays the
@@ -2305,6 +2310,7 @@ export function DiscoverScreen() {
                 marker={marker}
                 index={index}
                 selected={marker.markerKey === selectedMarkerKey}
+                pulseActive={locationPulseActive}
                 onPress={() => onRescueMarkerPress(marker)}
               />
             ))}
@@ -2785,6 +2791,20 @@ export function DiscoverScreen() {
           </StitchSurface>
         </KeyboardAvoidingView>
       </Modal>
+      {groupReservationsEnabled && reservationCart.count >= 2 ? (
+        <GroupReservationCartBar
+          bags={reservationCart.cart.bags}
+          visible={reservationCart.count >= 2}
+          onPress={() => {
+            const ids = reservationCart.cart.bagIds;
+            if (!ids.length) return;
+            navigation.getParent()?.navigate('Checkout', {
+              draft: ids[0],
+              group: ids.join(','),
+            });
+          }}
+        />
+      ) : null}
     </View>
   );
 }

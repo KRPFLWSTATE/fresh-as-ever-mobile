@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
+import { AccessibilityInfo, Animated, Easing, StyleSheet, Text, View } from 'react-native';
 import { Marker } from 'react-native-maps';
 import type { DiscoverMapOutletMarker } from '@/lib/discoverMapMarkers';
 import { StitchIcon } from '@/ui/stitch';
@@ -16,7 +16,11 @@ export type RescueMarkerProps = {
   index: number;
   selected: boolean;
   onPress: () => void;
+  /** Pause low-stock ripple while map is off-screen (Pass17). */
+  pulseActive?: boolean;
 };
+
+const LOW_STOCK_PULSE = '#E04545';
 
 const HEAD_SIZE = 38;
 const TAIL_HEIGHT = 9;
@@ -39,6 +43,7 @@ export function RescueMarker({
   index,
   selected,
   onPress,
+  pulseActive = true,
 }: RescueMarkerProps): React.ReactElement {
   const visual = DISCOVER_MARKER_VISUALS[marker.markerKind];
   const soldOut = marker.bagsLeft === 0 && !marker.hasShelf;
@@ -50,8 +55,16 @@ export function RescueMarker({
 
   const drop = useRef(new Animated.Value(0)).current;
   const selectScale = useRef(new Animated.Value(1)).current;
+  const pulseA = useRef(new Animated.Value(0)).current;
+  const pulseB = useRef(new Animated.Value(0)).current;
   const [tracksViewChanges, setTracksViewChanges] = useState(true);
+  const [reduceMotion, setReduceMotion] = useState(false);
   const mountedRef = useRef(false);
+  const loopsRef = useRef<Animated.CompositeAnimation[]>([]);
+
+  useEffect(() => {
+    AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion);
+  }, []);
 
   useEffect(() => {
     const delay = Math.min(index, 10) * 70;
@@ -87,6 +100,57 @@ export function RescueMarker({
     return () => clearTimeout(settle);
   }, [selected, selectScale]);
 
+  useEffect(() => {
+    loopsRef.current.forEach((l) => l.stop());
+    loopsRef.current = [];
+
+    const shouldPulse = lowStock && pulseActive && !reduceMotion && !soldOut;
+    if (!shouldPulse) {
+      pulseA.setValue(0);
+      pulseB.setValue(0);
+      return;
+    }
+
+    setTracksViewChanges(true);
+    const cadence = marker.bagsLeft != null && marker.bagsLeft <= 1 ? 1_800 : 2_200;
+    const makeLoop = (v: Animated.Value, delay: number) =>
+      Animated.loop(
+        Animated.sequence([
+          Animated.delay(delay),
+          Animated.timing(v, {
+            toValue: 1,
+            duration: cadence,
+            easing: Easing.out(Easing.quad),
+            useNativeDriver: true,
+          }),
+          Animated.timing(v, { toValue: 0, duration: 0, useNativeDriver: true }),
+        ]),
+      );
+    const a = makeLoop(pulseA, 0);
+    const b = makeLoop(pulseB, cadence / 2);
+    loopsRef.current = [a, b];
+    a.start();
+    b.start();
+    const settle = setTimeout(() => setTracksViewChanges(false), 900);
+    return () => {
+      clearTimeout(settle);
+      loopsRef.current.forEach((l) => l.stop());
+      loopsRef.current = [];
+    };
+  }, [lowStock, marker.bagsLeft, pulseA, pulseB, pulseActive, reduceMotion, soldOut]);
+
+  const ringStyle = (v: Animated.Value) => ({
+    opacity: v.interpolate({
+      inputRange: [0, 0.12, 1],
+      outputRange: [0, 0.55, 0],
+    }),
+    transform: [
+      {
+        scale: v.interpolate({ inputRange: [0, 1], outputRange: [0.5, 1.35] }),
+      },
+    ],
+  });
+
   const dropStyle = useMemo(
     () => ({
       opacity: drop,
@@ -117,9 +181,30 @@ export function RescueMarker({
       accessibilityLabel={`${marker.outletName}, ${visual.label}`}
     >
       <Animated.View style={[styles.canvas, dropStyle]} collapsable={false}>
+        {lowStock && pulseActive ? (
+          <>
+            <Animated.View
+              pointerEvents="none"
+              style={[
+                styles.lowStockRing,
+                { borderColor: LOW_STOCK_PULSE, backgroundColor: `${LOW_STOCK_PULSE}22` },
+                ringStyle(pulseA),
+              ]}
+            />
+            <Animated.View
+              pointerEvents="none"
+              style={[
+                styles.lowStockRing,
+                { borderColor: LOW_STOCK_PULSE, backgroundColor: `${LOW_STOCK_PULSE}18` },
+                ringStyle(pulseB),
+              ]}
+            />
+          </>
+        ) : null}
         <View
           style={[
             styles.head,
+            lowStock ? styles.lowStockHead : null,
             {
               backgroundColor: visual.fill,
               borderColor: selected ? DISCOVER_MAP_ACCENT : '#FFF8EE',
@@ -152,6 +237,19 @@ const styles = StyleSheet.create({
     height: CANVAS_H,
     alignItems: 'center',
     justifyContent: 'flex-end',
+  },
+  lowStockRing: {
+    position: 'absolute',
+    top: 2,
+    width: HEAD_SIZE + 10,
+    height: HEAD_SIZE + 10,
+    borderRadius: (HEAD_SIZE + 10) / 2,
+    borderWidth: 1.5,
+  },
+  lowStockHead: {
+    shadowColor: LOW_STOCK_PULSE,
+    shadowOpacity: 0.45,
+    shadowRadius: 6,
   },
   head: {
     width: HEAD_SIZE,

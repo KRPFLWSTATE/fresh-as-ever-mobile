@@ -17,10 +17,12 @@ import type {
 } from '@/navigation/types';
 import { useAuthContext } from '@/context/AuthContext';
 import { useCustomerImpact } from '@/hooks/useCustomerImpact';
+import { useCustomerWeeklyStreak } from '@/hooks/useCustomerWeeklyStreak';
 import { getSupabase } from '@/lib/supabase';
 import { useStitchTheme } from '@/theme/StitchThemeContext';
 import { preferenceLabel } from '@/screens/ProfileThemeScreen';
 import { stitchAmbientShadow } from '@/theme/stitchTokens';
+import { WeeklyStreakRing } from '@/components/impact/WeeklyStreakRing';
 import { StitchIcon } from '@/ui/stitch/StitchIcon';
 import { StitchText } from '@/ui/stitch/StitchText';
 import { StitchButton } from '@/ui/stitch/StitchButton';
@@ -59,6 +61,7 @@ export function ProfileScreen() {
 
   const { bagsRescued, co2SavedKg, totalSavedRs, loading: impactLoading } =
     useCustomerImpact(env, user?.id ?? null);
+  const { streak } = useCustomerWeeklyStreak(env, user?.id ?? null);
 
   /**
    * Stitch `profile_light_mode_1` hero swap — load the user's `profiles.avatar_url` so the
@@ -323,6 +326,19 @@ export function ProfileScreen() {
             {impactLoading && !bagsRescued ? (
               <ActivityIndicator color={colors.primaryContainer} />
             ) : (
+              <>
+                {user ? (
+                  <View style={{ marginBottom: spacing.md, alignItems: 'center' }}>
+                    <WeeklyStreakRing
+                      compact
+                      count={streak.count}
+                      goal={streak.goal}
+                      goalMet={streak.goalMet}
+                      remaining={streak.remaining}
+                      progress={streak.progress}
+                    />
+                  </View>
+                ) : null}
               <View style={styles.bentoRow}>
                 <View style={[styles.statInner, styles.bentoTop, { borderColor: tintDefaults.bagsBorder, backgroundColor: colors.surface }]}>
                   <View style={styles.labelRow}>
@@ -379,6 +395,7 @@ export function ProfileScreen() {
                   </View>
                 </View>
               </View>
+              </>
             )}
           </Pressable>
 

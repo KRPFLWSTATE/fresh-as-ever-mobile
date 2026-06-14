@@ -249,3 +249,15 @@ jest.mock('react-native-safe-area-context', () => {
     }),
   };
 });
+
+jest.mock('@sentry/react-native', () => ({
+  init: jest.fn(),
+  captureException: jest.fn(),
+  captureMessage: jest.fn(),
+  addBreadcrumb: jest.fn(),
+  setUser: jest.fn(),
+  setTag: jest.fn(),
+  setContext: jest.fn(),
+  withScope: jest.fn((cb) => cb({ setTag: jest.fn(), setContext: jest.fn() })),
+  wrap: (c) => c,
+}));

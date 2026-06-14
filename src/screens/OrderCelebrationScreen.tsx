@@ -25,8 +25,10 @@ import { getSupabase } from '@/lib/supabase';
 import { useAuthContext } from '@/context/AuthContext';
 import { ERROR } from '@/lib/messages/errors';
 import { orderDisplayTitle, orderPickupWindow } from '@/lib/orderDisplay';
+import { createRescueStory, uploadRescueStoryPhoto } from '@/lib/rescueStories';
 import { useStitchTheme } from '@/theme/StitchThemeContext';
 import { CelebrationHero } from '@/ui/celebration/CelebrationHero';
+import { RescueStoryStep } from '@/components/celebration/RescueStoryStep';
 import {
   StitchButton,
   StitchCard,
@@ -54,6 +56,7 @@ type GroupJoin = {
 
 type OrderCelebrationRow = {
   id: string;
+  outlet_id?: string | null;
   reservation_code: string | null;
   group_id: string | null;
   group?: GroupJoin | GroupJoin[];
@@ -166,13 +169,15 @@ export function OrderCelebrationScreen() {
   const route =
     useRoute<RouteProp<RootStackParamList, 'OrderCelebration'>>();
   const { orderId, variant } = route.params;
-  const { env } = useAuthContext();
+  const { env, user } = useAuthContext();
   const { colors, spacing, radii, mode } = useStitchTheme();
   const insets = useSafeAreaInsets();
   const [row, setRow] = useState<OrderCelebrationRow | null>(null);
   const [groupBags, setGroupBags] = useState<{ id: string; title: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [reduceMotion, setReduceMotion] = useState(false);
+  const [storyDismissed, setStoryDismissed] = useState(false);
+  const [storySaving, setStorySaving] = useState(false);
 
   const copy = useMemo(() => getCelebrationCopy(variant), [variant]);
 
@@ -212,6 +217,7 @@ export function OrderCelebrationScreen() {
       .select(
         `
           id,
+          outlet_id,
           reservation_code,
           group_id,
           group:reservation_groups(reservation_code, bag_count),
@@ -627,7 +633,38 @@ export function OrderCelebrationScreen() {
           </StitchCard>
         </Animated.View>
 
-        <Animated.View style={[styles.actions, stagger[3]]}>
+        {!storyDismissed && user?.id && row?.outlet_id ? (
+          <Animated.View style={[stagger[3], { marginBottom: spacing.xl }]}>
+            <RescueStoryStep
+              outletName={
+                typeof row.outlet?.name === 'string' && row.outlet.name
+                  ? row.outlet.name
+                  : 'Your outlet'
+              }
+              impactLine={`Rescue secured · ${formatOrderRef(row.id, displayReservationCode)}`}
+              saving={storySaving}
+              onSkip={() => setStoryDismissed(true)}
+              onSave={async ({ localPhotoUri, caption }) => {
+                setStorySaving(true);
+                try {
+                  const photoUrl = await uploadRescueStoryPhoto(env, user.id, localPhotoUri);
+                  await createRescueStory(env, {
+                    orderId: row.id,
+                    customerId: user.id,
+                    outletId: row.outlet_id!,
+                    caption,
+                    photoUrl,
+                  });
+                  setStoryDismissed(true);
+                } finally {
+                  setStorySaving(false);
+                }
+              }}
+            />
+          </Animated.View>
+        ) : null}
+
+        <Animated.View style={[styles.actions, stagger[storyDismissed ? 3 : 4]]}>
           <StitchButton
             title={copy.primaryCta}
             onPress={goOrderDetail}

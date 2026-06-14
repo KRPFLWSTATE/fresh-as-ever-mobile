@@ -1,0 +1,9 @@
+{"ts":"2026-06-14T08:00:00Z","wave":"P0","id":"P0-03","tool":"supabase.execute_sql","args_summary":"demo inventory bags count","result_summary":"Bakehouse 4, Kumbuk 4 live bags","evidence":"MATRIX P0-03"}
+{"ts":"2026-06-14T08:05:00Z","wave":"P0","id":"P0-01","tool":"shell.typecheck","args_summary":"npm run typecheck","result_summary":"exit 0","evidence":"MATRIX P0-01"}
+{"ts":"2026-06-14T08:06:00Z","wave":"P0","id":"P0-02","tool":"shell.jest","args_summary":"npm test","result_summary":"48/49 suites 241/241 tests","evidence":"MATRIX P0-02"}
+{"ts":"2026-06-14T08:10:00Z","wave":"P0","id":"P0-07","tool":"shell.grep","args_summary":".env GROUP_RESERVATIONS","result_summary":"true","evidence":"fresh-as-ever-mobile/.env"}
+{"ts":"2026-06-14T08:35:00Z","wave":"2","id":"C12-migration","tool":"supabase.apply_migration","args_summary":"rescue_stories_v1","result_summary":"success","evidence":"supabase/migrations/20260614180000_rescue_stories_v1.sql"}
+{"ts":"2026-06-14T08:36:00Z","wave":"2","id":"C12-schema","tool":"supabase.execute_sql","args_summary":"rescue_stories table exists","result_summary":"public.rescue_stories","evidence":"MATRIX A-13 prep"}
+{"ts":"2026-06-14T08:40:00Z","wave":"2","id":"A-jest","tool":"shell.jest","args_summary":"pass19 unit suites","result_summary":"10/10 pass","evidence":"__tests__/customerWeeklyStreak.test.ts etc"}
+{"ts":"2026-06-14T08:43:00Z","wave":"P0","id":"P0-04","tool":"appium.screenshot","args_summary":"Colombo geolocation session","result_summary":"screenshot saved","evidence":"docs/verification/pass19-features/screenshots/pass19/baseline/01-discover-or-launch.png"}
+{"ts":"2026-06-14T08:44:00Z","wave":"4","id":"R-04","tool":"supabase.get_advisors","args_summary":"security","result_summary":"WARN only no new ERROR","evidence":"verify-log R-04"}

@@ -6,6 +6,7 @@ const STORAGE_KEY = 'fae.clearanceBasket.v1';
 type BasketState = {
   shelfId: string | null;
   items: Record<string, number>;
+  startedAtMs: number | null;
 };
 
 export function scopeBasketToShelf(
@@ -23,7 +24,12 @@ async function readStorage(): Promise<BasketState | null> {
   try {
     const raw = await AsyncStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
-    return JSON.parse(raw) as BasketState;
+    const parsed = JSON.parse(raw) as BasketState;
+    return {
+      shelfId: parsed.shelfId ?? null,
+      items: parsed.items ?? {},
+      startedAtMs: parsed.startedAtMs ?? null,
+    };
   } catch {
     return null;
   }
@@ -40,21 +46,31 @@ async function writeStorage(payload: BasketState | null) {
 export function useClearanceBasket() {
   const [shelfId, setShelfId] = useState<string | null>(null);
   const [items, setItems] = useState<Record<string, number>>({});
+  const [startedAtMs, setStartedAtMs] = useState<number | null>(null);
 
   useEffect(() => {
     void readStorage().then((stored) => {
       if (stored?.shelfId) {
         setShelfId(stored.shelfId);
         setItems(stored.items ?? {});
+        setStartedAtMs(stored.startedAtMs ?? null);
       }
     });
   }, []);
 
-  const persist = useCallback(async (nextShelfId: string | null, nextItems: Record<string, number>) => {
-    setShelfId(nextShelfId);
-    setItems(nextItems);
-    await writeStorage({ shelfId: nextShelfId, items: nextItems });
-  }, []);
+  const persist = useCallback(
+    async (
+      nextShelfId: string | null,
+      nextItems: Record<string, number>,
+      nextStartedAtMs: number | null,
+    ) => {
+      setShelfId(nextShelfId);
+      setItems(nextItems);
+      setStartedAtMs(nextStartedAtMs);
+      await writeStorage({ shelfId: nextShelfId, items: nextItems, startedAtMs: nextStartedAtMs });
+    },
+    [],
+  );
 
   const setQuantity = useCallback(
     (targetShelfId: string, shelfItemId: string, quantity: number, maxRemaining?: number) => {
@@ -73,7 +89,10 @@ export function useClearanceBasket() {
         } else {
           next[shelfItemId] = qty;
         }
-        void persist(baseShelf, next);
+        const hasLines = Object.keys(next).length > 0;
+        const started = hasLines ? Date.now() : null;
+        void persist(baseShelf, next, started);
+        setStartedAtMs(started);
         return next;
       });
     },
@@ -81,7 +100,7 @@ export function useClearanceBasket() {
   );
 
   const clear = useCallback(() => {
-    void persist(null, {});
+    void persist(null, {}, null);
   }, [persist]);
 
   const lineCount = useMemo(
@@ -103,6 +122,7 @@ export function useClearanceBasket() {
   return {
     shelfId,
     items,
+    startedAtMs,
     lineCount,
     payloadItems,
     setQuantity,

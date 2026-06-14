@@ -1,18 +1,23 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, View, type ViewStyle } from 'react-native';
+import ViewShot from 'react-native-view-shot';
 import { useAuthContext } from '@/context/AuthContext';
 import {
   useMerchantAnalytics,
   type MerchantAnalyticsSnapshot,
 } from '@/hooks/useMerchantAnalytics';
 import { useMerchantReviews } from '@/hooks/useMerchantReviews';
+import { useMerchantContext } from '@/hooks/useMerchantContext';
 import { isDemoMode } from '@/config/demoMode';
 import {
   ANALYTICS_WINDOW_OPTIONS,
   type AnalyticsWindowKey,
   formatLkr,
 } from '@/lib/merchantAnalytics';
+import { captureViewShot, shareCardGraphic } from '@/lib/shareCard';
 import { useStitchTheme } from '@/theme/StitchThemeContext';
+import { MerchantImpactHero } from '@/components/merchant/MerchantImpactHero';
+import { MerchantImpactCertificate } from '@/components/merchant/MerchantImpactCertificate';
 import {
   StitchIcon,
   StitchScreen,
@@ -35,11 +40,14 @@ function bucketSliceTotals(snapshot: MerchantAnalyticsSnapshot | null): number[]
 
 export function MerchantAnalyticsScreen() {
   const { env } = useAuthContext();
+  const { outlets } = useMerchantContext(env);
   const [windowKey, setWindowKey] = useState<AnalyticsWindowKey>(30);
   const { snapshot, loading, error } = useMerchantAnalytics(env, windowKey);
   const { averageRating, reviews, loading: revLoad, error: revErr } =
     useMerchantReviews(env);
   const { colors, radii, spacing } = useStitchTheme();
+  const certRef = React.useRef<React.ElementRef<typeof ViewShot>>(null);
+  const [sharingCert, setSharingCert] = useState(false);
 
   const onPickWindow = useCallback(() => {
     Alert.alert('Time range', undefined, [
@@ -55,6 +63,30 @@ export function MerchantAnalyticsScreen() {
     () => ANALYTICS_WINDOW_OPTIONS.find((o) => o.key === windowKey)?.label ?? 'Last 30 days',
     [windowKey],
   );
+
+  const outletName = outlets[0]?.name ?? 'Your outlet';
+  const mealsEquiv = useMemo(
+    () => Math.max(0, Math.round((snapshot?.wasteKg ?? 0) * 2.5)),
+    [snapshot?.wasteKg],
+  );
+  const treesEquiv = useMemo(
+    () => Math.max(0, Math.round((snapshot?.co2Kg ?? 0) / 21)),
+    [snapshot?.co2Kg],
+  );
+
+  const onShareCertificate = useCallback(async () => {
+    setSharingCert(true);
+    try {
+      const uri = await captureViewShot(certRef);
+      await shareCardGraphic({
+        title: `${outletName} impact certificate`,
+        message: `Our outlet prevented ${snapshot?.co2Kg ?? 0} kg CO₂e with Fresh As Ever.`,
+        imageUri: uri,
+      });
+    } finally {
+      setSharingCert(false);
+    }
+  }, [outletName, snapshot?.co2Kg]);
 
   const sliceBars = useMemo(() => bucketSliceTotals(snapshot), [snapshot]);
   const maxBar = useMemo(() => Math.max(1, ...sliceBars), [sliceBars]);
@@ -170,6 +202,46 @@ export function MerchantAnalyticsScreen() {
           {revErr}
         </StitchText>
       ) : null}
+
+      <MerchantImpactHero
+        co2Kg={snapshot?.co2Kg ?? 0}
+        wasteKg={snapshot?.wasteKg ?? 0}
+        surplusLabel={snapshot?.surplusRecoveredLabel ?? formatLkr(0)}
+        windowLabel={windowLabel}
+        mealsEquiv={mealsEquiv}
+        treesEquiv={treesEquiv}
+      />
+
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Share impact certificate"
+        testID="merchant.certificateShare"
+        onPress={() => void onShareCertificate()}
+        style={({ pressed }) => ({
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: spacing.sm,
+          paddingVertical: spacing.md,
+          opacity: pressed || sharingCert ? 0.85 : 1,
+        })}
+      >
+        <StitchIcon name="share" size={20} colorKey="primary" />
+        <StitchText variant="label" colorKey="primary">
+          {sharingCert ? 'Preparing certificate…' : 'Share impact certificate'}
+        </StitchText>
+      </Pressable>
+
+      <View style={{ position: 'absolute', left: -9999, top: 0 }} pointerEvents="none">
+        <MerchantImpactCertificate
+          ref={certRef}
+          outletName={outletName}
+          windowLabel={windowLabel}
+          co2Kg={snapshot?.co2Kg ?? 0}
+          wasteKg={snapshot?.wasteKg ?? 0}
+          surplusLabel={snapshot?.surplusRecoveredLabel ?? formatLkr(0)}
+        />
+      </View>
 
       <View style={styles.kpiGrid}>
         <View style={styles.kpiCard}>
