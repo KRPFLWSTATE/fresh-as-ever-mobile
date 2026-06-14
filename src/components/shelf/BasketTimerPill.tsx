@@ -114,7 +114,7 @@ export function BasketTimerPill({
           ],
         },
       ]}
-      testID="shelf.basketTimer"
+      testID={tone === 'expired' ? 'shelf.basketExpiredBanner' : 'shelf.basketTimer'}
     >
       <StitchIcon
         name={tone === 'expired' ? 'refresh' : 'schedule'}

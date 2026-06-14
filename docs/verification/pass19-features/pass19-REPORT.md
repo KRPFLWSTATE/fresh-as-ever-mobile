@@ -2,7 +2,33 @@
 
 ## Executive summary
 
-Pass 19 verification pass 6 **fixed the clearance shelf loading hang** and re-ran strict Appium on sim `377DAC99-B79C-4B05-BB34-DBA1D160038D`. Matrix remains **66 PASS / 2 PARTIAL / 0 FAIL**: **B-15** (expiry banner) and **M2** (shelf→checkout macro) — shelf content now loads with customer JWT, but expiry banner and full checkout journey were not captured to strict-PASS bar.
+Pass 19 verification pass 7 **landed basket rehydrate + QA expiry fallback code fixes** and re-ran strict Appium (3 retries each) on sim `377DAC99-B79C-4B05-BB34-DBA1D160038D`. Matrix remains **66 PASS / 2 PARTIAL / 0 FAIL**: **B-15** (expiry banner) and **M2** (shelf→checkout macro) — shelf content loads on warm path, but expiry banner and checkout screenshots still fail strict-PASS bar after pass7.
+
+## Pass 7 (2026-06-14)
+
+### Code fixes
+
+| Fix | Impact |
+|-----|--------|
+| `useClearanceBasket` focus rehydrate + `rehydrate()` export | Re-reads `fae.clearanceBasket.v1` on mount, AppState active, and screen focus |
+| `ClearanceShelfScreen` `useFocusEffect` + `basketExpired=1` dev param | QA fallback seeds expired basket when AsyncStorage inject unreliable |
+| `BasketTimerPill` `shelf.basketExpiredBanner` testID | Distinguishes expired banner from live timer |
+| `shelf.qtyIncrement.*` hitSlop + `accessibilityRole="button"` | Larger tap targets for Appium increment macro |
+
+### Appium methodology
+
+Embedded Appium + WebdriverIO on `:4723`. Auth: `login.useEmailPassword` → `login.email` / `login.password` / `login.signIn`. Warm navigation: outlet `00000000-0000-0000-0000-000000000003` → clearance shelf card. B-15: bundle-scoped AsyncStorage inject + `?basketExpired=1` deeplink. M2: increment → `shelf.reviewBasket` → `shelf.reviewCheckout`. Evidence: `screenshots/pass19/pass7/`, log wave `pass7` in `verify-log.jsonl`.
+
+### Results
+
+| Row | Result | Evidence |
+|-----|--------|----------|
+| B-15 | PARTIAL | 3 attempts — inject + focus rehydrate + `basketExpired=1`; `pass7/B-15-attempt{1,2,3}-shelf.png`; banner/`shelf.basketExpiredBanner` not captured |
+| M2 | PARTIAL | 3 attempts — `pass7/M2-1-shelf-content-attempt{1,2,3}.png`, `M2-2-shelf-qty-added-attempt{1,2,3}.png`, `M2-4-checkout-attempt{1,2,3}.png`, `M2-shelf-checkout-journey-attempt{1,2,3}.mp4`; checkout not reached |
+
+### Scripts
+
+- `pass19-pass7-closeout.mjs`
 
 ## Pass 6 (2026-06-14)
 

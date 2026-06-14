@@ -102,6 +102,7 @@ const config: NonNullable<LinkingOptions<RootStackParamList>['config']> = {
       parse: {
         id: (id: string) => id,
         preview: (value: string) => value === 'true' || value === '1',
+        basketExpired: (value: string) => value === 'true' || value === '1',
       },
     },
     ShelfReview: {

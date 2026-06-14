@@ -55,6 +55,10 @@ export function useClearanceBasket() {
         setShelfId(stored.shelfId);
         setItems(stored.items ?? {});
         setStartedAtMs(stored.startedAtMs ?? null);
+      } else {
+        setShelfId(null);
+        setItems({});
+        setStartedAtMs(null);
       }
     });
   }, []);
@@ -132,6 +136,14 @@ export function useClearanceBasket() {
     [items],
   );
 
+  const seedExpiredBasketForQa = useCallback(
+    (targetShelfId: string, shelfItemId: string) => {
+      const expiredStart = Date.now() - 16 * 60 * 1000;
+      void persist(targetShelfId, { [shelfItemId]: 1 }, expiredStart);
+    },
+    [persist],
+  );
+
   return {
     shelfId,
     items,
@@ -140,5 +152,7 @@ export function useClearanceBasket() {
     payloadItems,
     setQuantity,
     clear,
+    rehydrate: hydrateFromStorage,
+    seedExpiredBasketForQa,
   };
 }

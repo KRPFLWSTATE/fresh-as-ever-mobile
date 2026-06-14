@@ -529,6 +529,7 @@ export function OutletDetailScreen(): React.ReactElement {
                 return (
                   <Pressable
                     key={shelf.id}
+                    testID={`outlet.clearanceShelf.${shelf.id}`}
                     accessibilityRole="button"
                     onPress={() =>
                       navigation.navigate('ClearanceShelf', { id: shelf.id })

@@ -277,6 +277,7 @@ export function ShelfReviewScreen({ navigation, route }: Props) {
           {savings > 0 ? ` · You save LKR ${savings.toFixed(0)}` : ''}
         </StitchText>
         <Pressable
+          testID="shelf.reviewCheckout"
           disabled={lines.length < 1}
           onPress={async () => {
             await refresh();

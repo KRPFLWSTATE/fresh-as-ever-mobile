@@ -1,4 +1,4 @@
-import React, { useLayoutEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import {
   FlatList,
   Image,
@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { RootStackParamList } from '@/navigation/types';
 import { useShelfDetail } from '@/hooks/useShelfDetail';
@@ -67,6 +68,7 @@ function formatLkr(n: number): string {
 
 export function ClearanceShelfScreen({ navigation, route }: Props) {
   const previewRequested = parsePreviewQueryParam(route.params.preview);
+  const basketExpiredQa = __DEV__ && parsePreviewQueryParam(route.params.basketExpired);
   const { env, user, resolvedRole } = useAuthContext();
   const shelfId = route.params.id;
   const { isMerchantPreview, isBrowseOnly } = resolveShelfPreviewMode(
@@ -81,7 +83,8 @@ export function ClearanceShelfScreen({ navigation, route }: Props) {
     return typeof outlet?.id === 'string' ? outlet.id : null;
   }, [shelf?.outlet]);
   const { isSaved, toggleFavourite } = useFavourites(env, user?.id ?? null);
-  const { shelfId: basketShelfId, items, startedAtMs, setQuantity } = useClearanceBasket();
+  const { shelfId: basketShelfId, items, startedAtMs, setQuantity, rehydrate, seedExpiredBasketForQa } =
+    useClearanceBasket();
   const { colors, spacing, radii } = useStitchTheme();
   const insets = useSafeAreaInsets();
   const [searchQuery, setSearchQuery] = useState('');
@@ -92,6 +95,21 @@ export function ClearanceShelfScreen({ navigation, route }: Props) {
   useLayoutEffect(() => {
     navigation.setOptions({ headerShown: false });
   }, [navigation]);
+
+  useFocusEffect(
+    useCallback(() => {
+      rehydrate();
+    }, [rehydrate]),
+  );
+
+  useEffect(() => {
+    if (!basketExpiredQa || loading || !Array.isArray(shelf?.items) || shelf.items.length === 0) {
+      return;
+    }
+    const first = shelf.items[0] as Record<string, unknown>;
+    const firstId = first?.id != null ? String(first.id) : null;
+    if (firstId) seedExpiredBasketForQa(shelfId, firstId);
+  }, [basketExpiredQa, loading, seedExpiredBasketForQa, shelf?.items, shelfId]);
 
   const scopedItems = useMemo(
     () => scopeBasketToShelf(basketShelfId, items, shelfId),
@@ -247,111 +265,127 @@ export function ClearanceShelfScreen({ navigation, route }: Props) {
       : [];
 
     return (
-      <Pressable onPress={() => setDetailItem(item)}>
-        <StitchSurface
-          elevated
-          padding="md"
-          style={{
-            opacity: soldOut ? 0.55 : 1,
-            backgroundColor: soldOut ? colors.surfaceContainerLow : undefined,
-          }}
-        >
-          <View style={{ flexDirection: 'row', gap: spacing.md, alignItems: 'center' }}>
-            {item.image_url_snapshot ? (
-              <Image
-                source={{ uri: String(item.image_url_snapshot) }}
-                style={{ width: 64, height: 64, borderRadius: radii.lg }}
-              />
-            ) : (
-              <View
-                style={{
-                  width: 64,
-                  height: 64,
-                  borderRadius: radii.lg,
-                  backgroundColor: colors.surfaceContainerHighest,
-                }}
-              />
-            )}
-            <View style={{ flex: 1, minWidth: 0 }}>
-              <StitchText variant="label" colorKey="onBackground" numberOfLines={2}>
-                {displayName}
-              </StitchText>
-              {item.brand_snapshot ? (
-                <StitchText variant="body-sm" colorKey="textMuted">
-                  {String(item.brand_snapshot)}
+      <StitchSurface
+        elevated
+        padding="md"
+        style={{
+          opacity: soldOut ? 0.55 : 1,
+          backgroundColor: soldOut ? colors.surfaceContainerLow : undefined,
+        }}
+      >
+        <View style={{ flexDirection: 'row', gap: spacing.md, alignItems: 'center' }}>
+          <Pressable onPress={() => setDetailItem(item)} style={{ flex: 1, minWidth: 0 }}>
+            <View style={{ flexDirection: 'row', gap: spacing.md, alignItems: 'center' }}>
+              {item.image_url_snapshot ? (
+                <Image
+                  source={{ uri: String(item.image_url_snapshot) }}
+                  style={{ width: 64, height: 64, borderRadius: radii.lg }}
+                />
+              ) : (
+                <View
+                  style={{
+                    width: 64,
+                    height: 64,
+                    borderRadius: radii.lg,
+                    backgroundColor: colors.surfaceContainerHighest,
+                  }}
+                />
+              )}
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <StitchText variant="label" colorKey="onBackground" numberOfLines={2}>
+                  {displayName}
                 </StitchText>
-              ) : null}
-              <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: spacing.sm, marginTop: 4 }}>
-                <StitchText variant="price" colorKey="accent">
-                  {formatLkr(Number(item.rescue_price ?? 0))}
-                </StitchText>
-                {item.retail_price != null &&
-                Number(item.retail_price) > Number(item.rescue_price ?? 0) ? (
-                  <StitchText
-                    variant="body-sm"
-                    colorKey="textFaint"
-                    style={{ textDecorationLine: 'line-through' }}
-                  >
-                    {formatLkr(Number(item.retail_price))}
+                {item.brand_snapshot ? (
+                  <StitchText variant="body-sm" colorKey="textMuted">
+                    {String(item.brand_snapshot)}
                   </StitchText>
                 ) : null}
-              </View>
-              {savingsLine ? (
-                <StitchText variant="body-sm" colorKey="secondary">
-                  {savingsLine}
-                </StitchText>
-              ) : null}
-              {soldOut ? (
-                <StitchText variant="label" colorKey="error" style={{ marginTop: 4 }}>
-                  Sold out
-                </StitchText>
-              ) : lowStock ? (
-                <StitchText variant="body-sm" colorKey="secondary" style={{ marginTop: 4 }}>
-                  {lowStock}
-                </StitchText>
-              ) : null}
-              {bestBefore ? (
-                <StitchText variant="body-sm" colorKey="textMuted" style={{ marginTop: 4 }}>
-                  {bestBefore}
-                </StitchText>
-              ) : null}
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: spacing.xs }}>
-                {item.is_halal === true ? <Chip label="Halal" colors={colors} /> : null}
-                {allergens.map((a) => (
-                  <Chip key={a} label={a} colors={colors} muted />
-                ))}
+                <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: spacing.sm, marginTop: 4 }}>
+                  <StitchText variant="price" colorKey="accent">
+                    {formatLkr(Number(item.rescue_price ?? 0))}
+                  </StitchText>
+                  {item.retail_price != null &&
+                  Number(item.retail_price) > Number(item.rescue_price ?? 0) ? (
+                    <StitchText
+                      variant="body-sm"
+                      colorKey="textFaint"
+                      style={{ textDecorationLine: 'line-through' }}
+                    >
+                      {formatLkr(Number(item.retail_price))}
+                    </StitchText>
+                  ) : null}
+                </View>
+                {savingsLine ? (
+                  <StitchText variant="body-sm" colorKey="secondary">
+                    {savingsLine}
+                  </StitchText>
+                ) : null}
+                {soldOut ? (
+                  <StitchText variant="label" colorKey="error" style={{ marginTop: 4 }}>
+                    Sold out
+                  </StitchText>
+                ) : lowStock ? (
+                  <StitchText variant="body-sm" colorKey="secondary" style={{ marginTop: 4 }}>
+                    {lowStock}
+                  </StitchText>
+                ) : null}
+                {bestBefore ? (
+                  <StitchText variant="body-sm" colorKey="textMuted" style={{ marginTop: 4 }}>
+                    {bestBefore}
+                  </StitchText>
+                ) : null}
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: spacing.xs }}>
+                  {item.is_halal === true ? <Chip label="Halal" colors={colors} /> : null}
+                  {allergens.map((a) => (
+                    <Chip key={a} label={a} colors={colors} muted />
+                  ))}
+                </View>
               </View>
             </View>
-            {!soldOut && !isBrowseOnly ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-                <Pressable
-                  testID={`shelf.qtyDecrement.${id}`}
-                  disabled={disabled || qty <= 0}
-                  onPress={(e) => {
-                    e.stopPropagation?.();
-                    setQuantity(shelfId, id, qty - 1, max);
-                  }}
-                >
-                  <StitchIcon name="remove" size={24} colorKey="onBackground" />
-                </Pressable>
-                <StitchText variant="h3" colorKey="onBackground" testID={`shelf.qtyDisplay.${id}`}>
-                  {qty}
-                </StitchText>
-                <Pressable
-                  testID={`shelf.qtyIncrement.${id}`}
-                  disabled={disabled || qty >= max}
-                  onPress={(e) => {
-                    e.stopPropagation?.();
-                    setQuantity(shelfId, id, qty + 1, max);
-                  }}
-                >
-                  <StitchIcon name="add" size={24} colorKey="primaryContainer" />
-                </Pressable>
-              </View>
-            ) : null}
-          </View>
-        </StitchSurface>
-      </Pressable>
+          </Pressable>
+          {!soldOut && !isBrowseOnly ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+              <Pressable
+                testID={`shelf.qtyDecrement.${id}`}
+                accessibilityRole="button"
+                accessibilityLabel="Decrease quantity"
+                hitSlop={12}
+                disabled={disabled || qty <= 0}
+                onPress={() => setQuantity(shelfId, id, qty - 1, max)}
+                style={({ pressed }) => ({
+                  minWidth: 44,
+                  minHeight: 44,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  opacity: pressed ? 0.7 : 1,
+                })}
+              >
+                <StitchIcon name="remove" size={24} colorKey="onBackground" />
+              </Pressable>
+              <StitchText variant="h3" colorKey="onBackground" testID={`shelf.qtyDisplay.${id}`}>
+                {qty}
+              </StitchText>
+              <Pressable
+                testID={`shelf.qtyIncrement.${id}`}
+                accessibilityRole="button"
+                accessibilityLabel="Increase quantity"
+                hitSlop={12}
+                disabled={disabled || qty >= max}
+                onPress={() => setQuantity(shelfId, id, qty + 1, max)}
+                style={({ pressed }) => ({
+                  minWidth: 44,
+                  minHeight: 44,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  opacity: pressed ? 0.7 : 1,
+                })}
+              >
+                <StitchIcon name="add" size={24} colorKey="primaryContainer" />
+              </Pressable>
+            </View>
+          ) : null}
+        </View>
+      </StitchSurface>
     );
   };
 
