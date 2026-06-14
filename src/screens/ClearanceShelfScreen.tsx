@@ -37,6 +37,7 @@ import {
   formatLowStock,
   formatPickupByLabel,
   formatPickupWindow,
+  formatStockRemaining,
   formatUnitLabel,
   sumRetailSavings,
 } from '@/lib/shelfDisplay';
@@ -371,44 +372,49 @@ export function ClearanceShelfScreen({ navigation, route }: Props) {
             </View>
           </Pressable>
           {!soldOut && !isBrowseOnly ? (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-              <Pressable
-                testID={`shelf.qtyDecrement.${id}`}
-                accessibilityRole="button"
-                accessibilityLabel="Decrease quantity"
-                hitSlop={12}
-                disabled={disabled || qty <= 0}
-                onPress={() => setQuantity(shelfId, id, qty - 1, max)}
-                style={({ pressed }) => ({
-                  minWidth: 44,
-                  minHeight: 44,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  opacity: pressed ? 0.7 : 1,
-                })}
-              >
-                <StitchIcon name="remove" size={24} colorKey="onBackground" />
-              </Pressable>
-              <StitchText variant="h3" colorKey="onBackground" testID={`shelf.qtyDisplay.${id}`}>
-                {qty}
+            <View style={{ alignItems: 'center', gap: 2 }}>
+              <StitchText variant="body-sm" colorKey="textMuted" testID={`shelf.stockRemaining.${id}`}>
+                {formatStockRemaining(max) ?? ''}
               </StitchText>
-              <Pressable
-                testID={`shelf.qtyIncrement.${id}`}
-                accessibilityRole="button"
-                accessibilityLabel="Increase quantity"
-                hitSlop={12}
-                disabled={disabled || qty >= max}
-                onPress={() => setQuantity(shelfId, id, qty + 1, max)}
-                style={({ pressed }) => ({
-                  minWidth: 44,
-                  minHeight: 44,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  opacity: pressed ? 0.7 : 1,
-                })}
-              >
-                <StitchIcon name="add" size={24} colorKey="primaryContainer" />
-              </Pressable>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+                <Pressable
+                  testID={`shelf.qtyDecrement.${id}`}
+                  accessibilityRole="button"
+                  accessibilityLabel="Decrease quantity"
+                  hitSlop={12}
+                  disabled={disabled || qty <= 0}
+                  onPress={() => setQuantity(shelfId, id, qty - 1, max)}
+                  style={({ pressed }) => ({
+                    minWidth: 44,
+                    minHeight: 44,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    opacity: pressed ? 0.7 : 1,
+                  })}
+                >
+                  <StitchIcon name="remove" size={24} colorKey="onBackground" />
+                </Pressable>
+                <StitchText variant="h3" colorKey="onBackground" testID={`shelf.qtyDisplay.${id}`}>
+                  {qty}
+                </StitchText>
+                <Pressable
+                  testID={`shelf.qtyIncrement.${id}`}
+                  accessibilityRole="button"
+                  accessibilityLabel="Increase quantity"
+                  hitSlop={12}
+                  disabled={disabled || qty >= max}
+                  onPress={() => setQuantity(shelfId, id, qty + 1, max)}
+                  style={({ pressed }) => ({
+                    minWidth: 44,
+                    minHeight: 44,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    opacity: pressed ? 0.7 : 1,
+                  })}
+                >
+                  <StitchIcon name="add" size={24} colorKey="primaryContainer" />
+                </Pressable>
+              </View>
             </View>
           ) : null}
         </View>

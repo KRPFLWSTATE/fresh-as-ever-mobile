@@ -9,6 +9,7 @@ import {
   countDistinctCustomers,
   cutoffIsoForWindow,
   estimateWasteKg,
+  estimateShelfFoodKg,
   formatLkr,
   isCollectedOrder,
   peakHourLabel,
@@ -73,11 +74,18 @@ export function useMerchantAnalytics(env: AppEnv, windowDays: AnalyticsWindowKey
           id,
           customer_id,
           bag_id,
+          shelf_id,
           total,
           quantity,
           created_at,
           order_status,
-          bag:rescue_bags(title, estimated_weight_kg, retail_value_estimate)
+          bag:rescue_bags(title, estimated_weight_kg, retail_value_estimate),
+          order_items (
+            quantity,
+            line_total,
+            unit_price,
+            product:product_catalog(weight_grams)
+          )
         `,
         )
         .in('outlet_id', outletScopeIds)
@@ -113,13 +121,21 @@ export function useMerchantAnalytics(env: AppEnv, windowDays: AnalyticsWindowKey
         } | null;
         weightMap.set(bagId, resolveBagFoodWeightKg(bag));
       }
-      const wasteKg = estimateWasteKg(
-        collected.map((r) => ({
-          bag_id: r.bag_id as string | null,
-          quantity: r.quantity as number | null,
-        })),
-        weightMap,
-      );
+      const wasteKg = (() => {
+        let kg = estimateWasteKg(
+          collected.map((r) => ({
+            bag_id: r.bag_id as string | null,
+            quantity: r.quantity as number | null,
+          })),
+          weightMap,
+        );
+        for (const r of collected) {
+          if (r.shelf_id == null) continue;
+          const lines = (r.order_items ?? []) as Record<string, unknown>[];
+          kg += estimateShelfFoodKg(lines);
+        }
+        return Math.round(kg * 10) / 10;
+      })();
       const co2Kg = co2eKgFromFoodKg(wasteKg);
       const surplusRecovered = sumSurplusRecovered(
         collected.map((r) => ({

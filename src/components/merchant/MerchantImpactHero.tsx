@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AccessibilityInfo, Animated, Easing, StyleSheet, View } from 'react-native';
-import { useStitchTheme } from '@/theme/StitchThemeContext';
+import { KG_CO2E_PER_KG_FOOD } from '@/lib/co2Impact';
 import { headlineOnGreenSurface, textOnGreenSurface } from '@/lib/stitchContrast';
+import { useStitchTheme } from '@/theme/StitchThemeContext';
 import { stitchAmbientShadow } from '@/theme/stitchTokens';
 import { StitchIcon, StitchSurface, StitchText } from '@/ui/stitch';
 
@@ -55,6 +56,10 @@ export function MerchantImpactHero({
 
   const co2Display = useCountUp(co2Kg, motionOk);
   const wasteDisplay = useCountUp(wasteKg, motionOk);
+  const co2Breakdown =
+    wasteKg > 0 && co2Kg > 0
+      ? `${wasteDisplay} kg food × ${KG_CO2E_PER_KG_FOOD} ≈ ${co2Display} kg CO₂e`
+      : null;
 
   const styles = useMemo(
     () =>
@@ -114,8 +119,13 @@ export function MerchantImpactHero({
               {co2Display}
             </StitchText>
             <StitchText variant="label" colorKey="onSurface">
-              kg CO₂e prevented
+              kg CO₂e prevented (est.)
             </StitchText>
+            {co2Breakdown ? (
+              <StitchText variant="body-sm" colorKey="textMuted">
+                {co2Breakdown}
+              </StitchText>
+            ) : null}
           </View>
           <View style={styles.cell}>
             <StitchIcon name="inventory_2" size={24} colorKey="primary" />

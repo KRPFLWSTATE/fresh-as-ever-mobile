@@ -81,8 +81,8 @@ export function GroupCheckoutStrip({
         </StitchText>
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           <View style={styles.strip}>
-            {bags.map((bag) => (
-              <View key={bag.id} style={styles.row}>
+            {bags.map((bag, index) => (
+              <View key={`${bag.id}-${index}`} style={styles.row}>
                 <View style={styles.thumb}>
                   <StitchIcon name="shopping_bag" size={22} colorKey="primary" />
                 </View>

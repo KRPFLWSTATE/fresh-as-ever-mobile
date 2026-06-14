@@ -9,7 +9,7 @@ import {
   View,
 } from 'react-native';
 import ViewShot from 'react-native-view-shot';
-import { useCustomerImpact } from '@/hooks/useCustomerImpact';
+import { KG_CO2E_PER_KG_FOOD } from '@/lib/co2Impact';
 import { useCustomerWeeklyStreak } from '@/hooks/useCustomerWeeklyStreak';
 import { useAuthContext } from '@/context/AuthContext';
 import { useStitchTheme } from '@/theme/StitchThemeContext';
@@ -48,6 +48,10 @@ export function ImpactScreen() {
 
   const { colors, spacing, radii, mode } = useStitchTheme();
   const equiv = useMemo(() => co2Equivalents(co2SavedKg), [co2SavedKg]);
+  const foodRescuedKg = useMemo(
+    () => (co2SavedKg > 0 ? Math.round((co2SavedKg / KG_CO2E_PER_KG_FOOD) * 10) / 10 : 0),
+    [co2SavedKg],
+  );
 
   useFocusEffect(
     useCallback(() => {
@@ -265,8 +269,13 @@ export function ImpactScreen() {
                   </StitchText>
                 </View>
                 <StitchText variant="h3" colorKey="onSurface">
-                  CO₂e Prevented
+                  CO₂e Prevented (est.)
                 </StitchText>
+                {foodRescuedKg > 0 ? (
+                  <StitchText variant="body-sm" colorKey="textMuted">
+                    {foodRescuedKg} kg food rescued × {KG_CO2E_PER_KG_FOOD} factor
+                  </StitchText>
+                ) : null}
               </View>
             </StitchSurface>
 

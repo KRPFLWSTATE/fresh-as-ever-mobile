@@ -30,7 +30,8 @@ export function useCustomerImpact(env: AppEnv, customerId: string | null) {
           `quantity, total, order_status, shelf_id,
           bag:rescue_bags(estimated_weight_kg, retail_value_estimate, rescue_price),
           order_items (
-            quantity, line_total, unit_price
+            quantity, line_total, unit_price,
+            product:product_catalog(weight_grams)
           )`,
         )
         .eq('customer_id', customerId)

@@ -843,6 +843,27 @@ export function CheckoutScreen() {
     );
   }, [groupBags, isGroupCheckout]);
 
+  const cashAllowed = completedPickups >= 1;
+
+  const reserveButtonTitle = useMemo(() => {
+    if (platformFlags.maintenance) return 'Paused';
+    if (isGroupCheckout) {
+      const n = groupBagIds.length;
+      return n === 1 ? 'Reserve 1 bag (card only)' : `Reserve ${n} bags (card only)`;
+    }
+    if (isShelfCheckout) return 'Reserve Now';
+    if (cashAllowed && paymentMethod === 'cash') return 'Reserve · Pay at store';
+    if (cashAllowed) return 'Reserve Now';
+    return 'Reserve Now (card only)';
+  }, [
+    cashAllowed,
+    groupBagIds.length,
+    isGroupCheckout,
+    isShelfCheckout,
+    paymentMethod,
+    platformFlags.maintenance,
+  ]);
+
   if (!hasCheckoutTarget) {
     return null;
   }
@@ -938,26 +959,6 @@ export function CheckoutScreen() {
 
   const cardSelected = paymentMethod === 'card';
   const cashSelected = paymentMethod === 'cash';
-  const cashAllowed = completedPickups >= 1;
-
-  const reserveButtonTitle = useMemo(() => {
-    if (platformFlags.maintenance) return 'Paused';
-    if (isGroupCheckout) {
-      const n = groupBagIds.length;
-      return n === 1 ? 'Reserve 1 bag (card only)' : `Reserve ${n} bags (card only)`;
-    }
-    if (isShelfCheckout) return 'Reserve Now';
-    if (cashAllowed && paymentMethod === 'cash') return 'Reserve · Pay at store';
-    if (cashAllowed) return 'Reserve Now';
-    return 'Reserve Now (card only)';
-  }, [
-    cashAllowed,
-    groupBagIds.length,
-    isGroupCheckout,
-    isShelfCheckout,
-    paymentMethod,
-    platformFlags.maintenance,
-  ]);
 
   return (
     <KeyboardAvoidingView

@@ -3,6 +3,7 @@ import {
   aggregateTopBags,
   countDistinctCustomers,
   estimateWasteKg,
+  estimateShelfFoodKg,
   isCollectedOrder,
   retailToKgProxy,
   sumRevenue,
@@ -58,6 +59,15 @@ describe('merchantAnalytics', () => {
       new Map([['x', 1.5]]),
     );
     expect(kg).toBe(3);
+  });
+
+  it('estimateShelfFoodKg uses product weight', () => {
+    expect(
+      estimateShelfFoodKg([
+        { quantity: 2, product: { weight_grams: 500 } },
+        { quantity: 1, product: { weight_grams: null } },
+      ]),
+    ).toBe(1.2);
   });
 
   it('retailToKgProxy', () => {

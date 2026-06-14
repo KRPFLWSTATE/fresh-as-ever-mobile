@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useAuthContext } from '@/context/AuthContext';
 
 export const CART_KEY = 'fae.reservationCart.v1';
 export const MAX_GROUP_BAGS = 5;
@@ -48,6 +49,7 @@ async function writeCart(state: ReservationCartState): Promise<void> {
 }
 
 export function useReservationCart() {
+  const { user } = useAuthContext();
   const [cart, setCart] = useState<ReservationCartState>(EMPTY);
   const [ready, setReady] = useState(false);
 
@@ -57,6 +59,11 @@ export function useReservationCart() {
       setReady(true);
     });
   }, []);
+
+  useEffect(() => {
+    if (user?.id) return;
+    setCart(EMPTY);
+  }, [user?.id]);
 
   const persist = useCallback(async (next: ReservationCartState) => {
     setCart(next);

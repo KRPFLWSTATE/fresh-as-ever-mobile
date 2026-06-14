@@ -60,6 +60,15 @@ export function formatLowStock(quantityRemaining: number | string | null | undef
   return qty === 1 ? 'Only 1 left' : `Only ${qty} left`;
 }
 
+/** Stock label for shelf +/- controls — always shows DB quantity when in stock. */
+export function formatStockRemaining(
+  quantityRemaining: number | string | null | undefined,
+): string | null {
+  const qty = toNumber(quantityRemaining);
+  if (qty == null || qty <= 0) return null;
+  return qty === 1 ? '1 left' : `${qty} left`;
+}
+
 /** Sum savings when lines carry id + qty map (shelf basket). */
 export function sumRetailSavingsForItems(
   items: ({ id?: string; retail_price?: number | string | null; rescue_price?: number | string | null } & ShelfLineInput)[],

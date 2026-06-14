@@ -1,3 +1,5 @@
+const DEFAULT_SHELF_ITEM_WEIGHT_KG = 0.2;
+
 export const ANALYTICS_WINDOW_OPTIONS = [
   { key: 7, label: 'Last 7 days' },
   { key: 30, label: 'Last 30 days' },
@@ -74,9 +76,32 @@ export function estimateWasteKg(
   let kg = 0;
   for (const o of orders) {
     const bagId = o.bag_id != null ? String(o.bag_id) : '';
+    if (!bagId) continue;
     const qty = Number(o.quantity ?? 1) || 1;
     const perBag = bagWeightById.get(bagId) ?? 1;
     kg += perBag * qty;
+  }
+  return Math.round(kg * 10) / 10;
+}
+
+type ShelfOrderItemWeightRow = {
+  quantity?: number | string | null;
+  product?: { weight_grams?: number | string | null } | null;
+};
+
+/** Sum food kg from shelf order line items (product weight or 0.2 kg default). */
+export function estimateShelfFoodKg(
+  orderItems: ShelfOrderItemWeightRow[] | null | undefined,
+): number {
+  let kg = 0;
+  for (const row of orderItems ?? []) {
+    const qty = Math.max(1, Number(row.quantity) || 1);
+    const grams = Number(row.product?.weight_grams);
+    const perUnit =
+      Number.isFinite(grams) && grams > 0
+        ? grams / 1000
+        : DEFAULT_SHELF_ITEM_WEIGHT_KG;
+    kg += perUnit * qty;
   }
   return Math.round(kg * 10) / 10;
 }
