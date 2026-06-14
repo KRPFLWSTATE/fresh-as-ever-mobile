@@ -826,6 +826,16 @@ export function CheckoutScreen() {
     }
   }
 
+  const pickupOverlapIssue = useMemo(() => {
+    if (!isGroupCheckout) return null;
+    return describePickupOverlapIssue(
+      groupBags.map((b) => ({
+        pickup_start: typeof b.pickup_start === 'string' ? b.pickup_start : null,
+        pickup_end: typeof b.pickup_end === 'string' ? b.pickup_end : null,
+      })),
+    );
+  }, [groupBags, isGroupCheckout]);
+
   if (!hasCheckoutTarget) {
     return null;
   }
@@ -913,15 +923,6 @@ export function CheckoutScreen() {
     retail != null && retail > rescuePrice ? retail - rescuePrice : null;
   const promoDiscount = appliedPromo?.discountAmount ?? 0;
   const totalToPay = Math.max(0, rescuePrice - promoDiscount);
-  const pickupOverlapIssue = useMemo(() => {
-    if (!isGroupCheckout) return null;
-    return describePickupOverlapIssue(
-      groupBags.map((b) => ({
-        pickup_start: typeof b.pickup_start === 'string' ? b.pickup_start : null,
-        pickup_end: typeof b.pickup_end === 'string' ? b.pickup_end : null,
-      })),
-    );
-  }, [groupBags, isGroupCheckout]);
   const priceBreakdownLabel = isShelfCheckout
     ? 'Shelf total'
     : isGroupCheckout
