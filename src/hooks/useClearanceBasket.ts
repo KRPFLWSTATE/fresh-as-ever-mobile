@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { AppState, type AppStateStatus } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const STORAGE_KEY = 'fae.clearanceBasket.v1';
@@ -48,7 +49,7 @@ export function useClearanceBasket() {
   const [items, setItems] = useState<Record<string, number>>({});
   const [startedAtMs, setStartedAtMs] = useState<number | null>(null);
 
-  useEffect(() => {
+  const hydrateFromStorage = useCallback(() => {
     void readStorage().then((stored) => {
       if (stored?.shelfId) {
         setShelfId(stored.shelfId);
@@ -57,6 +58,18 @@ export function useClearanceBasket() {
       }
     });
   }, []);
+
+  useEffect(() => {
+    hydrateFromStorage();
+  }, [hydrateFromStorage]);
+
+  useEffect(() => {
+    const onChange = (state: AppStateStatus) => {
+      if (state === 'active') hydrateFromStorage();
+    };
+    const sub = AppState.addEventListener('change', onChange);
+    return () => sub.remove();
+  }, [hydrateFromStorage]);
 
   const persist = useCallback(
     async (

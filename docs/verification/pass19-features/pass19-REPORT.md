@@ -2,7 +2,42 @@
 
 ## Executive summary
 
-Pass 19 verification pass 4 closed **61 PASS / 7 PARTIAL / 0 FAIL** (up from 58/10/0). Auth stabilized via pass7 login pattern + `login.email`/`login.password`/`login.signIn` testIDs. Three rows closed with strict pass4 Appium screenshots: **A-02** (2/3 streak), **B-07** (overlap error), **M1** (group checkout with Pay at Store).
+Pass 19 verification pass 5 closed **66 PASS / 2 PARTIAL / 0 FAIL** (up from 61/7/0). Five rows closed with strict Appium MCP evidence: **D-03**, **D-06**, **M4-3**, **A-09**, **M3**. Remaining: **B-15** (expiry banner) and **M2** (shelf checkout macro) blocked by clearance shelf fetch hanging on `Loading shelf…` after session churn.
+
+## Pass 5 (2026-06-14)
+
+### Appium MCP methodology
+
+Embedded Appium MCP session on sim `377DAC99-B79C-4B05-BB34-DBA1D160038D`. Minimum 2 screenshots per row; screen recordings for M3/M4-3. AsyncStorage inject uses bundle-scoped path `Library/Application Support/com.freshasever.mobile/RCTAsyncLocalStorage_V1/manifest.json` (not legacy `RCTAsyncLocalStorage_V1/` root).
+
+### Rows closed to PASS
+
+| Row | Evidence |
+|-----|----------|
+| D-03 | `pass5/D-03-before-supermarket-map.png`, `D-03-supermarket-no-pulse.png` |
+| D-06 | `pass5/D-06-before-map.png`, `D-06-map-preview.png` |
+| M4-3 | `pass5/M4-3-preview-to-outlet.png`, `M4-3-map-pan.png`, `M4-3-map-journey.mp4` |
+| A-09 | `pass5/A-09-before-celebration.png`, `A-09-story-photo.png`, `A-09-share-sheet.png` |
+| M3 | `pass5/M3-celebration-share-journey.mp4`, `M3-share-sheet.png` |
+
+### Remaining PARTIAL (2)
+
+| Row | Blocker |
+|-----|---------|
+| B-15 | Expired-basket inject succeeds; shelf screen stuck `Loading shelf…` — `Prices refreshed for you` / `shelf.basketTimer` not captured |
+| M2 | Same shelf fetch hang blocks increment → review → checkout macro |
+
+### Code fixes (pass5)
+
+| Fix | Impact |
+|-----|--------|
+| `useClearanceBasket` AppState rehydrate | Re-reads `fae.clearanceBasket.v1` when app becomes active (B-15 inject) |
+| `pass19-pass5-inject.mjs` | Documents correct bundle-scoped AsyncStorage path |
+
+### Scripts & evidence
+
+- Screenshots/recordings: `screenshots/pass19/pass5/`
+- Log: `verify-log.jsonl` (wave `pass5`)
 
 ## Pass 4 (2026-06-14)
 

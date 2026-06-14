@@ -151,3 +151,10 @@
 {"ts":"2026-06-14T10:02:03Z","wave":"pass4","id":"M1","tool":"appium.journey","args_summary":"checkout Pay at Store + Card","result_summary":"PASS","evidence":"screenshots/pass19/pass4/M1-1-group-checkout.png"}
 {"ts":"2026-06-14T10:02:04Z","wave":"pass4","id":"auth","tool":"appium.journey","args_summary":"appium-email-password-pass7 + login testIDs","result_summary":"PASS","evidence":"screenshots/pass19/pass4/auth-logged-in.png"}
 {"ts":"2026-06-14T10:02:05Z","wave":"pass4","id":"fix-login-testids","tool":"shell.edit","args_summary":"LoginScreen login.email password signIn","result_summary":"committed","evidence":"src/screens/LoginScreen.tsx"}
+{"ts":"2026-06-14T12:03:51Z","wave":"pass5","id":"D-03","tool":"appium.journey","result_summary":"PASS — supermarket filter + Green Grocer preview no pulse","evidence":"screenshots/pass19/pass5/D-03-supermarket-no-pulse.png"}
+{"ts":"2026-06-14T12:03:51Z","wave":"pass5","id":"D-06","tool":"appium.journey","result_summary":"PASS — coordinate marker tap opens discover.map.preview","evidence":"screenshots/pass19/pass5/D-06-map-preview.png"}
+{"ts":"2026-06-14T12:03:51Z","wave":"pass5","id":"M4-3","tool":"appium.journey","result_summary":"PASS — preview to outlet + map pan recording","evidence":"screenshots/pass19/pass5/M4-3-map-journey.mp4"}
+{"ts":"2026-06-14T12:03:51Z","wave":"pass5","id":"A-09","tool":"appium.journey","result_summary":"PASS — celebration photo + iOS share sheet","evidence":"screenshots/pass19/pass5/A-09-share-sheet.png"}
+{"ts":"2026-06-14T12:03:51Z","wave":"pass5","id":"M3","tool":"appium.journey","result_summary":"PASS — celebration macro recording + share sheet","evidence":"screenshots/pass19/pass5/M3-celebration-share-journey.mp4"}
+{"ts":"2026-06-14T12:03:51Z","wave":"pass5","id":"B-15","tool":"appium.journey","result_summary":"PARTIAL — inject OK shelf Loading hang","evidence":"screenshots/pass19/pass5/B-15-shelf-loading-blocker.png"}
+{"ts":"2026-06-14T12:03:51Z","wave":"pass5","id":"M2","tool":"appium.journey","result_summary":"PARTIAL — shelf fetch hang blocks checkout macro","evidence":"screenshots/pass19/pass5/B-15-shelf-loading-blocker.png"}
