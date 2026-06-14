@@ -8,7 +8,7 @@ Pass 19 verification pass 4 closed **61 PASS / 7 PARTIAL / 0 FAIL** (up from 58/
 
 ### Auth workaround (documented in verify-log)
 
-**Method:** `appium-email-password-pass7` — reuse active session when possible; deeplink `freshasever://login?portal=customer`; tap "Use email & password instead"; fill `login.email` / `login.password` testIDs (or SecureTextField fallback); coordinate-tap Sign in when disabled; `xcrun simctl privacy grant photos`.
+**Method:** `appium-email-password-pass7` — deeplink `freshasever://login?portal=customer`; tap "Use email & password instead" (`login.useEmailPassword`); fill `login.email` / `login.password` via testIDs with `addValue` + Return keyboard dismiss; tap `login.signIn`; `xcrun simctl privacy grant photos com.freshasever.mobile`.
 
 **Credentials:** `qa.customer@freshasever.test` / `TempCustomer#12345`
 

@@ -2,7 +2,7 @@
 
 **Verification run:** 2026-06-14 (verify pass 4) · Sim iPhone 17 Pro `377DAC99-B79C-4B05-BB34-DBA1D160038D` · Colombo geolocation  
 **Implementation commits:** mobile `2d2b1ce` · Supabase `06a1d01`  
-**Fix commits (verify):** CheckoutScreen hooks-order · shelf testIDs · Jest App.test mocks · `create_group_reservation` child `reservation_code` · pass3 streak refresh · signOut · story/profile testIDs · **pass4 login testIDs** (`login.email`, `login.password`, `login.signIn`)
+**Fix commits (verify):** CheckoutScreen hooks-order · shelf testIDs · Jest App.test mocks · `create_group_reservation` child `reservation_code` · pass3 streak refresh · signOut · story/profile testIDs · **pass4 login testIDs** (`login.email`, `login.password`, `login.signIn`, `login.useEmailPassword`)
 
 ## P0 preflight
 
@@ -111,6 +111,6 @@
 
 **Summary:** **PASS 61 · PARTIAL 7 · FAIL 0**
 
-**Auth workaround (pass4):** `appium-email-password-pass7` — skip logout if session active; `login.email` / `login.password` / `login.signIn` testIDs; coordinate-tap Sign in fallback; `xcrun simctl privacy grant photos`.
+**Auth workaround (pass4):** `appium-email-password-pass7` — pass7 customer login (email/password testIDs + `addValue` on SecureTextField + Return dismiss); reuse session when possible; `xcrun simctl privacy grant photos com.freshasever.mobile`.
 
 **Remaining PARTIAL:** A-09 (share sheet), B-15 (expiry banner on shelf), D-03 (supermarket no-pulse), D-06 (map preview card), M2 (shelf→checkout macro), M3 (story share sheet), M4-3 (map preview→outlet pan)
