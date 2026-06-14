@@ -6,6 +6,13 @@ describe('normalizeIncomingLinkPath (middleware parity)', () => {
     expect(normalizeIncomingLinkPath('/bag/zzz')).toBe('bags/zzz');
   });
 
+  test('shelf legacy paths', () => {
+    expect(normalizeIncomingLinkPath('shelf/abc-123')).toBe('shelves/abc-123');
+    expect(normalizeIncomingLinkPath('clearance-shelf/abc-123')).toBe(
+      'shelves/abc-123',
+    );
+  });
+
   test('payout legacy', () => {
     expect(normalizeIncomingLinkPath('merchant/finance/payout/po1')).toBe(
       'merchant/payouts/po1',

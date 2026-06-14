@@ -41,6 +41,11 @@ export function normalizeIncomingLinkPath(path: string): string {
     return attachQuery(`shelves/${shelfLegacy[1]}`);
   }
 
+  const clearanceShelfLegacy = /^clearance-shelf\/([^/?#]+)$/.exec(p);
+  if (clearanceShelfLegacy) {
+    return attachQuery(`shelves/${clearanceShelfLegacy[1]}`);
+  }
+
   const shelfAllergens = /^shelves\/([^/?#]+)\/allergens$/.exec(p);
   if (shelfAllergens) {
     return attachQuery(`shelves/${shelfAllergens[1]}/allergens`);

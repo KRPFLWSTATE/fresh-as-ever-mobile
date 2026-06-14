@@ -2,7 +2,32 @@
 
 ## Executive summary
 
-Pass 19 verification pass 5 closed **66 PASS / 2 PARTIAL / 0 FAIL** (up from 61/7/0). Five rows closed with strict Appium MCP evidence: **D-03**, **D-06**, **M4-3**, **A-09**, **M3**. Remaining: **B-15** (expiry banner) and **M2** (shelf checkout macro) blocked by clearance shelf fetch hanging on `Loading shelf…` after session churn.
+Pass 19 verification pass 6 **fixed the clearance shelf loading hang** and re-ran strict Appium on sim `377DAC99-B79C-4B05-BB34-DBA1D160038D`. Matrix remains **66 PASS / 2 PARTIAL / 0 FAIL**: **B-15** (expiry banner) and **M2** (shelf→checkout macro) — shelf content now loads with customer JWT, but expiry banner and full checkout journey were not captured to strict-PASS bar.
+
+## Pass 6 (2026-06-14)
+
+### Root cause & fix
+
+| Issue | Fix |
+|-------|-----|
+| `ClearanceShelfScreen` stuck on `Loading shelf…` | `useShelfDetail`: removed `product:product_catalog` join (Supabase REST hang); slim `clearance_shelf_items` column select; fetch only after `authInitializing` false **and** customer `session.access_token` present (RLS requires JWT) |
+| testIDs | `shelf.loading`, `shelf.content` on `ClearanceShelfScreen` |
+
+### Appium methodology
+
+Embedded Appium + WebdriverIO on `:4723`. Auth: `login.useEmailPassword` → `login.email` / `login.password` / `login.signIn`. Warm navigation: outlet deeplink → tap clearance shelf card. Evidence: `screenshots/pass19/pass6/`, log wave `pass6` in `verify-log.jsonl`.
+
+### Results
+
+| Row | Result | Evidence |
+|-----|--------|----------|
+| Shelf fetch | **Fixed** | `pass6/B-15-attempt1-shelf.png`, `pass6/M2-1-shelf-content.png` — Bakehouse shelf content loads |
+| B-15 | PARTIAL | 3 attempts with inject + UI expiry patch; banner/`shelf.basketTimer` not on-screen |
+| M2 | PARTIAL | `M2-1`, `M2-2`, `M2-shelf-checkout-journey.mp4`; `M2-3`/`M2-4` checkout not strict-PASS |
+
+### Scripts
+
+- `pass19-pass6-closeout.mjs`, `pass19-pass6-final.mjs`, `pass19-pass6-b15m2.mjs`, `pass19-pass5-inject.mjs`
 
 ## Pass 5 (2026-06-14)
 

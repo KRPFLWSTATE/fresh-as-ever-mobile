@@ -172,7 +172,10 @@ export function ClearanceShelfScreen({ navigation, route }: Props) {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <View
+        testID="shelf.loading"
+        style={{ flex: 1, backgroundColor: colors.background }}
+      >
         <StitchText variant="body-md" colorKey="textMuted" style={{ padding: spacing.xl }}>
           Loading shelf…
         </StitchText>
@@ -570,7 +573,7 @@ export function ClearanceShelfScreen({ navigation, route }: Props) {
   );
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.background }}>
+    <View testID="shelf.content" style={{ flex: 1, backgroundColor: colors.background }}>
       <FlatList
         style={{ flex: 1 }}
         data={listRows}

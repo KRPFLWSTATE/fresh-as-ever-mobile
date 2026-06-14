@@ -1,8 +1,8 @@
 # Pass 19 verification matrix
 
-**Verification run:** 2026-06-14 (verify pass 5) · Sim iPhone 17 Pro `377DAC99-B79C-4B05-BB34-DBA1D160038D` · Colombo geolocation  
+**Verification run:** 2026-06-14 (verify pass 6) · Sim iPhone 17 Pro `377DAC99-B79C-4B05-BB34-DBA1D160038D` · Colombo geolocation  
 **Implementation commits:** mobile `2d2b1ce` · Supabase `06a1d01`  
-**Fix commits (verify):** CheckoutScreen hooks-order · shelf testIDs · Jest App.test mocks · `create_group_reservation` child `reservation_code` · pass3 streak refresh · signOut · story/profile testIDs · **pass4 login testIDs** (`login.email`, `login.password`, `login.signIn`, `login.useEmailPassword`)
+**Fix commits (verify):** CheckoutScreen hooks-order · shelf testIDs · Jest App.test mocks · `create_group_reservation` child `reservation_code` · pass3 streak refresh · signOut · story/profile testIDs · **pass4 login testIDs** · **pass6 `useShelfDetail` RLS/session fetch fix** (remove `product_catalog` join; wait for customer JWT)
 
 ## P0 preflight
 
@@ -52,7 +52,7 @@
 | B-12 | PASS | Jest `basketTimer.test.ts` + shelf UI `c9/08-shelf-timer-rebuild.png`; testIDs `shelf.qtyIncrement.*` |
 | B-13 | PASS | `shelf.qtyDecrement.*` tap · `screenshots/pass19/c9/09-shelf-qty-decrement.png` |
 | B-14 | PASS | Jest expiry tone/message tests |
-| B-15 | PARTIAL | pass5 bundle-scoped AsyncStorage inject OK (`pass19-pass5-inject.mjs`); `useClearanceBasket` AppState rehydrate added; shelf fetch hung on `Loading shelf…` (`pass5/B-15-shelf-loading-blocker.png`) — expiry banner not captured |
+| B-15 | PARTIAL | pass6 shelf fetch **fixed** — warm outlet→shelf loads `shelf.content` (`pass6/B-15-attempt1-shelf.png`); bundle-scoped inject + UI expiry patch attempted (3×); **`Prices refreshed for you` / `shelf.basketTimer` not captured** |
 | B-16 | PASS | MAX 5 bags — Jest cart cap elsewhere; group RPC rejects >5 |
 
 ## Stream C — M11
@@ -87,7 +87,7 @@
 | ID | Status | Evidence |
 |----|--------|----------|
 | M1-1..M1-7 | PASS | pass4 `M1-1-group-checkout.png` — Card Payment + Pay at Store + Reserve Now (PayHere WebView not exercised; cash path available) |
-| M2-1..M2-4 | PARTIAL | pass5 shelf navigation stuck `Loading shelf…` after inject (same blocker as B-15); pass2 `c9/08` shelf UI exists |
+| M2-1..M2-4 | PARTIAL | pass6 **`M2-1-shelf-content.png`** shelf loads post-fix; **`M2-2-shelf-qty-added.png`**; **`M2-shelf-checkout-journey.mp4`**; review/checkout screenshots not strict-PASS (`M2-4-checkout.png` missing) |
 | M3-1..M3-5 | PASS | pass5 `M3-celebration-share-journey.mp4`, `M3-share-sheet.png` — celebration → photo → Save story → iOS share sheet |
 | M4-1 | PASS | `profile.logOut` + `signOut({ scope: 'local' })` · guest Discover CTA `pass3/M4-1-guest-discover-signin.png` |
 | M4-2 | PASS | Discover feed mix bags+shelves (`map/03`) |
@@ -111,6 +111,6 @@
 
 **Summary:** **PASS 66 · PARTIAL 2 · FAIL 0**
 
-**Auth workaround (pass5):** Reuse Keychain session when `discover.searchInput` visible; avoid cold launch + immediate shelf deeplink (hangs fetch). Login: `login.useEmailPassword` → W3C Actions typing on password field if needed. Photos: `xcrun simctl privacy grant photos com.freshasever.mobile`.
+**Auth workaround (pass6):** `login.email` / `login.password` / `login.signIn` after `login.useEmailPassword`; warm path outlet `00000000-0000-0000-0000-000000000003` → clearance shelf card (avoid cold shelf deeplink on unauthenticated session). Full app restart after hook changes (no HMR). Scripts: `pass19-pass6-closeout.mjs`, `pass19-pass6-final.mjs`, `pass19-pass5-inject.mjs`.
 
-**Remaining PARTIAL:** B-15 (expiry banner — shelf fetch hang), M2 (shelf→checkout macro — same shelf hang)
+**Remaining PARTIAL:** B-15 (expiry banner — shelf loads but AsyncStorage expiry rehydrate flaky in Appium), M2 (shelf→checkout — shelf content verified; increment/review/checkout macro incomplete)
