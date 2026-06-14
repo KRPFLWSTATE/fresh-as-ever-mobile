@@ -1,0 +1,35 @@
+{
+  "MAP-02": {
+    "pass": true,
+    "evidence": "screenshots/pass23b/customer/MAP-02-map-preview.png",
+    "markers": 3
+  },
+  "MAP-03": {
+    "pass": true,
+    "evidence": "screenshots/pass23b/customer/MAP-03-preview-to-outlet.png"
+  },
+  "C12-01": {
+    "pass": true,
+    "evidence": "screenshots/pass23b/customer/C12-03-celebration.png",
+    "orderId": "00000000-0000-0000-0000-000000000040",
+    "storyDone": true
+  },
+  "M-00": {
+    "pass": true,
+    "merchantTabSelected": true,
+    "evidence": "screenshots/pass23b/merchant/M-00-merchant-login-dashboard.png"
+  },
+  "CROSS-collect": {
+    "pass": true,
+    "code": "SHELF1",
+    "orderId": "00000000-0000-0000-0000-000000000040",
+    "evidence": "screenshots/pass23b/merchant/CROSS-02-handover-complete.png",
+    "sql": "sql-cross-collect.json"
+  },
+  "CROSS-customer": {
+    "pass": true,
+    "evidence": "screenshots/pass23b/customer/CROSS-03-customer-orders-collected.png",
+    "sqlStatus": "collected",
+    "note": "SQL confirms collected; archived tab checked post-handover"
+  }
+}

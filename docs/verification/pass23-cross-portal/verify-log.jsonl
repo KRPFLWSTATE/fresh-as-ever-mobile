@@ -37,3 +37,33 @@
 {"ts":"2026-06-14T20:39:49.486Z","wave":"pass23-retry","id":"M-00","result":"FAIL","evidence":"screenshots/pass23/merchant/M-00-retry-merchant-login.png"}
 {"ts":"2026-06-14T20:40:00.822Z","wave":"pass23-retry","id":"M11-01","result":"PASS","evidence":"screenshots/pass23/merchant/M11-01-retry-analytics-hero.png"}
 {"ts":"2026-06-14T20:40:15.337Z","wave":"pass23-retry","id":"M-PROF-01","result":"PASS","evidence":"screenshots/pass23/merchant/M-PROF-01-retry-multi-outlet.png"}
+{"ts":"2026-06-14T20:50:16.616Z","wave":"pass23b","id":"M-00","pass":false,"evidence":"screenshots/pass23b/merchant/M-00-merchant-login-dashboard.png"}
+{"ts":"2026-06-14T20:52:24.958Z","wave":"pass23b","id":"M-00","pass":true,"evidence":"screenshots/pass23b/merchant/M-00-merchant-login-dashboard.png"}
+{"ts":"2026-06-14T20:55:02.198Z","wave":"pass23b","id":"M-00","pass":true,"evidence":"screenshots/pass23b/merchant/M-00-merchant-login-dashboard.png"}
+{"ts":"2026-06-14T20:55:02.198Z","wave":"pass23b","id":"CROSS-collect","pass":false,"note":"No reservation code from checkout"}
+{"ts":"2026-06-14T20:57:01.444Z","wave":"pass23b","id":"M-00","pass":true,"evidence":"screenshots/pass23b/merchant/M-00-merchant-login-dashboard.png"}
+{"ts":"2026-06-14T20:57:01.445Z","wave":"pass23b","id":"CROSS-collect","pass":false,"note":"No reservation code from checkout"}
+{"ts":"2026-06-14T20:58:41.245Z","wave":"pass23b","id":"MAP-02","pass":true,"evidence":"screenshots/pass23b/customer/MAP-02-map-preview.png","markers":3}
+{"ts":"2026-06-14T20:58:41.246Z","wave":"pass23b","id":"MAP-03","pass":true,"evidence":"screenshots/pass23b/customer/MAP-03-preview-to-outlet.png"}
+{"ts":"2026-06-14T20:59:04.248Z","wave":"pass23b","id":"C12-01","pass":false,"evidence":"screenshots/pass23b/customer/C12-03-celebration.png"}
+{"ts":"2026-06-14T21:00:12.356Z","wave":"pass23b","id":"M-00","pass":true,"evidence":"screenshots/pass23b/merchant/M-00-merchant-login-dashboard.png"}
+{"ts":"2026-06-14T21:00:31.577Z","wave":"pass23b","id":"CROSS-collect","pass":false,"code":"BAKERY","evidence":"screenshots/pass23b/merchant/CROSS-02-handover-complete.png"}
+{"ts":"2026-06-14T21:01:15.669Z","wave":"pass23b","id":"CROSS-customer","pass":false,"evidence":"screenshots/pass23b/customer/CROSS-03-customer-orders-collected.png"}
+{"ts":"2026-06-14T21:03:22.408Z","wave":"pass23b","id":"MAP-02","pass":true,"evidence":"screenshots/pass23b/customer/MAP-02-map-preview.png","markers":3}
+{"ts":"2026-06-14T21:03:22.409Z","wave":"pass23b","id":"MAP-03","pass":true,"evidence":"screenshots/pass23b/customer/MAP-03-preview-to-outlet.png"}
+{"ts":"2026-06-14T21:04:05.761Z","wave":"pass23b","id":"C12-01","pass":true,"evidence":"screenshots/pass23b/customer/C12-03-celebration.png","orderId":"00000000-0000-0000-0000-000000000040","storyDone":false}
+{"ts":"2026-06-14T21:05:17.774Z","wave":"pass23b","id":"M-00","pass":true,"evidence":"screenshots/pass23b/merchant/M-00-merchant-login-dashboard.png"}
+{"ts":"2026-06-14T21:05:37.916Z","wave":"pass23b","id":"CROSS-collect","pass":true,"code":"SHELF1","orderId":"00000000-0000-0000-0000-000000000040","evidence":"screenshots/pass23b/merchant/CROSS-02-handover-complete.png"}
+{"ts":"2026-06-14T21:06:21.797Z","wave":"pass23b","id":"CROSS-customer","pass":false,"evidence":"screenshots/pass23b/customer/CROSS-03-customer-orders-collected.png"}
+{"ts":"2026-06-14T21:08:07.254Z","wave":"pass23b","id":"MAP-02","pass":true,"evidence":"screenshots/pass23b/customer/MAP-02-map-preview.png","markers":3}
+{"ts":"2026-06-14T21:08:07.254Z","wave":"pass23b","id":"MAP-03","pass":true,"evidence":"screenshots/pass23b/customer/MAP-03-preview-to-outlet.png"}
+{"ts":"2026-06-14T21:08:50.421Z","wave":"pass23b","id":"C12-01","pass":true,"evidence":"screenshots/pass23b/customer/C12-03-celebration.png","orderId":"00000000-0000-0000-0000-000000000040","storyDone":false}
+{"ts":"2026-06-14T21:10:01.338Z","wave":"pass23b","id":"M-00","pass":true,"evidence":"screenshots/pass23b/merchant/M-00-merchant-login-dashboard.png"}
+{"ts":"2026-06-14T21:10:21.277Z","wave":"pass23b","id":"CROSS-collect","pass":true,"code":"SHELF1","orderId":"00000000-0000-0000-0000-000000000040","evidence":"screenshots/pass23b/merchant/CROSS-02-handover-complete.png"}
+{"ts":"2026-06-14T21:11:08.787Z","wave":"pass23b","id":"CROSS-customer","pass":false,"evidence":"screenshots/pass23b/customer/CROSS-03-customer-orders-collected.png"}
+{"ts":"2026-06-14T21:13:09.375Z","wave":"pass23b","id":"MAP-02","pass":true,"evidence":"screenshots/pass23b/customer/MAP-02-map-preview.png","markers":3}
+{"ts":"2026-06-14T21:13:09.375Z","wave":"pass23b","id":"MAP-03","pass":true,"evidence":"screenshots/pass23b/customer/MAP-03-preview-to-outlet.png"}
+{"ts":"2026-06-14T21:13:52.509Z","wave":"pass23b","id":"C12-01","pass":true,"evidence":"screenshots/pass23b/customer/C12-03-celebration.png","orderId":"00000000-0000-0000-0000-000000000040","storyDone":false}
+{"ts":"2026-06-14T21:15:01.509Z","wave":"pass23b","id":"M-00","pass":true,"evidence":"screenshots/pass23b/merchant/M-00-merchant-login-dashboard.png"}
+{"ts":"2026-06-14T21:15:21.405Z","wave":"pass23b","id":"CROSS-collect","pass":true,"code":"SHELF1","orderId":"00000000-0000-0000-0000-000000000040","evidence":"screenshots/pass23b/merchant/CROSS-02-handover-complete.png"}
+{"ts":"2026-06-14T21:16:26.122Z","wave":"pass23b","id":"CROSS-customer","pass":false,"evidence":"screenshots/pass23b/customer/CROSS-03-customer-orders-collected.png"}

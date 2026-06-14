@@ -114,7 +114,7 @@ export type RootStackParamList = {
   /** Stitch `order_detail_light_mode_2` logo-centered header variant. */
   OrderDetail: { orderId: string; headerVariant?: 'title' | 'logo' };
   OrderReview: { orderId: string };
-  Login: undefined;
+  Login: { portal?: 'customer' | 'merchant' | 'admin' } | undefined;
   /**
    * Optional `prefill` is a JSON blob populated from `MerchantBagsListScreen` "Duplicate"
    * action. It mirrors the `defaultCreateForm()` shape (string-typed for inputs) so the

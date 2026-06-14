@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Pressable, TextInput, View } from 'react-native';
-import { CommonActions, useNavigation } from '@react-navigation/native';
+import { CommonActions, useNavigation, useRoute } from '@react-navigation/native';
+import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '@/navigation/types';
 import { useAuthContext } from '@/context/AuthContext';
@@ -20,6 +21,7 @@ type Portal = 'customer' | 'merchant' | 'admin';
 export function LoginScreen() {
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList, 'Login'>>();
+  const route = useRoute<RouteProp<RootStackParamList, 'Login'>>();
   const {
     signInWithEmailPassword,
     requestPhoneOtp,
@@ -29,8 +31,18 @@ export function LoginScreen() {
   } = useAuthContext();
   const { colors, radii, spacing } = useStitchTheme();
 
-  const [portal, setPortal] = useState<Portal>('customer');
+  const [portal, setPortal] = useState<Portal>(
+    route.params?.portal ?? 'customer',
+  );
   const [useEmailCustomer, setUseEmailCustomer] = useState(false);
+
+  useEffect(() => {
+    const hinted = route.params?.portal;
+    if (hinted === 'customer' || hinted === 'merchant' || hinted === 'admin') {
+      setPortal(hinted);
+      setErr(null);
+    }
+  }, [route.params?.portal]);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -295,6 +307,9 @@ export function LoginScreen() {
               }}
             >
               <Pressable
+                testID="login.portal.customer"
+                accessibilityRole="button"
+                accessibilityLabel="Customer portal"
                 onPress={() => {
                   setPortal('customer');
                   setErr(null);
@@ -316,6 +331,9 @@ export function LoginScreen() {
                 </StitchText>
               </Pressable>
               <Pressable
+                testID="login.portal.merchant"
+                accessibilityRole="button"
+                accessibilityLabel="Merchant portal"
                 onPress={() => {
                   setPortal('merchant');
                   setErr(null);
@@ -578,6 +596,8 @@ export function LoginScreen() {
                   Email address
                 </StitchText>
                 <TextInput
+                  testID="login.email"
+                  accessibilityLabel="Email"
                   autoCapitalize="none"
                   keyboardType="email-address"
                   placeholder="merchant@cafe.com"
@@ -606,6 +626,8 @@ export function LoginScreen() {
                 </View>
                 <View style={{ position: 'relative' }}>
                   <TextInput
+                    testID="login.password"
+                    accessibilityLabel="Password"
                     secureTextEntry={!showPassword}
                     placeholder="••••••••"
                     placeholderTextColor={colors.textFaint}
@@ -634,6 +656,8 @@ export function LoginScreen() {
                 </View>
               </View>
               <StitchButton
+                testID="login.signIn"
+                accessibilityLabel="Sign in"
                 title="Sign in as merchant"
                 onPress={() => void onEmailLogin('merchant')}
                 disabled={busy}

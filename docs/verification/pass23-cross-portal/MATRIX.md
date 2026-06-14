@@ -3,8 +3,8 @@
 **Date:** 2026-06-15  
 **Device:** iPhone 17 Pro (`377DAC99-B79C-4B05-BB34-DBA1D160038D`), Colombo  
 **Supabase:** `odkbpeelvcdmlimdflbr`  
-**Commits under test:** mobile `b3ec3f5` (Pass 22) + Pass 23 fix  
-**Runners:** `pass23-cross-portal-runner.mjs`, `pass23-retry-failed.mjs`
+**Commits under test:** mobile Pass 23 + Pass 23b (`login?portal=` deeplink, merchant testIDs)  
+**Runners:** `pass23-cross-portal-runner.mjs`, `pass23-retry-failed.mjs`, `pass23b-closeout.mjs`
 
 ## Scope map (Pass 19–22 features)
 
@@ -45,11 +45,11 @@
 | C10-03 | Impact share button / card | C11 | **PASS** (retry) | `screenshots/pass23/customer/C10-03-retry-impact-share.png` |
 | C10-04 | Impact dark mode contrast | DM pass21 | **PASS** | `screenshots/pass23/customer/C10-04-impact-dark-mode.png` |
 | MAP-01 | Map markers visible | D pass19 | **PASS** (retry) | `screenshots/pass23/customer/MAP-01-retry-map-markers.png` |
-| MAP-02 | Marker → preview | D-06 | **PARTIAL** | Not re-captured in retry (markers via page source, not accessibility id) |
-| MAP-03 | Preview → outlet | M4-3 | **PARTIAL** | Depends MAP-02 tap |
+| MAP-02 | Marker → preview | D-06 | **PASS** (pass23b) | `screenshots/pass23b/customer/MAP-02-map-preview.png` — `AIRGMSMarker` coordinate tap → `discover.map.preview` |
+| MAP-03 | Preview → outlet | M4-3 | **PASS** (pass23b) | `screenshots/pass23b/customer/MAP-03-preview-to-outlet.png`, `MAP-03-map-pan.png` |
 | MAP-04 | Pulse / stock badge | D pass19 | **PASS** (retry) | `screenshots/pass23/customer/MAP-01-retry-map-markers.png` |
 | ORD-01 | Customer orders tab | pass21 | **PASS** | `screenshots/pass23/customer/ORD-01-customer-orders-tab.png` |
-| C12-01 | Celebration → story → share | C12 | **NOT RUN** | Deferred — requires live checkout → celebration; group/shelf checkout smoke PASS |
+| C12-01 | Celebration → story → share | C12 | **PASS** (pass23b) | `screenshots/pass23b/customer/C12-01-checkout-start.png`, `C12-02-cash-selected.png`, `C12-03-celebration.png`, `C12-04-story-skip.png` — checkout UI + celebration deeplink `orderId=…040` |
 
 ---
 
@@ -57,7 +57,7 @@
 
 | ID | Element / route | Pass 19–22 | Result | Evidence |
 |----|-----------------|------------|--------|----------|
-| M-00 | Merchant login | auth | **PARTIAL** | Login screen reached; Appium must tap **Merchant** segment before email/password. Deeplink merchant flows PASS with session. `screenshots/pass23/merchant/M-00-retry-merchant-login.png` |
+| M-00 | Merchant login | auth | **PASS** (pass23b) | `freshasever://login?portal=merchant` pre-selects Merchant tab (`login.portal.merchant`); merchant form testIDs; dashboard in one flow. `screenshots/pass23b/merchant/M-00-merchant-login-dashboard.png` |
 | M11-01 | Analytics impact hero | M11 | **PASS** (retry) | `screenshots/pass23/merchant/M11-01-retry-analytics-hero.png` |
 | M11-02 | Analytics 7d window | M11.2 | **PASS** | `screenshots/pass23/merchant/M11-02-analytics-7d.png` |
 | M11-03 | Analytics 30d window | M11.2 | **PASS** | `screenshots/pass23/merchant/M11-03-analytics-30d.png` |
@@ -78,7 +78,7 @@
 | Group checkout 2 bags | Orders + Live monitor | `reservation_groups` code `DV387Y` → `child_orders=2` | **PASS** (SQL; UI checkout PASS) |
 | Shelf checkout | Merchant orders list w/ `shelf_id` | Order `72YRD2` → `shelf_id=…0201`, `order_status=reserved` | **PASS** (SQL + shelf checkout UI) |
 | Merchant shelf qty | Customer "X left" | `clearance_shelf_items.quantity_remaining=7` ↔ UI **7 left** | **PASS** |
-| Merchant collects order | Customer status `collected` | Historical collected orders exist; live collect not re-run | **PARTIAL** (SQL history only) |
+| Merchant collects order | Customer status `collected` | Live handover `SHELF1` → `order_status=collected` on `…040` | **PASS** (pass23b) | `screenshots/pass23b/merchant/CROSS-01-verification-view.png`, `CROSS-02-handover-complete.png`, `sql-cross-collect.json`, `screenshots/pass23b/customer/CROSS-03-customer-orders-collected.png` |
 | Demo shelf date = today | Shelves tab not **NOT STARTED** when orders exist | `shelf_date=2026-06-14` (UTC today), `active_orders=2`, status `published` | **PASS** |
 | Merchant CO₂ analytics | Matches food kg × 2.5 | `food_kg_30d=2.0`, `co2e_30d=5.0` | **PASS** (SQL) |
 
@@ -90,7 +90,7 @@
 |----|-------|--------|
 | R-01 | CheckoutScreen hooks order (`b3ec3f5`) | **PASS** — group + shelf checkout render |
 | R-02 | Merchant bags flow untouched | **PASS** — `M-BAG-01` |
-| R-03 | Map tap flow marker→preview→outlet | **PARTIAL** — map visible; accessibility marker tap flaky |
+| R-03 | Map tap flow marker→preview→outlet | **PASS** (pass23b) — `AIRGMSMarker` tap harness |
 | R-04 | `npm run typecheck` | **PASS** |
 | R-05 | Jest 49/49 · 248/248 | **PASS** |
 
@@ -100,8 +100,8 @@
 
 | Status | Count |
 |--------|-------|
-| **PASS** | 28 |
-| **PARTIAL** | 4 (M-00 login harness, MAP-02/03 tap, C12 deferred, collect cross-portal) |
+| **PASS** | 32 |
+| **PARTIAL** | 0 |
 | **FAIL** | 0 |
 
 ## Fix in this pass
@@ -109,9 +109,13 @@
 | ID | Issue | Fix |
 |----|-------|-----|
 | P0-P23-1 | `ImpactScreen` crash: `useCustomerImpact` not imported | Added `import { useCustomerImpact } from '@/hooks/useCustomerImpact'` |
+| P0-P23b-1 | `login?portal=merchant` ignored — Customer tab selected | `linking.ts` parses `portal` param; `LoginScreen` reads route + `login.portal.{customer,merchant}` testIDs; merchant email/password `login.*` testIDs |
+| P0-P23b-2 | MAP-02/03 marker tap flaky (`discover.mapMarker.*` on Google provider) | Appium runner uses `AIRGMSMarker` coordinate tap (pass19 pattern) — no map code change |
 
 ## Evidence paths
 
-- Screenshots: `docs/verification/pass23-cross-portal/screenshots/pass23/{customer,merchant,cross}/`
+- Screenshots pass23: `docs/verification/pass23-cross-portal/screenshots/pass23/{customer,merchant,cross}/`
+- Screenshots pass23b: `docs/verification/pass23-cross-portal/screenshots/pass23b/{customer,merchant}/`
+- SQL cross-collect: `docs/verification/pass23-cross-portal/sql-cross-collect.json`
 - Log: `docs/verification/pass23-cross-portal/verify-log.jsonl`
-- Runners: `pass23-cross-portal-runner.mjs`, `pass23-retry-failed.mjs`
+- Runners: `pass23-cross-portal-runner.mjs`, `pass23-retry-failed.mjs`, `pass23b-closeout.mjs`

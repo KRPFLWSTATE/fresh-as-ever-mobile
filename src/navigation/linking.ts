@@ -90,7 +90,18 @@ const config: NonNullable<LinkingOptions<RootStackParamList>['config']> = {
         headerVariant: (v: unknown) => (v === 'logo' ? 'logo' : 'title'),
       },
     },
-    Login: 'login',
+    Login: {
+      path: 'login',
+      parse: {
+        portal: (v: unknown) => {
+          const s = typeof v === 'string' ? v.trim().toLowerCase() : '';
+          if (s === 'customer' || s === 'merchant' || s === 'admin') {
+            return s;
+          }
+          return undefined;
+        },
+      },
+    },
     MerchantBagCreate: 'merchant/bags/create',
     MerchantBagEdit: {
       path: 'merchant/bags/:bagId/edit',

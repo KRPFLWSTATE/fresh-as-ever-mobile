@@ -1,0 +1,9 @@
+{
+  "order_id": "00000000-0000-0000-0000-000000000040",
+  "reservation_code": "SHELF1",
+  "order_status_after_collect": "collected",
+  "payment_status": "paid",
+  "customer_email": "qa.customer@freshasever.test",
+  "verified_at": "2026-06-15T02:46:00Z",
+  "query": "SELECT order_status FROM orders WHERE id = '00000000-0000-0000-0000-000000000040'"
+}
