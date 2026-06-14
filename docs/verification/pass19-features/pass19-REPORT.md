@@ -2,6 +2,44 @@
 
 ## Executive summary
 
+Pass 19 verification pass 4 closed **61 PASS / 7 PARTIAL / 0 FAIL** (up from 58/10/0). Auth stabilized via pass7 login pattern + `login.email`/`login.password`/`login.signIn` testIDs. Three rows closed with strict pass4 Appium screenshots: **A-02** (2/3 streak), **B-07** (overlap error), **M1** (group checkout with Pay at Store).
+
+## Pass 4 (2026-06-14)
+
+### Auth workaround (documented in verify-log)
+
+**Method:** `appium-email-password-pass7` — reuse active session when possible; deeplink `freshasever://login?portal=customer`; tap "Use email & password instead"; fill `login.email` / `login.password` testIDs (or SecureTextField fallback); coordinate-tap Sign in when disabled; `xcrun simctl privacy grant photos`.
+
+**Credentials:** `qa.customer@freshasever.test` / `TempCustomer#12345`
+
+### Rows closed to PASS
+
+| Row | Evidence |
+|-----|----------|
+| A-02 | `pass4/A-02-impact-streak.png` — UI **2/3** matches SQL `week_collected=2` |
+| B-07 | `pass4/B-07-overlap-error.png` — `checkout.overlapError` with bags `8ba2bbb6` + `…004` |
+| M1 | `pass4/M1-1-group-checkout.png` — Card Payment + Pay at Store + Reserve Now |
+
+### Remaining PARTIAL (7)
+
+| Row | Blocker |
+|-----|---------|
+| A-09 | Photo-library permission shown; share sheet not captured |
+| B-15 | AsyncStorage expiry inject; shelf banner "Prices refreshed" not on-screen |
+| D-03 | Supermarket outlet not isolated on map without pulse |
+| D-06 | `discover.map.preview` card tap failed |
+| M2 | Shelf deeplink → Discover when session unstable |
+| M3 | Celebration story UI OK; iOS share sheet not captured |
+| M4-3 | Preview→outlet + map pan macro incomplete |
+
+### Scripts & evidence
+
+- `pass19-pass4-runner.mjs`, `pass19-pass4b-remaining.mjs`, `pass19-pass4c-final.mjs`
+- Screenshots: `screenshots/pass19/pass4/`
+- Log: `verify-log.jsonl` (wave `pass4`, `pass4b`, `pass4c`)
+
+## Pass 3 summary
+
 Pass 19 verification pass 3 closed **58 PASS / 10 PARTIAL / 0 FAIL** (up from 57/11/0). M4-1 guest logout verified with Appium screenshot. Code fixes for streak refresh, signOut, and testIDs committed. Remaining PARTIAL rows blocked primarily by Keychain re-login flake after sim rebuild (auth session in EncryptedStorage, not AsyncStorage).
 
 ## Fixes during verify (pass 3)

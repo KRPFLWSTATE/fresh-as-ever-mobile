@@ -505,6 +505,8 @@ export function LoginScreen() {
                 </Pressable>
               </View>
               <Pressable
+                accessibilityRole="button"
+                testID="login.useEmailPassword"
                 onPress={() => {
                   setUseEmailCustomer(true);
                   setErr(null);
@@ -523,6 +525,8 @@ export function LoginScreen() {
                   Email
                 </StitchText>
                 <TextInput
+                  testID="login.email"
+                  accessibilityLabel="Email"
                   autoCapitalize="none"
                   keyboardType="email-address"
                   placeholder="you@example.com"
@@ -537,6 +541,8 @@ export function LoginScreen() {
                   Password
                 </StitchText>
                 <TextInput
+                  testID="login.password"
+                  accessibilityLabel="Password"
                   secureTextEntry
                   placeholder="••••••••"
                   placeholderTextColor={colors.textFaint}
@@ -546,6 +552,8 @@ export function LoginScreen() {
                 />
               </View>
               <StitchButton
+                testID="login.signIn"
+                accessibilityLabel="Sign in"
                 title="Sign in"
                 onPress={() => void onEmailLogin(null)}
                 disabled={busy}

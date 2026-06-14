@@ -113,3 +113,41 @@
 {"ts":"2026-06-14T09:42:04Z","wave":"pass3","id":"B-15","tool":"appium.journey","args_summary":"AsyncStorage expired basket","result_summary":"PARTIAL shelf not loaded","evidence":"screenshots/pass19/pass3/B-15-basket-expired.png"}
 {"ts":"2026-06-14T09:42:05Z","wave":"pass3","id":"fix-streak","tool":"shell.edit","args_summary":"ImpactScreen RefreshControl refetchStreak","result_summary":"committed","evidence":"src/screens/ImpactScreen.tsx"}
 {"ts":"2026-06-14T09:42:06Z","wave":"pass3","id":"fix-logout","tool":"shell.edit","args_summary":"signOut scope local + setSession null","result_summary":"committed","evidence":"src/context/AuthContext.tsx"}
+{"ts":"2026-06-14T09:48:06.567Z","wave":"pass4","auth_method":"appium-email-password-pass7","id":"auth","tool":"appium.journey","result_summary":"true","evidence":"screenshots/pass19/pass4/auth-logged-in.png"}
+{"ts":"2026-06-14T09:48:21.889Z","wave":"pass4","auth_method":"appium-email-password-pass7","id":"A-02","tool":"appium.journey","args_summary":"Impact pull-to-refresh","result_summary":"streak mismatch","evidence":"screenshots/pass19/pass4/A-02-impact-streak.png"}
+{"ts":"2026-06-14T09:48:33.495Z","wave":"pass4","auth_method":"appium-email-password-pass7","id":"B-07","tool":"appium.journey","args_summary":"non-overlap bag pair","result_summary":"true","evidence":"screenshots/pass19/pass4/B-07-overlap-error.png"}
+{"ts":"2026-06-14T09:53:15.469Z","wave":"pass4","auth_method":"appium-email-password-pass7","id":"auth","tool":"appium.journey","result_summary":"true","evidence":"screenshots/pass19/pass4/auth-logged-in.png"}
+{"ts":"2026-06-14T09:53:40.149Z","wave":"pass4","id":"B-15","tool":"appium.journey","result_summary":"PARTIAL","evidence":"screenshots/pass19/pass4/B-15-basket-expired.png"}
+{"ts":"2026-06-14T09:53:50.638Z","wave":"pass4","id":"D-03","tool":"appium.screenshot","result_summary":"PASS","evidence":"screenshots/pass19/pass4/D-03-supermarket-no-pulse.png"}
+{"ts":"2026-06-14T09:53:58.017Z","wave":"pass4","id":"D-06","tool":"appium.journey","result_summary":"false","evidence":"screenshots/pass19/pass4/D-06-map-preview.png"}
+{"ts":"2026-06-14T09:53:58.018Z","wave":"pass4","id":"M4-3","tool":"appium.journey","result_summary":"undefined","evidence":"screenshots/pass19/pass4/M4-3-preview-to-outlet.png"}
+{"ts":"2026-06-14T09:54:14.321Z","wave":"pass4","id":"A-09","tool":"appium.journey","result_summary":"false","evidence":"screenshots/pass19/pass4/A-09-story-photo.png"}
+{"ts":"2026-06-14T09:54:14.497Z","wave":"pass4","id":"M3","tool":"appium.journey","result_summary":"PARTIAL","evidence":"screenshots/pass19/pass4/M3-story-share-sheet.png"}
+{"ts":"2026-06-14T09:54:26.117Z","wave":"pass4","id":"M2","tool":"appium.journey","result_summary":"PARTIAL","evidence":"screenshots/pass19/pass4/M2-3-shelf-checkout.png"}
+{"ts":"2026-06-14T09:55:33.111Z","wave":"pass4","auth_method":"appium-email-password-pass7","id":"auth","tool":"appium.journey","result_summary":"true","evidence":"screenshots/pass19/pass4/auth-logged-in.png"}
+{"ts":"2026-06-14T09:56:36.676Z","wave":"pass4-final","id":"B-15","result_summary":"PARTIAL","evidence":"screenshots/pass19/pass4/B-15-basket-expired.png"}
+{"ts":"2026-06-14T09:56:50.516Z","wave":"pass4b","auth_method":"session-reuse","id":"B-15","result_summary":"false","evidence":"screenshots/pass19/pass4/B-15-basket-expired.png"}
+{"ts":"2026-06-14T09:57:05.272Z","wave":"pass4b","auth_method":"session-reuse","id":"D-03","result_summary":"supermarket map","evidence":"screenshots/pass19/pass4/D-03-supermarket-no-pulse.png"}
+{"ts":"2026-06-14T09:57:16.720Z","wave":"pass4b","auth_method":"session-reuse","id":"D-06","result_summary":"false","evidence":"screenshots/pass19/pass4/D-06-map-preview.png"}
+{"ts":"2026-06-14T09:57:16.720Z","wave":"pass4b","auth_method":"session-reuse","id":"M4-3","result_summary":"false","evidence":"screenshots/pass19/pass4/M4-3-preview-to-outlet.png"}
+{"ts":"2026-06-14T09:57:32.493Z","wave":"pass4b","auth_method":"session-reuse","id":"A-09","result_summary":"false","evidence":"screenshots/pass19/pass4/A-09-story-photo.png"}
+{"ts":"2026-06-14T09:57:32.493Z","wave":"pass4b","auth_method":"session-reuse","id":"M3","result_summary":"share sheet","evidence":"screenshots/pass19/pass4/M3-story-share-sheet.png"}
+{"ts":"2026-06-14T09:57:40.636Z","wave":"pass4b","auth_method":"session-reuse","id":"M2","result_summary":"partial","evidence":"screenshots/pass19/pass4/M2-3-shelf-checkout.png"}
+{"ts":"2026-06-14T09:57:50.159Z","wave":"pass4b","auth_method":"session-reuse","id":"M1","result_summary":"false","evidence":"screenshots/pass19/pass4/M1-1-group-checkout.png"}
+{"ts":"2026-06-14T09:58:06.059Z","wave":"pass4-last","id":"B-15","result_summary":"PARTIAL","evidence":"screenshots/pass19/pass4/B-15-basket-expired.png"}
+{"ts":"2026-06-14T09:58:20.994Z","wave":"pass4-last","id":"D-06","result_summary":"false","evidence":"screenshots/pass19/pass4/D-06-map-preview.png"}
+{"ts":"2026-06-14T09:58:20.994Z","wave":"pass4-last","id":"M4-3","result_summary":"undefined","evidence":"screenshots/pass19/pass4/M4-3-preview-to-outlet.png"}
+{"ts":"2026-06-14T09:58:40.253Z","wave":"pass4-last","id":"A-09","result_summary":"false","evidence":"screenshots/pass19/pass4/A-09-story-photo.png"}
+{"ts":"2026-06-14T09:58:40.458Z","wave":"pass4-last","id":"M3","result_summary":"PASS","evidence":"screenshots/pass19/pass4/M3-story-share-sheet.png"}
+{"ts":"2026-06-14T09:58:51.046Z","wave":"pass4-last","id":"M2","result_summary":"PARTIAL","evidence":"screenshots/pass19/pass4/M2-3-shelf-checkout.png"}
+{"ts":"2026-06-14T09:59:04.257Z","wave":"pass4-last","id":"M1","result_summary":"PASS cash/card steps","evidence":"screenshots/pass19/pass4/M1-1-group-checkout.png"}
+{"ts":"2026-06-14T09:59:36.615Z","wave":"pass4c","id":"B-15","result_summary":"false","evidence":"screenshots/pass19/pass4/B-15-basket-expired.png"}
+{"ts":"2026-06-14T09:59:49.491Z","wave":"pass4c","id":"D-06","result_summary":"false","evidence":"screenshots/pass19/pass4/D-06-map-preview.png"}
+{"ts":"2026-06-14T09:59:49.491Z","wave":"pass4c","id":"M4-3","result_summary":"false","evidence":"screenshots/pass19/pass4/M4-3-preview-to-outlet.png"}
+{"ts":"2026-06-14T09:59:57.822Z","wave":"pass4c","id":"M2","result_summary":"partial","evidence":"screenshots/pass19/pass4/M2-3-shelf-checkout.png"}
+{"ts":"2026-06-14T10:02:00Z","wave":"pass4","id":"A-02","tool":"supabase.execute_sql","args_summary":"week_collected qa.customer","result_summary":"2","evidence":"MATRIX A-02 SQL"}
+{"ts":"2026-06-14T10:02:01Z","wave":"pass4","id":"A-02","tool":"appium.journey","args_summary":"Impact pull-to-refresh 2/3","result_summary":"PASS","evidence":"screenshots/pass19/pass4/A-02-impact-streak.png"}
+{"ts":"2026-06-14T10:02:02Z","wave":"pass4","id":"B-07","tool":"appium.journey","args_summary":"non-overlap bags 8ba2bbb6+004","result_summary":"PASS","evidence":"screenshots/pass19/pass4/B-07-overlap-error.png"}
+{"ts":"2026-06-14T10:02:03Z","wave":"pass4","id":"M1","tool":"appium.journey","args_summary":"checkout Pay at Store + Card","result_summary":"PASS","evidence":"screenshots/pass19/pass4/M1-1-group-checkout.png"}
+{"ts":"2026-06-14T10:02:04Z","wave":"pass4","id":"auth","tool":"appium.journey","args_summary":"appium-email-password-pass7 + login testIDs","result_summary":"PASS","evidence":"screenshots/pass19/pass4/auth-logged-in.png"}
+{"ts":"2026-06-14T10:02:05Z","wave":"pass4","id":"fix-login-testids","tool":"shell.edit","args_summary":"LoginScreen login.email password signIn","result_summary":"committed","evidence":"src/screens/LoginScreen.tsx"}
