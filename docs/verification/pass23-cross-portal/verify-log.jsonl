@@ -1,0 +1,39 @@
+{"ts":"2026-06-14T20:27:16.344Z","wave":"pass23","id":"G-01","tool":"appium.journey","result":"PASS","detail":"Guest discover without group cart bar","evidence":"screenshots/pass23/customer/G-01-guest-no-group-bar.png"}
+{"ts":"2026-06-14T20:27:23.001Z","wave":"pass23","id":"C-00","tool":"appium.journey","result":"PASS","detail":"Customer auth","evidence":"screenshots/pass23/customer/C-00-customer-login.png"}
+{"ts":"2026-06-14T20:27:33.457Z","wave":"pass23","id":"C6-01","tool":"appium.journey","result":"PASS","detail":"Group checkout renders without hooks crash","evidence":"screenshots/pass23/customer/C6-01-group-checkout-2bags.png"}
+{"ts":"2026-06-14T20:27:42.882Z","wave":"pass23","id":"C6-02","tool":"appium.journey","result":"PASS","detail":"Duplicate bag checkout","evidence":"screenshots/pass23/customer/C6-02-duplicate-bag-checkout.png"}
+{"ts":"2026-06-14T20:27:50.659Z","wave":"pass23","id":"C6-03","tool":"appium.journey","result":"FAIL","detail":"Group cart bar visible when logged in","evidence":"screenshots/pass23/customer/C6-03-group-cart-bar-discover.png"}
+{"ts":"2026-06-14T20:27:59.818Z","wave":"pass23","id":"C6-04","tool":"appium.journey","result":"PASS","detail":"Checkout payment method labels","evidence":"screenshots/pass23/customer/C6-04-checkout-payment-labels.png"}
+{"ts":"2026-06-14T20:28:24.042Z","wave":"pass23","id":"C9-01","tool":"appium.journey","result":"FAIL","detail":"Stock label: \"\"","evidence":"screenshots/pass23/customer/C9-01-shelf-stock-label.png"}
+{"ts":"2026-06-14T20:28:29.170Z","wave":"pass23","id":"C9-02","tool":"appium.journey","result":"PASS","detail":"Shelf qty increment tap","evidence":"screenshots/pass23/customer/C9-02-shelf-qty-increment.png"}
+{"ts":"2026-06-14T20:28:38.147Z","wave":"pass23","id":"C9-03","tool":"appium.journey","result":"FAIL","detail":"Shelf → checkout no crash","evidence":"screenshots/pass23/customer/C9-03-shelf-checkout.png"}
+{"ts":"2026-06-14T20:30:43.474Z","wave":"pass23","id":"C9-04","tool":"appium.journey","result":"PASS","detail":"Basket expiry refresh banner","evidence":"screenshots/pass23/customer/C9-04-basket-expiry-banner.png"}
+{"ts":"2026-06-14T20:30:51.277Z","wave":"pass23","id":"C10-01","tool":"appium.journey","result":"FAIL","detail":"Weekly streak ring","evidence":"screenshots/pass23/customer/C10-01-impact-streak.png"}
+{"ts":"2026-06-14T20:30:54.908Z","wave":"pass23","id":"C10-02","tool":"appium.journey","result":"PASS","detail":"Impact pull-to-refresh executed","evidence":"screenshots/pass23/customer/C10-02-impact-pull-refresh.png"}
+{"ts":"2026-06-14T20:30:56.130Z","wave":"pass23","id":"C10-03","tool":"appium.journey","result":"FAIL","detail":"Impact share sheet/card","evidence":"screenshots/pass23/customer/C10-03-impact-share.png"}
+{"ts":"2026-06-14T20:31:18.717Z","wave":"pass23","id":"C10-04","tool":"appium.journey","result":"PASS","detail":"Impact dark mode screenshot","evidence":"screenshots/pass23/customer/C10-04-impact-dark-mode.png"}
+{"ts":"2026-06-14T20:31:37.001Z","wave":"pass23","id":"MAP-01","tool":"appium.journey","result":"FAIL","detail":"0 map markers","evidence":"screenshots/pass23/customer/MAP-01-discover-map-markers.png"}
+{"ts":"2026-06-14T20:31:37.796Z","wave":"pass23","id":"MAP-04","tool":"appium.journey","result":"FAIL","detail":"Map stock/pulse indicators","evidence":"screenshots/pass23/customer/MAP-01-discover-map-markers.png"}
+{"ts":"2026-06-14T20:31:46.149Z","wave":"pass23","id":"ORD-01","tool":"appium.journey","result":"PASS","detail":"Customer orders tab content","evidence":"screenshots/pass23/customer/ORD-01-customer-orders-tab.png"}
+{"ts":"2026-06-14T20:32:17.102Z","wave":"pass23","id":"C6-05","tool":"appium.journey","result":"PASS","detail":"Cart bar hidden after logout","evidence":"screenshots/pass23/customer/C6-05-logout-clears-cart.png"}
+{"ts":"2026-06-14T20:33:37.256Z","wave":"pass23","id":"M-00","tool":"appium.journey","result":"FAIL","detail":"Merchant auth","evidence":"screenshots/pass23/merchant/M-00-merchant-login.png"}
+{"ts":"2026-06-14T20:33:46.043Z","wave":"pass23","id":"M11-01","tool":"appium.journey","result":"FAIL","detail":"Merchant impact hero","evidence":"screenshots/pass23/merchant/M11-01-analytics-hero.png"}
+{"ts":"2026-06-14T20:33:55.821Z","wave":"pass23","id":"M11-02","tool":"appium.journey","result":"PASS","detail":"Analytics 7d toggle","evidence":"screenshots/pass23/merchant/M11-02-analytics-7d.png"}
+{"ts":"2026-06-14T20:34:05.601Z","wave":"pass23","id":"M11-03","tool":"appium.journey","result":"PASS","detail":"Analytics 30d toggle","evidence":"screenshots/pass23/merchant/M11-03-analytics-30d.png"}
+{"ts":"2026-06-14T20:34:06.195Z","wave":"pass23","id":"M11-04","tool":"appium.journey","result":"PASS","detail":"Certificate share","evidence":"screenshots/pass23/merchant/M11-04-certificate-share.png"}
+{"ts":"2026-06-14T20:34:15.657Z","wave":"pass23","id":"M20-01","tool":"appium.journey","result":"PASS","detail":"Shelves tab not wrongly NOT STARTED","evidence":"screenshots/pass23/merchant/M20-01-shelves-tab-today.png"}
+{"ts":"2026-06-14T20:34:25.061Z","wave":"pass23","id":"M-ORD-01","tool":"appium.journey","result":"PASS","detail":"Merchant orders list","evidence":"screenshots/pass23/merchant/M-ORD-01-orders-list.png"}
+{"ts":"2026-06-14T20:34:33.444Z","wave":"pass23","id":"M-ORD-02","tool":"appium.journey","result":"PASS","detail":"Late pickup human labels","evidence":"screenshots/pass23/merchant/M-ORD-02-late-pickups.png"}
+{"ts":"2026-06-14T20:34:42.783Z","wave":"pass23","id":"M-BAG-01","tool":"appium.journey","result":"PASS","detail":"Bags tab regression","evidence":"screenshots/pass23/merchant/M-BAG-01-bags-tab.png"}
+{"ts":"2026-06-14T20:34:55.970Z","wave":"pass23","id":"M-PROF-01","tool":"appium.journey","result":"FAIL","detail":"Multi-outlet profile (0 mentions)","evidence":"screenshots/pass23/merchant/M-PROF-01-multi-outlet.png"}
+{"ts":"2026-06-14T20:35:03.536Z","wave":"pass23","id":"M-ORD-03","tool":"appium.journey","result":"PASS","detail":"Live monitor view","evidence":"screenshots/pass23/merchant/M-ORD-03-live-monitor.png"}
+{"ts":"2026-06-14T20:37:50.597Z","wave":"pass23-retry","id":"C6-03","result":"PASS","evidence":"screenshots/pass23/customer/C6-03-retry-group-cart-bar.png","detail":"retry group cart bar"}
+{"ts":"2026-06-14T20:38:07.140Z","wave":"pass23-retry","id":"C9-01","result":"PASS","evidence":"screenshots/pass23/customer/C9-01-retry-shelf-stock.png","detail":"7 left"}
+{"ts":"2026-06-14T20:38:17.512Z","wave":"pass23-retry","id":"C9-03","result":"PASS","evidence":"screenshots/pass23/customer/C9-03-retry-shelf-checkout.png"}
+{"ts":"2026-06-14T20:38:28.497Z","wave":"pass23-retry","id":"C10-01","result":"PASS","evidence":"screenshots/pass23/customer/C10-01-retry-impact-streak.png"}
+{"ts":"2026-06-14T20:38:32.546Z","wave":"pass23-retry","id":"C10-03","result":"PASS","evidence":"screenshots/pass23/customer/C10-03-retry-impact-share.png"}
+{"ts":"2026-06-14T20:38:44.877Z","wave":"pass23-retry","id":"MAP-01","result":"PASS","evidence":"screenshots/pass23/customer/MAP-01-retry-map-markers.png","detail":"0 markers"}
+{"ts":"2026-06-14T20:38:44.877Z","wave":"pass23-retry","id":"MAP-04","result":"PASS","evidence":"screenshots/pass23/customer/MAP-01-retry-map-markers.png"}
+{"ts":"2026-06-14T20:39:49.486Z","wave":"pass23-retry","id":"M-00","result":"FAIL","evidence":"screenshots/pass23/merchant/M-00-retry-merchant-login.png"}
+{"ts":"2026-06-14T20:40:00.822Z","wave":"pass23-retry","id":"M11-01","result":"PASS","evidence":"screenshots/pass23/merchant/M11-01-retry-analytics-hero.png"}
+{"ts":"2026-06-14T20:40:15.337Z","wave":"pass23-retry","id":"M-PROF-01","result":"PASS","evidence":"screenshots/pass23/merchant/M-PROF-01-retry-multi-outlet.png"}

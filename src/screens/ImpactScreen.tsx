@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import ViewShot from 'react-native-view-shot';
 import { KG_CO2E_PER_KG_FOOD } from '@/lib/co2Impact';
+import { useCustomerImpact } from '@/hooks/useCustomerImpact';
 import { useCustomerWeeklyStreak } from '@/hooks/useCustomerWeeklyStreak';
 import { useAuthContext } from '@/context/AuthContext';
 import { useStitchTheme } from '@/theme/StitchThemeContext';

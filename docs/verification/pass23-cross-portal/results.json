@@ -1,0 +1,189 @@
+{
+  "pass": 19,
+  "fail": 10,
+  "partial": 0,
+  "results": {
+    "G-01": {
+      "pass": true,
+      "evidence": "screenshots/pass23/customer/G-01-guest-no-group-bar.png",
+      "detail": "Guest discover without group cart bar",
+      "portal": "customer"
+    },
+    "C-00": {
+      "pass": true,
+      "evidence": "screenshots/pass23/customer/C-00-customer-login.png",
+      "detail": "Customer auth",
+      "portal": "customer"
+    },
+    "C6-01": {
+      "pass": true,
+      "evidence": "screenshots/pass23/customer/C6-01-group-checkout-2bags.png",
+      "detail": "Group checkout renders without hooks crash",
+      "portal": "customer"
+    },
+    "C6-02": {
+      "pass": true,
+      "evidence": "screenshots/pass23/customer/C6-02-duplicate-bag-checkout.png",
+      "detail": "Duplicate bag checkout",
+      "portal": "customer"
+    },
+    "C6-03": {
+      "pass": false,
+      "evidence": "screenshots/pass23/customer/C6-03-group-cart-bar-discover.png",
+      "detail": "Group cart bar visible when logged in",
+      "portal": "customer"
+    },
+    "C6-04": {
+      "pass": true,
+      "evidence": "screenshots/pass23/customer/C6-04-checkout-payment-labels.png",
+      "detail": "Checkout payment method labels",
+      "portal": "customer"
+    },
+    "C9-01": {
+      "pass": false,
+      "evidence": "screenshots/pass23/customer/C9-01-shelf-stock-label.png",
+      "detail": "Stock label: \"\"",
+      "portal": "customer"
+    },
+    "C9-02": {
+      "pass": true,
+      "evidence": "screenshots/pass23/customer/C9-02-shelf-qty-increment.png",
+      "detail": "Shelf qty increment tap",
+      "portal": "customer"
+    },
+    "C9-03": {
+      "pass": false,
+      "evidence": "screenshots/pass23/customer/C9-03-shelf-checkout.png",
+      "detail": "Shelf → checkout no crash",
+      "portal": "customer"
+    },
+    "C9-04": {
+      "pass": true,
+      "evidence": "screenshots/pass23/customer/C9-04-basket-expiry-banner.png",
+      "detail": "Basket expiry refresh banner",
+      "portal": "customer"
+    },
+    "C10-01": {
+      "pass": false,
+      "evidence": "screenshots/pass23/customer/C10-01-impact-streak.png",
+      "detail": "Weekly streak ring",
+      "portal": "customer"
+    },
+    "C10-02": {
+      "pass": true,
+      "evidence": "screenshots/pass23/customer/C10-02-impact-pull-refresh.png",
+      "detail": "Impact pull-to-refresh executed",
+      "portal": "customer"
+    },
+    "C10-03": {
+      "pass": false,
+      "evidence": "screenshots/pass23/customer/C10-03-impact-share.png",
+      "detail": "Impact share sheet/card",
+      "portal": "customer"
+    },
+    "C10-04": {
+      "pass": true,
+      "evidence": "screenshots/pass23/customer/C10-04-impact-dark-mode.png",
+      "detail": "Impact dark mode screenshot",
+      "portal": "customer"
+    },
+    "MAP-01": {
+      "pass": false,
+      "evidence": "screenshots/pass23/customer/MAP-01-discover-map-markers.png",
+      "detail": "0 map markers",
+      "portal": "customer"
+    },
+    "MAP-04": {
+      "pass": false,
+      "evidence": "screenshots/pass23/customer/MAP-01-discover-map-markers.png",
+      "detail": "Map stock/pulse indicators",
+      "portal": "customer"
+    },
+    "ORD-01": {
+      "pass": true,
+      "evidence": "screenshots/pass23/customer/ORD-01-customer-orders-tab.png",
+      "detail": "Customer orders tab content",
+      "portal": "customer"
+    },
+    "C6-05": {
+      "pass": true,
+      "evidence": "screenshots/pass23/customer/C6-05-logout-clears-cart.png",
+      "detail": "Cart bar hidden after logout",
+      "portal": "customer"
+    },
+    "M-00": {
+      "pass": false,
+      "evidence": "screenshots/pass23/merchant/M-00-merchant-login.png",
+      "detail": "Merchant auth",
+      "portal": "merchant"
+    },
+    "M11-01": {
+      "pass": false,
+      "evidence": "screenshots/pass23/merchant/M11-01-analytics-hero.png",
+      "detail": "Merchant impact hero",
+      "portal": "merchant"
+    },
+    "M11-02": {
+      "pass": true,
+      "evidence": "screenshots/pass23/merchant/M11-02-analytics-7d.png",
+      "detail": "Analytics 7d toggle",
+      "portal": "merchant"
+    },
+    "M11-03": {
+      "pass": true,
+      "evidence": "screenshots/pass23/merchant/M11-03-analytics-30d.png",
+      "detail": "Analytics 30d toggle",
+      "portal": "merchant"
+    },
+    "M11-04": {
+      "pass": true,
+      "evidence": "screenshots/pass23/merchant/M11-04-certificate-share.png",
+      "detail": "Certificate share",
+      "portal": "merchant"
+    },
+    "M20-01": {
+      "pass": true,
+      "evidence": "screenshots/pass23/merchant/M20-01-shelves-tab-today.png",
+      "detail": "Shelves tab not wrongly NOT STARTED",
+      "portal": "merchant"
+    },
+    "M-ORD-01": {
+      "pass": true,
+      "evidence": "screenshots/pass23/merchant/M-ORD-01-orders-list.png",
+      "detail": "Merchant orders list",
+      "portal": "merchant"
+    },
+    "M-ORD-02": {
+      "pass": true,
+      "evidence": "screenshots/pass23/merchant/M-ORD-02-late-pickups.png",
+      "detail": "Late pickup human labels",
+      "portal": "merchant"
+    },
+    "M-BAG-01": {
+      "pass": true,
+      "evidence": "screenshots/pass23/merchant/M-BAG-01-bags-tab.png",
+      "detail": "Bags tab regression",
+      "portal": "merchant"
+    },
+    "M-PROF-01": {
+      "pass": false,
+      "evidence": "screenshots/pass23/merchant/M-PROF-01-multi-outlet.png",
+      "detail": "Multi-outlet profile (0 mentions)",
+      "portal": "merchant"
+    },
+    "M-ORD-03": {
+      "pass": true,
+      "evidence": "screenshots/pass23/merchant/M-ORD-03-live-monitor.png",
+      "detail": "Live monitor view",
+      "portal": "merchant"
+    },
+    "_meta": {
+      "stockText": "",
+      "shelfCoPass": false,
+      "c6Pass": true,
+      "custAuth": true,
+      "merchAuth": false
+    }
+  },
+  "ts": "2026-06-14T20:35:03.560Z"
+}

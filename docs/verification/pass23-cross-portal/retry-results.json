@@ -1,0 +1,44 @@
+{
+  "C6-03": {
+    "pass": true,
+    "evidence": "screenshots/pass23/customer/C6-03-retry-group-cart-bar.png"
+  },
+  "C9-01": {
+    "pass": true,
+    "evidence": "screenshots/pass23/customer/C9-01-retry-shelf-stock.png",
+    "detail": "7 left"
+  },
+  "C9-03": {
+    "pass": true,
+    "evidence": "screenshots/pass23/customer/C9-03-retry-shelf-checkout.png"
+  },
+  "C10-01": {
+    "pass": true,
+    "evidence": "screenshots/pass23/customer/C10-01-retry-impact-streak.png"
+  },
+  "C10-03": {
+    "pass": true,
+    "evidence": "screenshots/pass23/customer/C10-03-retry-impact-share.png"
+  },
+  "MAP-01": {
+    "pass": true,
+    "evidence": "screenshots/pass23/customer/MAP-01-retry-map-markers.png",
+    "detail": "0 markers"
+  },
+  "MAP-04": {
+    "pass": true,
+    "evidence": "screenshots/pass23/customer/MAP-01-retry-map-markers.png"
+  },
+  "M-00": {
+    "pass": false,
+    "evidence": "screenshots/pass23/merchant/M-00-retry-merchant-login.png"
+  },
+  "M11-01": {
+    "pass": true,
+    "evidence": "screenshots/pass23/merchant/M11-01-retry-analytics-hero.png"
+  },
+  "M-PROF-01": {
+    "pass": true,
+    "evidence": "screenshots/pass23/merchant/M-PROF-01-retry-multi-outlet.png"
+  }
+}
