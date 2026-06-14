@@ -70,5 +70,5 @@ WHERE shelf_id = '00000000-0000-0000-0000-000000000201' AND status = 'live';
 
 ## Commits
 
-- Mobile: _(see git log after commit)_
-- Supabase/web: no schema changes
+- Mobile: `b3ec3f5` — Fix Pass 22 checkout crash, shelf stock, and CO2 transparency
+- Supabase/web: no schema changes (client-side query fixes only)
