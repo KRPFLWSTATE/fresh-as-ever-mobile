@@ -32,6 +32,7 @@ import {
   StitchText,
 } from '@/ui/stitch';
 import { logError } from '@/observability/logError';
+import { formatMerchantPickupWindow } from '@/domain/pickupWindow';
 import { orderDisplayTitle, orderPickupWindow } from '@/lib/orderDisplay';
 
 type OrderLineItem = {
@@ -58,32 +59,6 @@ type OrderDetail = {
   outlet_name: string;
   created_at: string | null;
 };
-
-function formatMerchantPickupWindow(
-  startIso: string | null,
-  endIso: string | null,
-): string {
-  if (!startIso || !endIso) return 'Pickup time TBC';
-  const start = new Date(startIso);
-  const end = new Date(endIso);
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
-    return 'Pickup time TBC';
-  }
-  const now = new Date();
-  let dayLabel: string;
-  if (start.toDateString() === now.toDateString()) {
-    dayLabel = 'Today';
-  } else {
-    const tomorrow = new Date(now);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    dayLabel =
-      start.toDateString() === tomorrow.toDateString()
-        ? 'Tomorrow'
-        : start.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-  }
-  const tf: Intl.DateTimeFormatOptions = { hour: '2-digit', minute: '2-digit' };
-  return `${dayLabel}, ${start.toLocaleTimeString(undefined, tf)} - ${end.toLocaleTimeString(undefined, tf)}`;
-}
 
 function isPickupOverdue(endIso: string | null, normalizedStatus: string): boolean {
   if (!endIso) return false;

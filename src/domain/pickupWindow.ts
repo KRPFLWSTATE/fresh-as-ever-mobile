@@ -83,10 +83,64 @@ export { NO_SHOW_GRACE_MS };
 
 const PICKUP_TBC = 'Pickup time TBC';
 
+const MERCHANT_TIME_FMT: Intl.DateTimeFormatOptions = {
+  hour: '2-digit',
+  minute: '2-digit',
+};
+
+function pickupDayLabel(date: Date, now: Date): string {
+  if (date.toDateString() === now.toDateString()) return 'Today';
+  const tomorrow = new Date(now);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  if (date.toDateString() === tomorrow.toDateString()) return 'Tomorrow';
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+  if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
+  return date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+}
+
+/** Merchant orders — includes end-day when the window crosses midnight. */
+export function formatMerchantPickupWindow(
+  startIso: string | null | undefined,
+  endIso: string | null | undefined,
+  nowMs: number = Date.now(),
+): string {
+  if (!startIso || !endIso) return PICKUP_TBC;
+  const start = new Date(startIso);
+  const end = new Date(endIso);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    return PICKUP_TBC;
+  }
+  const now = new Date(nowMs);
+  const startDay = pickupDayLabel(start, now);
+  const endDay = pickupDayLabel(end, now);
+  const startTime = start.toLocaleTimeString(undefined, MERCHANT_TIME_FMT);
+  const endTime = end.toLocaleTimeString(undefined, MERCHANT_TIME_FMT);
+  if (start.toDateString() === end.toDateString()) {
+    return `${startDay}, ${startTime} – ${endTime}`;
+  }
+  return `${startDay}, ${startTime} – ${endDay}, ${endTime}`;
+}
+
+/** Late pickups badge — human scale (avoid "781m" / label-caps "781M"). */
+export function formatLatenessLabel(minutesLate: number): string {
+  if (minutesLate <= 0) return 'Late';
+  if (minutesLate < 60) return `${minutesLate}m late`;
+  const hours = Math.floor(minutesLate / 60);
+  const mins = minutesLate % 60;
+  if (hours < 24) {
+    return mins > 0 ? `${hours}h ${mins}m late` : `${hours}h late`;
+  }
+  const days = Math.floor(hours / 24);
+  const remHours = hours % 24;
+  return remHours > 0 ? `${days}d ${remHours}h late` : `${days}d late`;
+}
+
 /** Human-readable pickup window for celebration and order detail surfaces. */
 export function formatPickupLine(
   startIso: string | null | undefined,
   endIso: string | null | undefined,
+  nowMs: number = Date.now(),
 ): string {
   if (!startIso || !endIso) return PICKUP_TBC;
   const start = new Date(startIso);
@@ -98,12 +152,15 @@ export function formatPickupLine(
     hour: 'numeric',
     minute: '2-digit',
   };
-  const today = new Date();
-  const dayPrefix =
-    start.toDateString() === today.toDateString()
-      ? 'Today'
-      : start.toLocaleDateString(undefined, { weekday: 'short' });
-  return `${dayPrefix}, ${start.toLocaleTimeString(undefined, tf)} - ${end.toLocaleTimeString(undefined, tf)}`;
+  const now = new Date(nowMs);
+  const startDay = pickupDayLabel(start, now);
+  const endDay = pickupDayLabel(end, now);
+  const startTime = start.toLocaleTimeString(undefined, tf);
+  const endTime = end.toLocaleTimeString(undefined, tf);
+  if (start.toDateString() === end.toDateString()) {
+    return `${startDay}, ${startTime} - ${endTime}`;
+  }
+  return `${startDay}, ${startTime} - ${endDay}, ${endTime}`;
 }
 
 /** When pickup opens (single start time) — human copy for errors and hints. */

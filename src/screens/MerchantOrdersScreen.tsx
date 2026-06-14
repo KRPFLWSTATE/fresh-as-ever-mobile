@@ -38,7 +38,12 @@ import {
   lateSeverityCounts,
   sortLateOrders,
 } from '@/domain/merchantOrderFilters';
-import { lateSeverityFromMinutes, minutesPastPickupEnd } from '@/domain/pickupWindow';
+import {
+  formatLatenessLabel,
+  formatMerchantPickupWindow,
+  lateSeverityFromMinutes,
+  minutesPastPickupEnd,
+} from '@/domain/pickupWindow';
 import {
   countPickupWindowHandovers,
   countVerificationHandovers,
@@ -57,32 +62,6 @@ type Nav = CompositeNavigationProp<
   BottomTabNavigationProp<MerchantTabParamList, 'MerchantOrdersTab'>,
   NativeStackNavigationProp<RootStackParamList>
 >;
-
-function formatMerchantPickupWindow(
-  startIso: string | null,
-  endIso: string | null,
-): string {
-  if (!startIso || !endIso) return 'Pickup time TBC';
-  const start = new Date(startIso);
-  const end = new Date(endIso);
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
-    return 'Pickup time TBC';
-  }
-  const now = new Date();
-  let dayLabel: string;
-  if (start.toDateString() === now.toDateString()) {
-    dayLabel = 'Today';
-  } else {
-    const tomorrow = new Date(now);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    dayLabel =
-      start.toDateString() === tomorrow.toDateString()
-        ? 'Tomorrow'
-        : start.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-  }
-  const tf: Intl.DateTimeFormatOptions = { hour: '2-digit', minute: '2-digit' };
-  return `${dayLabel}, ${start.toLocaleTimeString(undefined, tf)} - ${end.toLocaleTimeString(undefined, tf)}`;
-}
 
 function isPickupOverdue(endIso: string | null, normalizedStatus: string): boolean {
   if (!endIso) return false;
@@ -170,9 +149,18 @@ function createStyles({ spacing, radii }: CreateStylesArgs) {
     },
     lateMetaTop: {
       flexDirection: 'row',
-      alignItems: 'center',
+      alignItems: 'flex-start',
       justifyContent: 'space-between',
+      gap: spacing.sm,
       marginBottom: spacing.sm,
+    },
+    lateMetaLeading: {
+      flex: 1,
+      minWidth: 0,
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      alignItems: 'center',
+      gap: spacing.sm,
     },
     lateCustomerRow: {
       flexDirection: 'row',
@@ -529,18 +517,13 @@ export function MerchantOrdersScreen() {
       const scheduleWeight: '400' | '600' | '700' = overdue ? '600' : '400';
       let overdueLine = pickupLine;
       if (overdue && item.pickup_start && item.pickup_end) {
-        const start = new Date(item.pickup_start);
-        const end = new Date(item.pickup_end);
-        const tf: Intl.DateTimeFormatOptions = { hour: '2-digit', minute: '2-digit' };
-        if (!Number.isNaN(start.getTime()) && !Number.isNaN(end.getTime())) {
-          overdueLine = `Overdue: ${start.toLocaleTimeString(undefined, tf)} - ${end.toLocaleTimeString(undefined, tf)}`;
-        }
+        overdueLine = `Overdue: ${formatMerchantPickupWindow(item.pickup_start, item.pickup_end)}`;
       }
 
       if (view === 'late-pickups') {
         const minsLate = minutesPastPickupEnd(Date.now(), item.pickup_end);
         const sev = lateSeverityFromMinutes(minsLate);
-        const lateLabel = minsLate > 0 ? `${minsLate}m LATE` : 'LATE';
+        const lateLabel = formatLatenessLabel(minsLate);
         const canHandover = isLateHandoverEligible(item);
         const canNoShow = isNoShowEligible(item);
         const dueAt = item.pickup_end
@@ -566,27 +549,29 @@ export function MerchantOrdersScreen() {
             >
               <View style={styles.lateCardBody}>
                 <View style={styles.lateMetaTop}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+                  <View style={styles.lateMetaLeading}>
                     <View
                       style={{
-                        paddingHorizontal: 8,
+                        paddingHorizontal: spacing.sm,
                         paddingVertical: 4,
                         borderRadius: radii.default,
                         backgroundColor: `${accent}22`,
+                        maxWidth: '100%',
                       }}
                     >
                       <StitchText
-                        variant="label-caps"
+                        variant="label"
                         colorKey={sev === 'critical' ? 'accent' : 'secondary'}
+                        numberOfLines={2}
                       >
                         {lateLabel}
                       </StitchText>
                     </View>
-                    <StitchText variant="label" colorKey="textMuted">
+                    <StitchText variant="label" colorKey="textMuted" numberOfLines={1}>
                       Code: {formatOrderBadge(item).replace('#', '')}
                     </StitchText>
                   </View>
-                  <StitchText variant="body-sm" colorKey="textMuted">
+                  <StitchText variant="body-sm" colorKey="textMuted" style={{ flexShrink: 0 }}>
                     Due {dueAt}
                   </StitchText>
                 </View>
@@ -878,6 +863,7 @@ export function MerchantOrdersScreen() {
       styles.lateCardBody,
       styles.lateCustomerRow,
       styles.lateFooterButtons,
+      styles.lateMetaLeading,
       styles.lateMetaTop,
       styles.scheduleRow,
       view,

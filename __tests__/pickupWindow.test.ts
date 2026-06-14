@@ -1,5 +1,7 @@
 import {
   CUSTOMER_ARRIVAL_EARLY_MS,
+  formatLatenessLabel,
+  formatMerchantPickupWindow,
   isApproachingWithin2h,
   isCustomerArrivalEligible,
   isLatePickup,
@@ -57,5 +59,31 @@ describe('pickupWindow', () => {
 
   it('formatPickupLine returns TBC when missing', () => {
     expect(formatPickupLine(null, end)).toBe('Pickup time TBC');
+  });
+
+  it('formatPickupLine includes end day when window crosses midnight', () => {
+    const line = formatPickupLine(
+      '2026-06-13T17:00:00.000Z',
+      '2026-06-14T02:00:00.000Z',
+      Date.parse('2026-06-14T10:00:00.000Z'),
+    );
+    expect(line).toMatch(/ - /);
+    expect(line).toContain('Yesterday');
+    expect(line).toContain('Today');
+  });
+
+  it('formatMerchantPickupWindow includes end day for overnight windows', () => {
+    const line = formatMerchantPickupWindow(
+      '2026-06-13T10:28:00.000Z',
+      '2026-06-14T02:00:00.000Z',
+      Date.parse('2026-06-14T10:00:00.000Z'),
+    );
+    expect(line.split('–').length).toBeGreaterThan(1);
+  });
+
+  it('formatLatenessLabel scales hours and avoids raw minute spam', () => {
+    expect(formatLatenessLabel(45)).toBe('45m late');
+    expect(formatLatenessLabel(781)).toBe('13h 1m late');
+    expect(formatLatenessLabel(120)).toBe('2h late');
   });
 });
