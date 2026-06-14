@@ -64,4 +64,5 @@ PASS 21 addresses dark-mode contrast, group/shelf checkout reliability, analytic
 
 ## Commit hashes
 
-_(filled after commit)_
+- **Mobile:** `721f28c7547dd3974bf124bef31f075304f2c6d8`
+- **Supabase/web:** `ba4ed1520826f79c90759ca75b5c48261ce671b4`

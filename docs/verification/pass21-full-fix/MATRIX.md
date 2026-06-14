@@ -30,5 +30,5 @@
 
 ## Commits
 
-- Mobile: _(see REPORT.md)_
-- Supabase/web: _(see REPORT.md)_
+- Mobile: `721f28c7547dd3974bf124bef31f075304f2c6d8`
+- Supabase/web: `ba4ed1520826f79c90759ca75b5c48261ce671b4`
