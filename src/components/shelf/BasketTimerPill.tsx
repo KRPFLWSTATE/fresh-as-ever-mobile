@@ -20,7 +20,7 @@ export function BasketTimerPill({
   const { colors, spacing, radii } = useStitchTheme();
   const [now, setNow] = useState(Date.now());
   const breathe = useRef(new Animated.Value(0)).current;
-  const expiredNotified = useRef(false);
+  const prevTone = useRef<'calm' | 'warm' | 'expired' | null>(null);
 
   useEffect(() => {
     if (!startedAtMs) return undefined;
@@ -58,11 +58,10 @@ export function BasketTimerPill({
   const label = formatBasketCountdown(remaining);
 
   useEffect(() => {
-    if (tone === 'expired' && !expiredNotified.current) {
-      expiredNotified.current = true;
+    if (tone === 'expired' && prevTone.current != null && prevTone.current !== 'expired') {
       onExpired?.();
     }
-    if (tone !== 'expired') expiredNotified.current = false;
+    prevTone.current = tone;
   }, [onExpired, tone]);
 
   const styles = useMemo(

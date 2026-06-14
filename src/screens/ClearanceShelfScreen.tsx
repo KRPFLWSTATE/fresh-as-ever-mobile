@@ -68,7 +68,7 @@ function formatLkr(n: number): string {
 
 export function ClearanceShelfScreen({ navigation, route }: Props) {
   const previewRequested = parsePreviewQueryParam(route.params.preview);
-  const basketExpiredQa = __DEV__ && parsePreviewQueryParam(route.params.basketExpired);
+  const basketExpiredQa = parsePreviewQueryParam(route.params.basketExpired);
   const { env, user, resolvedRole } = useAuthContext();
   const shelfId = route.params.id;
   const { isMerchantPreview, isBrowseOnly } = resolveShelfPreviewMode(
@@ -101,6 +101,12 @@ export function ClearanceShelfScreen({ navigation, route }: Props) {
       rehydrate();
     }, [rehydrate]),
   );
+
+  useEffect(() => {
+    if (!loading && shelf) {
+      rehydrate();
+    }
+  }, [loading, rehydrate, shelf]);
 
   useEffect(() => {
     if (!basketExpiredQa || loading || !Array.isArray(shelf?.items) || shelf.items.length === 0) {

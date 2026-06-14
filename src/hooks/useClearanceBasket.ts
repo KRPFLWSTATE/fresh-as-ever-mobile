@@ -55,10 +55,6 @@ export function useClearanceBasket() {
         setShelfId(stored.shelfId);
         setItems(stored.items ?? {});
         setStartedAtMs(stored.startedAtMs ?? null);
-      } else {
-        setShelfId(null);
-        setItems({});
-        setStartedAtMs(null);
       }
     });
   }, []);
