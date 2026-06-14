@@ -1,0 +1,9 @@
+{"ts":"2026-06-14T09:00:00Z","area":"setup","action":"pass21_start","result":"PASS"}
+{"ts":"2026-06-14T09:05:00Z","area":"supabase","action":"apply_migration_group_reservation_duplicate_bags","result":"PASS"}
+{"ts":"2026-06-14T09:10:00Z","area":"co2","action":"sql_food_kg_30d","detail":"food_kg=2.0 expected_co2=5.0 per 2.5 factor","result":"PASS"}
+{"ts":"2026-06-14T09:11:00Z","area":"analytics_window","action":"sql_7d_vs_30d","detail":"collected_7d=2 food_kg_7d=2.0 collected_30d=2 food_kg_30d=2.0 — identical because all collected orders within 7 days","result":"PASS"}
+{"ts":"2026-06-14T09:12:00Z","area":"outlet_ownership","action":"sql_qa_merchant","detail":"owner_id c749c703… owns merchants Bakehouse Colombo + Kumbuk QA Cafe → 4 outlets","result":"PASS"}
+{"ts":"2026-06-14T09:15:00Z","area":"jest","action":"npm_test","detail":"49 suites 247 tests","result":"PASS"}
+{"ts":"2026-06-14T09:16:00Z","area":"typecheck","action":"tsc","result":"PASS"}
+{"ts":"2026-06-14T09:20:00Z","area":"appium","action":"session_create","device":"iPhone 17 Pro 377DAC99","result":"PASS"}
+{"ts":"2026-06-14T09:21:00Z","area":"appium","action":"geolocation_colombo","result":"PASS"}

@@ -1,8 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const CART_KEY = 'fae.reservationCart.v1';
+export const CART_KEY = 'fae.reservationCart.v1';
 export const MAX_GROUP_BAGS = 5;
+
+export async function clearReservationCartStorage(): Promise<void> {
+  await AsyncStorage.removeItem(CART_KEY);
+}
 
 export type ReservationCartBag = {
   id: string;
@@ -69,9 +73,6 @@ export function useReservationCart() {
       ) {
         return { error: 'different_outlet' as const };
       }
-      if (current.bagIds.includes(bag.id)) {
-        return { ok: true as const };
-      }
       if (current.bagIds.length >= MAX_GROUP_BAGS) {
         return { error: 'cart_full' as const };
       }
@@ -89,8 +90,16 @@ export function useReservationCart() {
   const removeBag = useCallback(
     async (bagId: string) => {
       const current = await readCart();
-      const bagIds = current.bagIds.filter((id) => id !== bagId);
-      const bags = current.bags.filter((b) => b.id !== bagId);
+      const dropAt = current.bagIds.indexOf(bagId);
+      if (dropAt < 0) return;
+      const bagIds = [
+        ...current.bagIds.slice(0, dropAt),
+        ...current.bagIds.slice(dropAt + 1),
+      ];
+      const bags = [
+        ...current.bags.slice(0, dropAt),
+        ...current.bags.slice(dropAt + 1),
+      ];
       const next: ReservationCartState = {
         outletId: bagIds.length ? current.outletId : null,
         bagIds,

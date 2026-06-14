@@ -65,6 +65,8 @@ export function MerchantAnalyticsScreen() {
   );
 
   const outletName = outlets[0]?.name ?? 'Your outlet';
+  const outletAddress =
+    typeof outlets[0]?.address === 'string' ? outlets[0].address : null;
   const mealsEquiv = useMemo(
     () => Math.max(0, Math.round((snapshot?.wasteKg ?? 0) * 2.5)),
     [snapshot?.wasteKg],
@@ -236,6 +238,7 @@ export function MerchantAnalyticsScreen() {
         <MerchantImpactCertificate
           ref={certRef}
           outletName={outletName}
+          outletAddress={outletAddress}
           windowLabel={windowLabel}
           co2Kg={snapshot?.co2Kg ?? 0}
           wasteKg={snapshot?.wasteKg ?? 0}

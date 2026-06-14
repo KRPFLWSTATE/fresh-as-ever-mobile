@@ -6,6 +6,7 @@ import {
   remainingBasketMs,
 } from '@/lib/basketTimer';
 import { useStitchTheme } from '@/theme/StitchThemeContext';
+import { textOnGreenSurface } from '@/lib/stitchContrast';
 import { StitchIcon, StitchText } from '@/ui/stitch';
 
 export type BasketTimerPillProps = {
@@ -17,7 +18,7 @@ export function BasketTimerPill({
   startedAtMs,
   onExpired,
 }: BasketTimerPillProps): React.ReactElement | null {
-  const { colors, spacing, radii } = useStitchTheme();
+  const { colors, spacing, radii, mode } = useStitchTheme();
   const [now, setNow] = useState(Date.now());
   const breathe = useRef(new Animated.Value(0)).current;
   const prevTone = useRef<'calm' | 'warm' | 'expired' | null>(null);
@@ -95,6 +96,7 @@ export function BasketTimerPill({
       : tone === 'warm'
         ? colors.accent
         : colors.primaryContainer;
+  const calmTextKey = textOnGreenSurface(mode);
 
   return (
     <Animated.View
@@ -118,11 +120,11 @@ export function BasketTimerPill({
       <StitchIcon
         name={tone === 'expired' ? 'refresh' : 'schedule'}
         size={16}
-        colorKey={tone === 'expired' ? 'error' : tone === 'warm' ? 'accent' : 'primary'}
+        colorKey={tone === 'expired' ? 'error' : tone === 'warm' ? 'accent' : calmTextKey}
       />
       <StitchText
         variant="label"
-        colorKey={tone === 'expired' ? 'error' : tone === 'warm' ? 'accent' : 'primary'}
+        colorKey={tone === 'expired' ? 'error' : tone === 'warm' ? 'accent' : calmTextKey}
       >
         {tone === 'expired' ? 'Prices refreshed for you' : `Basket holds ${label}`}
       </StitchText>

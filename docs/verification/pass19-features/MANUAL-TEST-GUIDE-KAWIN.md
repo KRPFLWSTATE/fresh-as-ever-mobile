@@ -30,7 +30,7 @@ Use a Release or Debug build with Pass 19 flags enabled (`EXPO_PUBLIC_GROUP_RESE
 9. Choose **Pay at Store** (or Card if sandbox is configured) and tap **Reserve Now**.
 10. On the confirmation / celebration screen, note the **6-character code** — you will need it for merchant handover later.
 
-**Pass criteria:** Group bar visible with 2+ bags; checkout shows combined total; one code after reserve.
+**Pass criteria:** Group bar visible with 2+ bags; checkout shows combined total; one code after reserve. Same bag can be added twice (qty 2 of one listing). Group cart bar hidden when logged out; cart clears on sign-out.
 
 ---
 

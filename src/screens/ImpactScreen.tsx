@@ -20,6 +20,7 @@ import { StitchText } from '@/ui/stitch/StitchText';
 import { WeeklyStreakRing } from '@/components/impact/WeeklyStreakRing';
 import { ImpactShareCard } from '@/components/impact/ImpactShareCard';
 import { captureViewShot, shareCardGraphic } from '@/lib/shareCard';
+import { textOnGreenSurface } from '@/lib/stitchContrast';
 import { logError } from '@/observability/logError';
 
 /** Rough equivalents aligned to Stitch demo ratios (~105 kg CO₂ → 400 km / 12k charges / 5 trees). */
@@ -43,8 +44,9 @@ export function ImpactScreen() {
   const { streak, refetch: refetchStreak } = useCustomerWeeklyStreak(env, user?.id ?? null);
   const shareRef = useRef<React.ElementRef<typeof ViewShot>>(null);
   const [sharing, setSharing] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const { colors, spacing, radii } = useStitchTheme();
+  const { colors, spacing, radii, mode } = useStitchTheme();
   const equiv = useMemo(() => co2Equivalents(co2SavedKg), [co2SavedKg]);
 
   useFocusEffect(
@@ -179,10 +181,12 @@ export function ImpactScreen() {
       contentContainerStyle={styles.pad}
       refreshControl={
         <RefreshControl
-          refreshing={loading}
+          refreshing={refreshing}
           onRefresh={() => {
-            refetch().catch((err) => logError(err, { context: 'ImpactScreen.refetch' }));
-            refetchStreak().catch((err) => logError(err, { context: 'ImpactScreen.streakRefetch' }));
+            setRefreshing(true);
+            Promise.all([refetch(), refetchStreak()])
+              .catch((err) => logError(err, { context: 'ImpactScreen.refetch' }))
+              .finally(() => setRefreshing(false));
           }}
         />
       }
@@ -226,7 +230,7 @@ export function ImpactScreen() {
             <StitchSurface elevated padding="md" style={styles.card}>
               <View style={styles.cardTop}>
                 <View style={[styles.iconBubble, { backgroundColor: colors.primaryHighlight }]}>
-                  <StitchIcon name="shopping_bag" size={28} colorKey="primary" />
+                  <StitchIcon name="shopping_bag" size={28} colorKey={textOnGreenSurface(mode)} />
                 </View>
                 <StitchText variant="label-caps" colorKey="textMuted">
                   LIFETIME
@@ -270,7 +274,7 @@ export function ImpactScreen() {
               <View style={styles.moneyRowInner}>
                 <View style={styles.moneyLeft}>
                   <View style={[styles.iconBubble, { backgroundColor: colors.primaryHighlight }]}>
-                    <StitchIcon name="account_balance_wallet" size={28} colorKey="primary" />
+                    <StitchIcon name="account_balance_wallet" size={28} colorKey={textOnGreenSurface(mode)} />
                   </View>
                   <View style={{ flexShrink: 1 }}>
                     <StitchText variant="h3" colorKey="onSurface">

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getSupabase } from '@/lib/supabase';
 import type { AppEnv } from '@/config/env';
 import { useMerchantContext } from '@/hooks/useMerchantContext';
@@ -39,8 +39,10 @@ export function useMerchantAnalytics(env: AppEnv, windowDays: AnalyticsWindowKey
   const [snapshot, setSnapshot] = useState<MerchantAnalyticsSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const fetchGen = useRef(0);
 
   const refetch = useCallback(async () => {
+    const gen = ++fetchGen.current;
     if (outletScopeIds.length === 0) {
       setSnapshot({
         revenue: 0,
@@ -60,6 +62,7 @@ export function useMerchantAnalytics(env: AppEnv, windowDays: AnalyticsWindowKey
     }
     setLoading(true);
     setError(null);
+    setSnapshot(null);
     const sb = getSupabase(env);
     const cutoff = cutoffIsoForWindow(windowDays);
     try {
@@ -82,6 +85,7 @@ export function useMerchantAnalytics(env: AppEnv, windowDays: AnalyticsWindowKey
         .limit(5000);
 
       if (qErr) throw qErr;
+      if (gen !== fetchGen.current) return;
 
       const rows = (data ?? []) as Record<string, unknown>[];
       const collected = rows.filter((r) =>
@@ -137,11 +141,14 @@ export function useMerchantAnalytics(env: AppEnv, windowDays: AnalyticsWindowKey
         topBags,
       });
     } catch (e) {
+      if (gen !== fetchGen.current) return;
       logSupabaseError(e, 'useMerchantAnalytics');
       setError(mapSupabaseError(e as Error, ERROR.merchant.analytics));
       setSnapshot(null);
     } finally {
-      setLoading(false);
+      if (gen === fetchGen.current) {
+        setLoading(false);
+      }
     }
   }, [env, outletScopeIds, windowDays]);
 

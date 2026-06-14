@@ -2791,7 +2791,7 @@ export function DiscoverScreen() {
           </StitchSurface>
         </KeyboardAvoidingView>
       </Modal>
-      {groupReservationsEnabled && reservationCart.count >= 2 ? (
+      {groupReservationsEnabled && session?.user && reservationCart.count >= 2 ? (
         <GroupReservationCartBar
           bags={reservationCart.cart.bags}
           visible={reservationCart.count >= 2}

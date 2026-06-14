@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AccessibilityInfo, Animated, Easing, StyleSheet, View } from 'react-native';
 import { useStitchTheme } from '@/theme/StitchThemeContext';
+import { headlineOnGreenSurface, textOnGreenSurface } from '@/lib/stitchContrast';
 import { stitchAmbientShadow } from '@/theme/stitchTokens';
 import { StitchIcon, StitchSurface, StitchText } from '@/ui/stitch';
 
@@ -46,7 +47,7 @@ export function MerchantImpactHero({
   mealsEquiv,
   treesEquiv,
 }: MerchantImpactHeroProps): React.ReactElement {
-  const { colors, spacing, radii } = useStitchTheme();
+  const { colors, spacing, radii, mode } = useStitchTheme();
   const [motionOk, setMotionOk] = useState(true);
   useEffect(() => {
     AccessibilityInfo.isReduceMotionEnabled().then((v) => setMotionOk(!v));
@@ -99,10 +100,10 @@ export function MerchantImpactHero({
     <StitchSurface elevated style={styles.shell} testID="merchant.impactHero">
       <View style={styles.inner}>
         <View style={styles.headline}>
-          <StitchText variant="label-caps" colorKey="primary">
+          <StitchText variant="label-caps" colorKey={textOnGreenSurface(mode)}>
             Your rescue impact · {windowLabel.toLowerCase()}
           </StitchText>
-          <StitchText variant="h2" colorKey="primaryContainer">
+          <StitchText variant="h2" colorKey={headlineOnGreenSurface(mode)}>
             Thank you for feeding Colombo, not landfills
           </StitchText>
         </View>

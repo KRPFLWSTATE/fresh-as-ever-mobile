@@ -8,6 +8,7 @@ import { StitchIcon, StitchText } from '@/ui/stitch';
 
 export type MerchantImpactCertificateProps = {
   outletName: string;
+  outletAddress?: string | null;
   windowLabel: string;
   co2Kg: number;
   wasteKg: number;
@@ -18,7 +19,7 @@ export const MerchantImpactCertificate = forwardRef<
   React.ElementRef<typeof ViewShot>,
   MerchantImpactCertificateProps
 >(function MerchantImpactCertificate(
-  { outletName, windowLabel, co2Kg, wasteKg, surplusLabel },
+  { outletName, outletAddress, windowLabel, co2Kg, wasteKg, surplusLabel },
   ref,
 ) {
   const { colors, spacing, radii } = useStitchTheme();
@@ -42,6 +43,16 @@ export const MerchantImpactCertificate = forwardRef<
           minHeight: 440,
         },
         seal: { alignItems: 'center', gap: spacing.sm },
+        logoRow: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: spacing.sm,
+          paddingHorizontal: spacing.md,
+          paddingVertical: spacing.sm,
+          borderRadius: radii.full,
+          backgroundColor: `${colors.primaryContainer}18`,
+        },
+        outletBlock: { alignItems: 'center', gap: spacing.xs },
         metrics: { gap: spacing.md },
         metricRow: {
           flexDirection: 'row',
@@ -68,13 +79,25 @@ export const MerchantImpactCertificate = forwardRef<
           <Rect x="0" y="0" width="100%" height="120" fill="url(#certWash)" />
         </Svg>
         <View style={styles.seal}>
-          <StitchIcon name="eco" size={36} colorKey="primaryContainer" />
-          <StitchText variant="label-caps" colorKey="primary">
-            Fresh As Ever · Impact Certificate
+          <View style={styles.logoRow}>
+            <StitchIcon name="eco" size={28} colorKey="primaryContainer" />
+            <StitchText variant="label-caps" colorKey="primary">
+              Fresh As Ever
+            </StitchText>
+          </View>
+          <StitchText variant="label-caps" colorKey="textMuted">
+            Impact Certificate
           </StitchText>
-          <StitchText variant="h2" colorKey="primaryContainer" style={{ textAlign: 'center' }}>
-            {outletName}
-          </StitchText>
+          <View style={styles.outletBlock}>
+            <StitchText variant="h2" colorKey="primaryContainer" style={{ textAlign: 'center' }}>
+              {outletName}
+            </StitchText>
+            {outletAddress?.trim() ? (
+              <StitchText variant="body-sm" colorKey="textMuted" style={{ textAlign: 'center' }}>
+                {outletAddress.trim()}
+              </StitchText>
+            ) : null}
+          </View>
           <StitchText variant="body-sm" colorKey="textMuted">
             {windowLabel}
           </StitchText>

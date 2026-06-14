@@ -155,12 +155,32 @@ export function OutletDetailScreen(): React.ReactElement {
   const cart = useReservationCart();
   const groupReservationsEnabled = isGroupReservationsEnabled();
   const [selectedBagIds, setSelectedBagIds] = useState<string[]>([]);
+  const [completedPickups, setCompletedPickups] = useState(0);
 
   useEffect(() => {
     if (cart.cart.outletId === outletId) {
       setSelectedBagIds(cart.cart.bagIds);
     }
   }, [cart.cart.bagIds, cart.cart.outletId, outletId]);
+
+  useEffect(() => {
+    if (!user?.id) {
+      setCompletedPickups(0);
+      return;
+    }
+    let alive = true;
+    void getSupabase(env)
+      .from('orders')
+      .select('id', { count: 'exact', head: true })
+      .eq('customer_id', user.id)
+      .eq('order_status', 'collected')
+      .then(({ count }) => {
+        if (alive) setCompletedPickups(typeof count === 'number' ? count : 0);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [env, user?.id]);
 
   useEffect(() => {
     let alive = true;
@@ -738,11 +758,13 @@ export function OutletDetailScreen(): React.ReactElement {
           </StitchSurface>
         ) : null}
 
-        {groupReservationsEnabled && selectedBagIds.length > 0 ? (
+        {groupReservationsEnabled && user && selectedBagIds.length > 0 ? (
           <StitchButton
             title={
               selectedBagIds.length === 1
-                ? 'Reserve 1 bag'
+                ? completedPickups >= 1
+                  ? 'Reserve 1 bag'
+                  : 'Reserve 1 bag (card only)'
                 : `Reserve ${selectedBagIds.length} bags (card only)`
             }
             onPress={() =>
@@ -815,7 +837,7 @@ export function OutletDetailScreen(): React.ReactElement {
         </StitchSurface>
       </View>
     </ScrollView>
-    {groupReservationsEnabled && cart.count >= 2 && cart.cart.outletId === outletId ? (
+    {groupReservationsEnabled && user && cart.count >= 2 && cart.cart.outletId === outletId ? (
       <GroupReservationCartBar
         bags={cart.cart.bags}
         visible

@@ -258,11 +258,18 @@ export function CheckoutScreen() {
         .select(
           `*, outlet:outlets ( id, name, address, landmark, merchant:merchants(business_name) )`,
         )
-        .in('id', groupBagIds);
+        .in('id', [...new Set(groupBagIds)]);
       if (error) throw error;
-      const list = (rows ?? []) as Record<string, unknown>[];
-      if (list.length !== groupBagIds.length) {
-        throw new Error('One or more bags are no longer available.');
+      const byId = new Map(
+        ((rows ?? []) as Record<string, unknown>[]).map((row) => [String(row.id), row]),
+      );
+      const list: Record<string, unknown>[] = [];
+      for (const id of groupBagIds) {
+        const row = byId.get(id);
+        if (!row) {
+          throw new Error('One or more bags are no longer available.');
+        }
+        list.push(row);
       }
       setGroupBags(list);
       setBag(list[0] ?? null);
@@ -933,6 +940,25 @@ export function CheckoutScreen() {
   const cashSelected = paymentMethod === 'cash';
   const cashAllowed = completedPickups >= 1;
 
+  const reserveButtonTitle = useMemo(() => {
+    if (platformFlags.maintenance) return 'Paused';
+    if (isGroupCheckout) {
+      const n = groupBagIds.length;
+      return n === 1 ? 'Reserve 1 bag (card only)' : `Reserve ${n} bags (card only)`;
+    }
+    if (isShelfCheckout) return 'Reserve Now';
+    if (cashAllowed && paymentMethod === 'cash') return 'Reserve · Pay at store';
+    if (cashAllowed) return 'Reserve Now';
+    return 'Reserve Now (card only)';
+  }, [
+    cashAllowed,
+    groupBagIds.length,
+    isGroupCheckout,
+    isShelfCheckout,
+    paymentMethod,
+    platformFlags.maintenance,
+  ]);
+
   return (
     <KeyboardAvoidingView
       style={styles.flex}
@@ -1260,7 +1286,7 @@ export function CheckoutScreen() {
               </StitchText>
             </View>
             <StitchButton
-              title={platformFlags.maintenance ? 'Paused' : 'Reserve Now'}
+              title={reserveButtonTitle}
               loading={processing}
               disabled={processing || platformFlags.maintenance || Boolean(pickupOverlapIssue)}
               onPress={() => void confirm()}

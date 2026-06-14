@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useStitchTheme } from '@/theme/StitchThemeContext';
+import { headlineOnGreenSurface, textOnGreenSurface } from '@/lib/stitchContrast';
 import { StitchIcon, StitchSurface, StitchText } from '@/ui/stitch';
 
 export type GroupCheckoutBag = {
@@ -24,7 +25,7 @@ export function GroupCheckoutStrip({
   reservationCodePreview,
   onRemove,
 }: GroupCheckoutStripProps): React.ReactElement | null {
-  const { colors, spacing, radii } = useStitchTheme();
+  const { colors, spacing, radii, mode } = useStitchTheme();
   const total = bags.reduce((sum, b) => sum + Number(b.rescue_price ?? 0), 0);
 
   const styles = useMemo(
@@ -64,10 +65,10 @@ export function GroupCheckoutStrip({
   return (
     <View style={styles.shell} testID="checkout.groupStrip">
       <View style={styles.codeCard}>
-        <StitchText variant="label-caps" colorKey="primary">
+        <StitchText variant="label-caps" colorKey={textOnGreenSurface(mode)}>
           One code for all {bags.length} bags
         </StitchText>
-        <StitchText variant="h3" colorKey="primaryContainer">
+        <StitchText variant="h3" colorKey={headlineOnGreenSurface(mode)}>
           {reservationCodePreview?.trim() || 'Generated at payment'}
         </StitchText>
         <StitchText variant="body-sm" colorKey="textMuted">

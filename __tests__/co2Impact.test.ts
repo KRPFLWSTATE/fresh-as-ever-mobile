@@ -2,6 +2,7 @@ import {
   BAG_WEIGHT_PRESETS_KG,
   clampBagWeightKg,
   co2eKgFromBagRescue,
+  co2eKgFromFoodKg,
   co2eKgFromRescue,
   parseBagWeightKgInput,
   resolveBagFoodWeightKg,
@@ -20,6 +21,10 @@ describe('co2Impact', () => {
   it('falls back to retail proxy then default', () => {
     expect(resolveBagFoodWeightKg({ retail_value_estimate: 800 })).toBe(1);
     expect(resolveBagFoodWeightKg(null)).toBe(1);
+  });
+
+  it('co2e from zero aggregate food returns 0', () => {
+    expect(co2eKgFromFoodKg(0)).toBe(0);
   });
 
   it('co2e from rescue uses 2.5 factor per kg food', () => {

@@ -49,9 +49,10 @@ export function resolveBagFoodWeightKg(bag: BagWeightInput | null | undefined): 
   );
 }
 
+/** Aggregate food kg (order totals) — do not clamp per-bag min/max here. */
 export function co2eKgFromFoodKg(foodWeightKg: number): number {
-  const kg = clampBagWeightKg(foodWeightKg);
-  return Math.round(kg * KG_CO2E_PER_KG_FOOD * 10) / 10;
+  if (!Number.isFinite(foodWeightKg) || foodWeightKg <= 0) return 0;
+  return Math.round(foodWeightKg * KG_CO2E_PER_KG_FOOD * 10) / 10;
 }
 
 export function co2eKgFromRescue({

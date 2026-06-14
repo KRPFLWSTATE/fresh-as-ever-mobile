@@ -23,6 +23,7 @@ import { scheduleMicrotask } from '@/lib/microtask';
 import { mapAuthError } from '@/lib/messages/auth';
 import { ERROR } from '@/lib/messages/errors';
 import { resetMerchantContextStore } from '@/hooks/useMerchantContext';
+import { clearReservationCartStorage } from '@/hooks/useReservationCart';
 
 export type ResolvedRole =
   | 'customer'
@@ -404,6 +405,7 @@ export function AuthProvider({
 
   const signOut = useCallback(async () => {
     await supabase.auth.signOut({ scope: 'local' });
+    await clearReservationCartStorage().catch(() => undefined);
     resetMerchantContextStore(env);
     setUser(null);
     setSession(null);

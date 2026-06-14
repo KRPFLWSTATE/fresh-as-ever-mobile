@@ -41,6 +41,7 @@ import {
   sumRetailSavings,
 } from '@/lib/shelfDisplay';
 import { BasketTimerPill } from '@/components/shelf/BasketTimerPill';
+import { textOnGreenSurface } from '@/lib/stitchContrast';
 import { useStitchTheme } from '@/theme/StitchThemeContext';
 import { StitchIcon, StitchSurface, StitchText } from '@/ui/stitch';
 import {
@@ -85,12 +86,13 @@ export function ClearanceShelfScreen({ navigation, route }: Props) {
   const { isSaved, toggleFavourite } = useFavourites(env, user?.id ?? null);
   const { shelfId: basketShelfId, items, startedAtMs, setQuantity, rehydrate, seedExpiredBasketForQa } =
     useClearanceBasket();
-  const { colors, spacing, radii } = useStitchTheme();
+  const { colors, spacing, radii, mode } = useStitchTheme();
   const insets = useSafeAreaInsets();
   const [searchQuery, setSearchQuery] = useState('');
   const [sortKey, setSortKey] = useState<ShelfSortKey>('default');
   const [groupByCategory, setGroupByCategory] = useState(false);
   const [detailItem, setDetailItem] = useState<Record<string, unknown> | null>(null);
+  const [basketRevalidateTick, setBasketRevalidateTick] = useState(0);
 
   useLayoutEffect(() => {
     navigation.setOptions({ headerShown: false });
@@ -121,6 +123,25 @@ export function ClearanceShelfScreen({ navigation, route }: Props) {
     () => scopeBasketToShelf(basketShelfId, items, shelfId),
     [basketShelfId, items, shelfId],
   );
+
+  const revalidateBasketQuantities = useCallback(() => {
+    if (!shelf?.items || basketShelfId !== shelfId) return;
+    const rows = shelf.items as Record<string, unknown>[];
+    for (const [itemId, qty] of Object.entries(scopedItems)) {
+      if (Number(qty) < 1) continue;
+      const row = rows.find((candidate) => String(candidate.id) === itemId);
+      const max = Number(row?.quantity_remaining ?? 0);
+      const soldOut = row?.status === 'sold_out' || max < 1;
+      if (soldOut || Number(qty) > max) {
+        setQuantity(shelfId, itemId, soldOut ? 0 : max, max);
+      }
+    }
+  }, [basketShelfId, scopedItems, setQuantity, shelf?.items, shelfId]);
+
+  useEffect(() => {
+    if (basketRevalidateTick < 1) return;
+    revalidateBasketQuantities();
+  }, [basketRevalidateTick, revalidateBasketQuantities]);
 
   const lineCount = useMemo(
     () => Object.values(scopedItems).reduce((sum, qty) => sum + Number(qty ?? 0), 0),
@@ -505,7 +526,7 @@ export function ClearanceShelfScreen({ navigation, route }: Props) {
               backgroundColor: colors.primaryHighlight,
             }}
           >
-            <StitchText variant="label" colorKey="primaryContainer">
+            <StitchText variant="label" colorKey={textOnGreenSurface(mode, 'primaryContainer')}>
               Halal-certified outlet
             </StitchText>
           </View>
@@ -515,7 +536,10 @@ export function ClearanceShelfScreen({ navigation, route }: Props) {
             <BasketTimerPill
               startedAtMs={startedAtMs}
               onExpired={() => {
-                void refreshShelf();
+                void refreshShelf().then(() => {
+                  rehydrate();
+                  setBasketRevalidateTick((tick) => tick + 1);
+                });
               }}
             />
           </View>
