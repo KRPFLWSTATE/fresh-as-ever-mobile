@@ -138,6 +138,37 @@ jest.mock('expo-camera', () => ({
   ]),
 }));
 
+jest.mock('react-native-view-shot', () => {
+  const React = require('react');
+  return React.forwardRef((props, ref) =>
+    React.createElement('ViewShot', { ...props, ref }, props.children),
+  );
+});
+
+jest.mock('expo-modules-core', () => ({
+  requireOptionalNativeModule: jest.fn(() => null),
+  NativeModulesProxy: {},
+  EventEmitter: jest.fn(),
+}));
+
+jest.mock('expo-device', () => ({
+  isDevice: true,
+}));
+
+jest.mock('expo-constants', () => ({
+  __esModule: true,
+  default: {
+    expoConfig: { extra: { eas: { projectId: 'test-project' } } },
+  },
+}));
+
+jest.mock('@/lib/pushNativeModule', () => ({
+  isPushNativeModuleAvailable: jest.fn(() => false),
+  ensureNotificationHandler: jest.fn(),
+  loadExpoNotifications: jest.fn(() => Promise.resolve(null)),
+  PUSH_REBUILD_MESSAGE: 'Push notifications need a native rebuild.',
+}));
+
 jest.mock('expo-haptics', () => ({
   __esModule: true,
   ImpactFeedbackStyle: { Light: 'light' },

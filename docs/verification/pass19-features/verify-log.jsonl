@@ -25,3 +25,29 @@
 {"ts":"2026-06-14T08:33:00Z","wave":"verify","id":"B-12","tool":"appium.journey","args_summary":"clearance shelf timer","result_summary":"shelf.basketTimer not found; Jest PASS","evidence":"screenshots/pass19/c9/02-shelf-before-add.png"}
 {"ts":"2026-06-14T08:34:00Z","wave":"verify","id":"R-02","tool":"shell.jest","args_summary":"npm test full","result_summary":"48/49 pass 241/241","evidence":"MATRIX R-02"}
 {"ts":"2026-06-14T08:35:00Z","wave":"verify","id":"R-04","tool":"supabase.get_advisors","args_summary":"security post-verify","result_summary":"WARN only","evidence":"MATRIX R-04"}
+{"ts":"2026-06-14T08:56:36.731Z","wave":"verify2","id":"M4-1","tool":"appium.journey","result_summary":"fail","evidence":"screenshots/pass19/m4/01-guest-discover-signin.png"}
+{"ts":"2026-06-14T08:59:32.694Z","wave":"verify2","id":"M4-1","tool":"appium.journey","result_summary":"fail","evidence":"screenshots/pass19/m4/01-guest-discover-signin.png"}
+{"ts":"2026-06-14T08:59:45.595Z","wave":"verify2","id":"B-03","tool":"appium.journey","result_summary":"group.cartBar on Discover","evidence":"screenshots/pass19/c6/06-group-cart-bar-discover.png"}
+{"ts":"2026-06-14T08:59:56.130Z","wave":"verify2","id":"B-05","tool":"appium.gesture","result_summary":"remove bag tapped","evidence":"screenshots/pass19/c6/07-remove-bag-strip.png"}
+{"ts":"2026-06-14T09:00:24.946Z","wave":"verify2","id":"B-06","tool":"appium.journey","result_summary":"no alert","evidence":"screenshots/pass19/c6/08-different-outlet-alert.png"}
+{"ts":"2026-06-14T09:01:56.200Z","wave":"verify2b","id":"A-07","tool":"appium.gesture","result_summary":"missing","evidence":"screenshots/pass19/c12/01-celebration-skip.png"}
+{"ts":"2026-06-14T09:02:04.604Z","wave":"verify2b","id":"A-08","tool":"appium.journey","result_summary":"false","evidence":"screenshots/pass19/c12/02-story-step-graphic.png"}
+{"ts":"2026-06-14T09:02:04.604Z","wave":"verify2b","id":"A-09","tool":"appium.journey","result_summary":"false","evidence":"screenshots/pass19/c12/02-story-step-graphic.png"}
+{"ts":"2026-06-14T09:02:11.807Z","wave":"verify2b","id":"M3-3","tool":"appium.gesture","result_summary":"skip","evidence":"screenshots/pass19/c11/04-impact-share-from-m3.png"}
+{"ts":"2026-06-14T09:02:20.468Z","wave":"verify2b","id":"B-12","tool":"appium.journey","result_summary":"missing","evidence":"screenshots/pass19/c9/05-shelf-timer-testid.png"}
+{"ts":"2026-06-14T09:02:20.904Z","wave":"verify2b","id":"B-13","tool":"appium.gesture","result_summary":"fail","evidence":"screenshots/pass19/c9/06-shelf-qty-reset.png"}
+{"ts":"2026-06-14T09:02:21.340Z","wave":"verify2b","id":"M2-1","tool":"appium.journey","result_summary":"review basket","evidence":"screenshots/pass19/c9/07-shelf-review.png"}
+{"ts":"2026-06-14T09:02:48.885Z","wave":"verify2b","id":"C-04","tool":"appium.journey","result_summary":"7d toggle","evidence":"screenshots/pass19/m11/04-analytics-7d.png"}
+{"ts":"2026-06-14T09:02:57.380Z","wave":"verify2b","id":"D-06","tool":"appium.journey","result_summary":"false","evidence":"screenshots/pass19/map/06-map-preview.png"}
+{"ts":"2026-06-14T09:02:57.380Z","wave":"verify2b","id":"M4-3","tool":"appium.journey","result_summary":"undefined","evidence":"screenshots/pass19/map/07-preview-to-outlet.png"}
+{"ts":"2026-06-14T09:03:11.143Z","wave":"verify2b","id":"D-08","tool":"appium.gesture","result_summary":"scroll ok","evidence":"screenshots/pass19/map/08-feed-scroll.png"}
+{"ts":"2026-06-14T09:04:01.015Z","wave":"verify2b","id":"M4-1","tool":"appium.journey","result_summary":"fail","evidence":"screenshots/pass19/m4/02-guest-after-logout.png"}
+{"ts":"2026-06-14T09:05:36.332Z","wave":"verify3","id":"A-07","tool":"appium.gesture","result_summary":"missing","evidence":"screenshots/pass19/c12/03-celebration-skip-label.png"}
+{"ts":"2026-06-14T09:05:40.681Z","wave":"verify3","id":"A-08","tool":"appium.journey","result_summary":"story step UI","evidence":"screenshots/pass19/c12/04-story-step-visible.png"}
+{"ts":"2026-06-14T09:05:48.920Z","wave":"verify3","id":"B-12","tool":"appium.journey","result_summary":"missing","evidence":"screenshots/pass19/c9/08-shelf-timer-rebuild.png"}
+{"ts":"2026-06-14T09:05:49.253Z","wave":"verify3","id":"B-13","tool":"appium.gesture","result_summary":"decrement tapped","evidence":"screenshots/pass19/c9/09-shelf-qty-decrement.png"}
+{"ts":"2026-06-14T09:08:00Z","wave":"verify2","id":"B-08","tool":"supabase.execute_sql","args_summary":"create_group_reservation card 2 bags","result_summary":"group DV387Y total 1170","evidence":"MATRIX B-08"}
+{"ts":"2026-06-14T09:08:01Z","wave":"verify2","id":"B-11","tool":"supabase.execute_sql","args_summary":"merchant_collect_group","result_summary":"ok true collected","evidence":"MATRIX B-11"}
+{"ts":"2026-06-14T09:08:02Z","wave":"verify2","id":"A-08","tool":"supabase.execute_sql","args_summary":"rescue_stories insert","result_summary":"b75f8371 pending","evidence":"MATRIX A-08"}
+{"ts":"2026-06-14T09:08:03Z","wave":"verify2","id":"P0-02","tool":"shell.jest","args_summary":"npm test 49/49","result_summary":"242/242 pass","evidence":"MATRIX P0-02 R-02"}
+{"ts":"2026-06-14T09:08:04Z","wave":"verify2","id":"fix-rpc","tool":"supabase.apply_migration","args_summary":"fix_group_reservation_code","result_summary":"child orders get v_code","evidence":"supabase/migrations/20260614190000_fix_group_reservation_code.sql"}

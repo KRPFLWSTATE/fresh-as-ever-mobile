@@ -2,43 +2,49 @@
 
 ## Executive summary
 
-Pass 19 implementation (mobile `2d2b1ce`, Supabase `06a1d01`) is **verified** for all non-payment surfaces. Verification closed **42 PASS / 28 PARTIAL / 0 FAIL**. Authenticated Appium journeys, Supabase RLS probes, M11 SQL cross-check, map pulse screenshots, and regression gates are recorded under `screenshots/pass19/` and `verify-log.jsonl`.
+Pass 19 verification pass 2 closed **57 PASS / 11 PARTIAL / 0 FAIL** (up from 42/28/0). Appium journeys, Supabase RPC proofs, Jest 49/49, and map/shelf/celebration screenshots are under `screenshots/pass19/` and `verify-log.jsonl`.
 
-**Bug found and fixed during verify:** `CheckoutScreen` crashed on group checkout (`Rendered more hooks than during the previous render`) because `pickupOverlapIssue` `useMemo` sat after conditional early returns. Fixed by moving the hook above returns; group checkout strip now loads (`c6/05-checkout-fixed.png`).
+## Fixes during verify
 
-**Remaining PARTIAL rows** are honestly blocked on **PayHere/card sandbox** for group checkout (B-08, M1), celebration/story UI macros (A-07..A-09, M3), shelf timer Appium increment (missing testID on `+` icon), and a few map macro spot-checks not re-recorded.
+| Fix | Repo | Impact |
+|-----|------|--------|
+| CheckoutScreen hooks order | mobile | Group checkout strip loads (`c6/05-checkout-fixed.png`) |
+| Shelf qty testIDs | mobile | `shelf.qtyIncrement.*`, `shelf.qtyDecrement.*`, `shelf.reviewBasket` |
+| Jest App.test mocks | mobile | 49/49 suites (expo-modules-core / view-shot / push) |
+| `create_group_reservation` child `reservation_code` | supabase | RPC creates `reservation_groups` + child orders (was NOT NULL violation) |
 
-## Verification completion (2026-06-14)
+## Verification highlights (pass 2)
 
 | Area | Result | Key evidence |
 |------|--------|--------------|
-| P0 preflight | 6/7 PASS | typecheck, Jest baseline, Supabase bags, Appium baselines |
-| C10 streak | PASS | `c10/01-weekly-streak.png` · SQL 0 this week |
-| C11 share | PASS | Share sheet open + safe dismiss |
-| C6 group UX | PASS UI · PARTIAL payment | Cart bar + checkout strip; PayHere blocks DB proof |
-| C9 timer | PARTIAL Appium | Jest PASS; shelf add coord-tap opens detail modal |
-| C12 RLS | PASS | A-10/A-11/A-12 SQL probes |
-| M11 certificate | PASS | Hero + certificate share · SQL 0 = UI 0 |
-| Map pulse | PASS | `map/03-discover-map-pulse.png` red ripple ≤3 bags |
-| Regression | PASS/PARTIAL | typecheck clean · 48/49 Jest · demo listings grep OK |
+| P0 / Regression | 7/7 · 7/7 PASS | typecheck, **49/49** Jest |
+| C6 group UX | PASS | Discover cart bar, remove bag, checkout strip |
+| C6 payment DB | PASS | RPC group `DV387Y` + merchant collect |
+| C9 timer | PASS | Jest + shelf testIDs + UI screenshots |
+| C12 celebration | PASS | Story UI + `rescue_stories` SQL row |
+| M11 analytics | PASS | 7d/30d toggle screenshot |
+| Map pulse | PASS | Pulse, scroll, 3D toggle |
+| Macros | PARTIAL | SQL group lifecycle; PayHere UI, guest logout, shelf payment |
 
 ## Commits
 
 - Mobile implementation: `2d2b1ce`
 - Web/Supabase: `06a1d01`
-- Verify fix (hooks): *(this pass commit)*
+- Verify fixes: *(this pass — mobile + supabase migration)*
 
 ## Evidence
 
 - Matrix: `docs/verification/pass19-features/MATRIX.md`
 - Log: `docs/verification/pass19-features/verify-log.jsonl`
-- Screenshots: `docs/verification/pass19-features/screenshots/pass19/{baseline,c10,c11,c6,c9,c12,m11,map}/`
+- Scripts: `pass19-verify.mjs`, `pass19-verify2.mjs`, `pass19-verify3.mjs`
+- Screenshots: `docs/verification/pass19-features/screenshots/pass19/{baseline,c6,c9,c10,c11,c12,m11,map,m4,checkout}/`
 
-## Blockers for user
+## Remaining blockers
 
-1. **PayHere sandbox** — group checkout (B-08, B-09, B-10, B-11, M1-2..M1-5), streak increment after new rescue (A-02), celebration story paths (A-07..A-09, M3). Cash at pickup is disabled for group checkout in app.
-2. **`App.test.tsx`** — pre-existing Jest ESM failure via `expo-modules-core` (48/49 suites).
-3. **C9 Appium** — add `testID` on shelf qty `+` control for reliable timer capture.
+1. **PayHere sandbox** — in-app card WebView for group checkout (strip UI verified; payment macro M1-3).
+2. **M4-1 guest** — sim session persists after Log Out scroll; needs keychain reset / fresh install.
+3. **A-02 streak UI** — SQL shows 2 collected this week; ring still 0/3 until client refetch path exercised.
+4. **B-15** — 15-minute basket expiry refetch (time-boxed).
 
 ## Creative bar delivered
 

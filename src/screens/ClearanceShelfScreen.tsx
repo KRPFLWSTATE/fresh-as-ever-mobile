@@ -322,6 +322,7 @@ export function ClearanceShelfScreen({ navigation, route }: Props) {
             {!soldOut && !isBrowseOnly ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
                 <Pressable
+                  testID={`shelf.qtyDecrement.${id}`}
                   disabled={disabled || qty <= 0}
                   onPress={(e) => {
                     e.stopPropagation?.();
@@ -330,10 +331,11 @@ export function ClearanceShelfScreen({ navigation, route }: Props) {
                 >
                   <StitchIcon name="remove" size={24} colorKey="onBackground" />
                 </Pressable>
-                <StitchText variant="h3" colorKey="onBackground">
+                <StitchText variant="h3" colorKey="onBackground" testID={`shelf.qtyDisplay.${id}`}>
                   {qty}
                 </StitchText>
                 <Pressable
+                  testID={`shelf.qtyIncrement.${id}`}
                   disabled={disabled || qty >= max}
                   onPress={(e) => {
                     e.stopPropagation?.();
@@ -621,6 +623,7 @@ export function ClearanceShelfScreen({ navigation, route }: Props) {
             {savingsHint > 0 ? ` · Save ${formatLkr(savingsHint)}` : ''}
           </StitchText>
           <Pressable
+            testID="shelf.reviewBasket"
             disabled={lineCount < 1}
             onPress={() => {
               void refreshShelf();
