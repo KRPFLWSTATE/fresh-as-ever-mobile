@@ -13,11 +13,53 @@ export const CREDS = {
 
 export const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
+export async function isSessionAlive(d) {
+  try {
+    await d.getWindowRect();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function safePageSource(d) {
+  try {
+    return await d.getPageSource();
+  } catch {
+    await wait(1500);
+    try {
+      return await d.getPageSource();
+    } catch {
+      return '';
+    }
+  }
+}
+
 export const dl = (u) => {
   execSync(`xcrun simctl openurl ${UDID} "${u}"`, { stdio: 'pipe' });
   execSync(`xcrun simctl location ${UDID} set 6.9147,79.8655`, { stdio: 'pipe' });
   return wait(3200);
 };
+
+export async function fillLoginField(el, value) {
+  await el.click();
+  await wait(250);
+  try {
+    await el.clearValue();
+  } catch {}
+  try {
+    const current = String((await el.getValue().catch(() => '')) || '');
+    if (current && current !== value) {
+      await el.setValue('');
+      await wait(100);
+    }
+  } catch {}
+  try {
+    await el.setValue(value);
+  } catch {
+    await el.addValue(value);
+  }
+}
 
 export async function dismissKeyboard(d) {
   try {
@@ -27,9 +69,34 @@ export async function dismissKeyboard(d) {
     const ret = await d.$('-ios predicate string:name == "Return" OR label == "Return"');
     if (await ret.isDisplayed().catch(() => false)) await ret.click();
   } catch {}
+  try {
+    const done = await d.$('-ios predicate string:name == "Done" OR label == "Done"');
+    if (await done.isDisplayed().catch(() => false)) await done.click();
+  } catch {}
   await wait(300);
 }
 
+export async function tapAt(d, x, y) {
+  try {
+    await d.performActions([
+      {
+        type: 'pointer',
+        id: 'tapAt',
+        parameters: { pointerType: 'touch' },
+        actions: [
+          { type: 'pointerMove', duration: 0, x: Math.floor(x), y: Math.floor(y) },
+          { type: 'pointerDown', button: 0 },
+          { type: 'pointerUp', button: 0 },
+        ],
+      },
+    ]);
+    await d.releaseActions().catch(() => {});
+    await wait(400);
+    return true;
+  } catch {
+    return false;
+  }
+}
 export async function tryTap(d, pred, timeout = 8000) {
   try {
     const el = await d.$(`-ios predicate string:${pred}`);
@@ -42,12 +109,97 @@ export async function tryTap(d, pred, timeout = 8000) {
   }
 }
 
+/** Fast tap for system sheets — no long waitForExist poll. */
+export async function quickTap(d, pred) {
+  try {
+    const els = await d.$$(`-ios predicate string:${pred}`);
+    for (const el of els) {
+      if (await el.isDisplayed().catch(() => false)) {
+        await el.click();
+        await wait(400);
+        return true;
+      }
+    }
+  } catch {}
+  return false;
+}
+
+/** iOS "Save Password?" sheet after email login. */
+export async function dismissSavePassword(d) {
+  for (let i = 0; i < 5; i++) {
+    const notNow = await d.$('~Not Now');
+    if (await notNow.isDisplayed().catch(() => false)) {
+      await notNow.click();
+      await wait(500);
+      continue;
+    }
+    if (await quickTap(d, 'name == "Not Now" OR label == "Not Now"')) continue;
+    if (await quickTap(d, 'name == "Never for This Website" OR label CONTAINS "Never"')) continue;
+
+    const src = await safePageSource(d);
+    if (!/Save Password\?/i.test(src)) return true;
+
+    const { width, height } = await d.getWindowSize().catch(() => ({ width: 393, height: 852 }));
+    await tapAt(d, width * 0.28, height * 0.58);
+    await wait(500);
+  }
+  return !(await safePageSource(d)).includes('Save Password?');
+}
+
+export async function tapSignIn(d) {
+  const signIn = await d.$('~login.signIn');
+  if (await signIn.isDisplayed().catch(() => false)) {
+    const enabled = await signIn.isEnabled().catch(() => true);
+    if (enabled) {
+      await signIn.click();
+      await wait(700);
+      return true;
+    }
+  }
+  if (await tryTap(d, 'label CONTAINS "Sign in as merchant" OR label CONTAINS "Sign in"', 2500)) {
+    return true;
+  }
+  try {
+    const { width } = await d.getWindowSize();
+    await d.performActions([
+      {
+        type: 'pointer',
+        id: 'tapSignIn',
+        parameters: { pointerType: 'touch' },
+        actions: [
+          { type: 'pointerMove', duration: 0, x: Math.floor(width / 2), y: 580 },
+          { type: 'pointerDown', button: 0 },
+          { type: 'pointerUp', button: 0 },
+        ],
+      },
+    ]);
+    await d.releaseActions().catch(() => {});
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** Dismiss stacked modals / sheets so the next deeplink lands cleanly. */
 export async function dismissSystemPrompts(d) {
-  await tryTap(d, 'label == "Not Now" OR name == "Not Now"', 2500);
-  await tryTap(d, 'label == "Don\'t Allow" OR label CONTAINS "Don\'t Allow"', 1500);
-  await tryTap(d, 'label == "Later" OR name == "Later"', 1500);
-  await wait(400);
+  await dismissSavePassword(d);
+  for (let round = 0; round < 2; round++) {
+    const dismissed =
+      (await quickTap(d, 'label == "Don\'t Allow" OR label CONTAINS "Don\'t Allow"')) ||
+      (await quickTap(d, 'label == "Later" OR name == "Later"')) ||
+      (await quickTap(d, 'label == "OK" OR name == "OK"')) ||
+      (await quickTap(d, 'label == "Cancel" OR name == "Cancel"'));
+    if (!dismissed) break;
+    await wait(300);
+  }
+  try {
+    const alerts = await d.$$('-ios class chain:**/XCUIElementTypeAlert');
+    for (const alert of alerts) {
+      const ok = await alert.$('-ios predicate string:label == "OK" OR name == "OK"');
+      if (await ok.isDisplayed().catch(() => false)) await ok.click();
+    }
+  } catch {}
+  await dismissKeyboard(d);
 }
 
 export async function dismissOverlays(d, rounds = 3) {
@@ -92,7 +244,15 @@ export async function ensureCustomerDiscover(d) {
   return d.$('~discover.searchInput').isDisplayed().catch(() => false);
 }
 
-export async function relaunchApp() {
+export async function relaunchApp(d) {
+  if (d && (await isSessionAlive(d))) {
+    try {
+      await d.terminateApp(BUNDLE);
+      await wait(700);
+      await d.activateApp(BUNDLE);
+      return wait(4500);
+    } catch {}
+  }
   execSync(`xcrun simctl terminate ${UDID} ${BUNDLE}`, { stdio: 'pipe' });
   execSync(`xcrun simctl launch ${UDID} ${BUNDLE}`, { stdio: 'pipe' });
   return wait(4500);
@@ -105,9 +265,14 @@ export async function assessDiscoverMap(d) {
   const chipText = (await d.$('~discover.map.countChip').getText().catch(() => '')) || '';
   const searchReady = await d.$('~discover.searchInput').isDisplayed().catch(() => false);
   const recenter = await d.$('~discover.map.recenter').isDisplayed().catch(() => false);
+  const feedCard = await d
+    .$('-ios predicate string:label CONTAINS "bags left" OR label CONTAINS "Reserve" OR label CONTAINS "Pastries"')
+    .isDisplayed()
+    .catch(() => false);
   const feedReady =
-    /Rescue near you/i.test(mapSrc) &&
-    /bags left|Reserve|preview|Bakehouse|Kumbuk|Pastries/i.test(mapSrc);
+    feedCard ||
+    (/Rescue near you/i.test(mapSrc) &&
+      /bags left|Reserve|preview|Bakehouse|Kumbuk|Pastries/i.test(mapSrc));
   const gmsCount = Math.max(gmsEls.length, (mapSrc.match(/AIRGMSMarker/g) || []).length);
   const pass =
     searchReady &&
@@ -117,7 +282,8 @@ export async function assessDiscoverMap(d) {
       mapSrc.includes('AIRGMSMarker') ||
       /\d+ rescues here/.test(chipText + mapSrc) ||
       (recenter && feedReady) ||
-      ((mapSrc.includes('GMSMapView') || mapSrc.includes('MKMapView')) && feedReady));
+      ((mapSrc.includes('GMSMapView') || mapSrc.includes('MKMapView')) && feedReady) ||
+      (searchReady && recenter && feedCard));
   return {
     pass,
     markers,
@@ -154,14 +320,16 @@ export async function ensureKumbukMerchantSession(d) {
   if ((await isMerchantLoggedIn(d)) && (await isKumbukMerchantSession(d))) return true;
   await dl('freshasever://login?portal=merchant');
   await wait(2500);
-  return loginKumbuk(d);
+  const ok = await loginKumbuk(d);
+  if (!ok) return false;
+  return await waitForMerchantDashboard(d);
 }
 
 export async function prepCustomerDiscover(d) {
   await recoverFromErrorBoundary(d);
   await customerLogout(d);
   await wait(1500);
-  await relaunchApp();
+  await relaunchApp(d);
   const loggedIn = await loginCustomer(d);
   if (!loggedIn) return false;
   await dl('freshasever://discover');
@@ -230,7 +398,8 @@ export async function scrollDown(d, times = 1) {
 }
 
 export async function isMerchantLoggedIn(d) {
-  const src = await d.getPageSource().catch(() => '');
+  const src = await safePageSource(d);
+  if (/Save Password\?/i.test(src)) return false;
   return (
     src.includes('merchant/dashboard') ||
     src.includes('merchant.impactHero') ||
@@ -242,8 +411,19 @@ export async function isMerchantLoggedIn(d) {
   );
 }
 
+export async function waitForMerchantDashboard(d, { timeoutMs = 25000 } = {}) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    await dismissSavePassword(d);
+    if (await isMerchantLoggedIn(d)) return true;
+    await wait(1500);
+  }
+  return await isMerchantLoggedIn(d);
+}
+
 export async function isCustomerLoggedIn(d) {
-  const src = await d.getPageSource().catch(() => '');
+  const src = await safePageSource(d);
+  if (/Save Password\?/i.test(src)) return false;
   return (
     src.includes('discover.searchInput') ||
     (src.includes('Discover') && !src.includes('discover.guestSignInCta') && !src.includes('Sign in to see'))
@@ -251,8 +431,11 @@ export async function isCustomerLoggedIn(d) {
 }
 
 export async function emailLogin(d, { email, password, portal }) {
+  await dismissSystemPrompts(d);
   await dl(`freshasever://login?portal=${portal}`);
   await wait(3000);
+  await dismissSystemPrompts(d);
+
   if (portal === 'merchant') {
     const merchantTab = await d.$('~login.portal.merchant');
     if (await merchantTab.isDisplayed().catch(() => false)) {
@@ -270,44 +453,59 @@ export async function emailLogin(d, { email, password, portal }) {
     await wait(300);
   }
 
-  await tryTap(d, 'name CONTAINS "Use email" OR label CONTAINS "Use email" OR name == "login.useEmailPassword"');
+  await tryTap(
+    d,
+    'name CONTAINS "Use email" OR label CONTAINS "Use email" OR name == "login.useEmailPassword"',
+    4000,
+  );
+  await wait(800);
 
   const emailEl = await d.$('~login.email');
   if (await emailEl.isDisplayed().catch(() => false)) {
-    await emailEl.click();
-    await emailEl.clearValue().catch(() => {});
-    await emailEl.setValue(email);
+    await fillLoginField(emailEl, email);
   } else {
     const fields = await d.$$('-ios predicate string:type == "XCUIElementTypeTextField"');
-    if (fields[0]) {
-      await fields[0].click().catch(() => {});
-      await fields[0].setValue(email);
+    if (fields[0]) await fillLoginField(fields[0], email);
+  }
+  await dismissKeyboard(d);
+  await wait(500);
+
+  let passEl = await d.$('~login.password');
+  for (let i = 0; i < 8; i++) {
+    if (await passEl.isDisplayed().catch(() => false)) break;
+    await wait(400);
+    passEl = await d.$('~login.password');
+  }
+  if (await passEl.isDisplayed().catch(() => false)) {
+    await fillLoginField(passEl, password);
+  } else {
+    const secure = await d.$$('-ios predicate string:type == "XCUIElementTypeSecureTextField"');
+    if (secure[0]) {
+      await fillLoginField(secure[0], password);
+    } else {
+      const fields = await d.$$('-ios predicate string:type == "XCUIElementTypeTextField"');
+      if (fields[1]) await fillLoginField(fields[1], password);
     }
   }
   await dismissKeyboard(d);
+  await tapSignIn(d);
+  await dismissSavePassword(d);
 
-  const passEl = await d.$('~login.password');
-  if (await passEl.isDisplayed().catch(() => false)) {
-    await passEl.click();
-    await passEl.clearValue().catch(() => {});
-    await passEl.setValue(password);
-  } else {
-    const secure = await d.$$('-ios predicate string:type == "XCUIElementTypeSecureTextField"');
-    if (secure[0]) await secure[0].setValue(password);
-  }
-  await dismissKeyboard(d);
-
-  const signIn = await d.$('~login.signIn');
-  if (await signIn.isDisplayed().catch(() => false)) await signIn.click();
-  else {
-    await tryTap(d, 'label CONTAINS "Sign in as merchant" OR label CONTAINS "Sign in"', 3000);
-  }
-
-  for (let i = 0; i < 25; i++) {
-    await wait(1500);
-    await dismissSystemPrompts(d);
-    if (portal === 'customer' && (await isCustomerLoggedIn(d))) return true;
-    if (portal === 'merchant' && (await isMerchantLoggedIn(d))) return true;
+  for (let i = 0; i < 15; i++) {
+    await wait(2000);
+    if (!(await isSessionAlive(d))) return false;
+    await dismissSavePassword(d);
+    if (portal === 'customer' && (await isCustomerLoggedIn(d))) {
+      await dl('freshasever://discover');
+      await wait(2000);
+      return true;
+    }
+    if (portal === 'merchant' && (await isMerchantLoggedIn(d))) {
+      await dismissSavePassword(d);
+      await dl('freshasever://merchant/dashboard');
+      await wait(2000);
+      return true;
+    }
   }
   return false;
 }
@@ -318,7 +516,7 @@ export async function isBakehouseMerchantSession(d) {
 }
 
 export async function isKumbukMerchantSession(d) {
-  const src = await d.getPageSource().catch(() => '');
+  const src = await safePageSource(d);
   if (src.includes('Kollupitiya') || src.includes('Bakehouse Kollupitiya')) return false;
   return (
     src.includes('Kumbuk Colombo') ||
@@ -342,17 +540,33 @@ export async function loginKumbuk(d) {
   if ((await isMerchantLoggedIn(d)) && (await isKumbukMerchantSession(d))) return true;
   const ok = await emailLogin(d, { ...CREDS.kumbuk, portal: 'merchant' });
   await dismissSystemPrompts(d);
-  return ok;
+  if (!ok) return false;
+  return await waitForMerchantDashboard(d);
 }
 
 export async function loginCustomer(d) {
+  execSync(`xcrun simctl location ${UDID} set 6.9147,79.8655`, { stdio: 'pipe' });
   await dl('freshasever://discover');
   await wait(2500);
   await dismissSystemPrompts(d);
   if (await isCustomerLoggedIn(d)) return true;
+
+  await dl('freshasever://login?portal=customer');
+  await wait(2500);
+  if (!(await d.$('~login.title').isDisplayed().catch(() => false))) {
+    await dl('freshasever://login?portal=customer');
+    await wait(2500);
+  }
+
   const ok = await emailLogin(d, { ...CREDS.customer, portal: 'customer' });
   await dismissSystemPrompts(d);
-  return ok;
+  await dismissSavePassword(d);
+  if (ok && (await isCustomerLoggedIn(d))) return true;
+
+  await relaunchApp(d);
+  const retry = await emailLogin(d, { ...CREDS.customer, portal: 'customer' });
+  await dismissSavePassword(d);
+  return retry && (await isCustomerLoggedIn(d));
 }
 
 export async function isLoggedOut(d) {
@@ -387,13 +601,13 @@ export async function merchantLogout(d) {
       if (await logOut.isDisplayed().catch(() => false)) {
         await logOut.click();
       } else {
-        await tryTap(d, 'label == "Log out" OR label == "Log Out"', 1500);
+        await quickTap(d, 'label == "Log out" OR label == "Log Out"');
       }
       await dl('freshasever://discover');
       await wait(3000);
       return await isLoggedOut(d);
     }
-    if (await tryTap(d, 'label == "Log out" OR label == "Log Out"', 1500)) {
+    if (await quickTap(d, 'label == "Log out" OR label == "Log Out"')) {
       await dl('freshasever://discover');
       await wait(3000);
       return await isLoggedOut(d);
@@ -401,6 +615,8 @@ export async function merchantLogout(d) {
     await scrollDown(d, 1);
   }
 
+  await dl('freshasever://discover');
+  await wait(2000);
   return await isLoggedOut(d);
 }
 
@@ -415,5 +631,5 @@ export async function customerLogout(d) {
     await wait(3000);
     return true;
   }
-  return tryTap(d, 'label == "Log Out"');
+  return quickTap(d, 'label == "Log Out"');
 }

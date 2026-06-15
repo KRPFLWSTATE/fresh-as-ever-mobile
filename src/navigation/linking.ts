@@ -2,6 +2,8 @@ import type { LinkingOptions } from '@react-navigation/native';
 import { getStateFromPath as getStateFromPathCore } from '@react-navigation/native';
 import type { RootStackParamList } from './types';
 import { normalizeIncomingLinkPath } from '@/navigation/normalizeIncomingLinkPath';
+import { readEnv } from '@/config/env';
+import { pinMerchantActiveOutlet } from '@/hooks/useMerchantContext';
 
 const prefixes = [
   'freshasever://',
@@ -279,6 +281,10 @@ export const linking: LinkingOptions<RootStackParamList> = {
   config,
   getStateFromPath(path, options) {
     const canonical = normalizeIncomingLinkPath(path);
+    const outletEdit = canonical.match(/^merchant\/outlets\/([^/]+)\/edit\/?$/);
+    if (outletEdit?.[1]) {
+      pinMerchantActiveOutlet(readEnv(), outletEdit[1]);
+    }
     return getStateFromPathCore<RootStackParamList>(canonical, {
       ...(options ?? {}),
       screens: config.screens,

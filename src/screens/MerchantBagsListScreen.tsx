@@ -639,6 +639,17 @@ export function MerchantBagsListScreen({ embeddedInTab: _embeddedInTab }: Mercha
             <StitchText variant="h1" colorKey="onBackground" style={{ marginBottom: spacing.xs }}>
               Rescue Bags
             </StitchText>
+            {activeOutlet?.name ? (
+              <StitchText
+                variant="label-caps"
+                colorKey="textMuted"
+                testID="merchant.bags.activeOutlet"
+                numberOfLines={1}
+                style={{ marginBottom: spacing.xs }}
+              >
+                {String(activeOutlet.name)}
+              </StitchText>
+            ) : null}
             <StitchText variant="body-md" colorKey="textMuted">
               Manage your daily inventory and surplus.
             </StitchText>
