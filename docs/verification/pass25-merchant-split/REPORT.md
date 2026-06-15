@@ -61,7 +61,7 @@ See `MATRIX.md`. Key screenshots:
 ## Commits
 
 - Web: `5196d1ab` (prior pass)
-- Mobile: `de77cc430` (prior pass) → see post-fix commit after this QA pass
+- Mobile: `de77cc430` (prior pass) → **`4af86a3`** (logout testID, outlet context, runner stability)
 
 ## Fixes applied (2026-06-15 QA pass)
 
