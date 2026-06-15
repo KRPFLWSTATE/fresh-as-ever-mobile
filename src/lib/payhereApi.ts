@@ -85,10 +85,13 @@ export async function fetchPayHereHash(
   }
 
   if (!res.ok) {
-    const apiErr =
+    const rawErr =
       typeof data.error === 'string' && data.error.trim()
-        ? data.error
+        ? data.error.trim()
         : ERROR.checkout.paymentFailed;
+    const apiErr = rawErr.startsWith('Server misconfiguration')
+      ? ERROR.checkout.paymentGatewayUnavailable
+      : rawErr;
     throw new PayHereApiError(apiErr, 'api_error');
   }
 

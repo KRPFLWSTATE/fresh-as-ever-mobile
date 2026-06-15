@@ -18,6 +18,8 @@ export const ERROR = {
     paymentApiUnreachable:
       'Could not reach the payment server. Check your connection or try again in a moment.',
     paymentFailed: 'We could not start payment. Try again in a moment.',
+    paymentGatewayUnavailable:
+      'Card payments are temporarily unavailable. Try cash at pickup or try again later.',
     reserveFailed: 'We could not complete your reservation. Try again shortly.',
     loadBag: 'Could not load bag details.',
   },

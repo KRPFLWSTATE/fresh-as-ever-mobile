@@ -80,6 +80,21 @@ describe('fetchPayHereHash', () => {
     });
   });
 
+  it('maps server misconfiguration to a customer-friendly message', async () => {
+    globalThis.fetch = jest.fn().mockResolvedValue({
+      ok: false,
+      status: 500,
+      text: async () => JSON.stringify({ error: 'Server misconfiguration: PayHere' }),
+    });
+
+    await expect(
+      fetchPayHereHash('https://api.test', 'token', { order_id: 'o1', amount: 100 }),
+    ).rejects.toMatchObject({
+      message: ERROR.checkout.paymentGatewayUnavailable,
+      code: 'api_error',
+    });
+  });
+
   it('maps fetch network failure as unreachable', async () => {
     globalThis.fetch = jest.fn().mockRejectedValue(new TypeError('Network request failed'));
 
