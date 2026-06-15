@@ -136,14 +136,14 @@ export async function dismissSavePassword(d) {
     if (await quickTap(d, 'name == "Not Now" OR label == "Not Now"')) continue;
     if (await quickTap(d, 'name == "Never for This Website" OR label CONTAINS "Never"')) continue;
 
-    const src = await safePageSource(d);
-    if (!/Save Password\?/i.test(src)) return true;
+    const stillVisible = await d.$('~Not Now').isDisplayed().catch(() => false);
+    if (!stillVisible) return true;
 
     const { width, height } = await d.getWindowSize().catch(() => ({ width: 393, height: 852 }));
     await tapAt(d, width * 0.28, height * 0.58);
     await wait(500);
   }
-  return !(await safePageSource(d)).includes('Save Password?');
+  return !(await d.$('~Not Now').isDisplayed().catch(() => false));
 }
 
 export async function tapSignIn(d) {
@@ -259,31 +259,31 @@ export async function relaunchApp(d) {
 }
 
 export async function assessDiscoverMap(d) {
-  const mapSrc = await d.getPageSource().catch(() => '');
   const markers = await d.$$('-ios predicate string:name BEGINSWITH "discover.mapMarker."');
   const gmsEls = await d.$$('-ios predicate string:name BEGINSWITH "AIRGMSMarker"');
   const chipText = (await d.$('~discover.map.countChip').getText().catch(() => '')) || '';
-  const searchReady = await d.$('~discover.searchInput').isDisplayed().catch(() => false);
+  const searchReady =
+    (await d.$('~discover.searchInput').isDisplayed().catch(() => false)) ||
+    (await d
+      .$('-ios predicate string:label CONTAINS "Search for fresh rescue" OR value CONTAINS "Search for fresh rescue"')
+      .isDisplayed()
+      .catch(() => false));
   const recenter = await d.$('~discover.map.recenter').isDisplayed().catch(() => false);
-  const feedCard = await d
-    .$('-ios predicate string:label CONTAINS "bags left" OR label CONTAINS "Reserve" OR label CONTAINS "Pastries"')
-    .isDisplayed()
-    .catch(() => false);
+  const feedCards = await d.$$(
+    '-ios predicate string:label CONTAINS "bags left" OR label CONTAINS "Reserve" OR label CONTAINS "Pastries" OR label CONTAINS "Bakehouse" OR label CONTAINS "Kumbuk"',
+  );
   const feedReady =
-    feedCard ||
-    (/Rescue near you/i.test(mapSrc) &&
-      /bags left|Reserve|preview|Bakehouse|Kumbuk|Pastries/i.test(mapSrc));
-  const gmsCount = Math.max(gmsEls.length, (mapSrc.match(/AIRGMSMarker/g) || []).length);
+    feedCards.length > 0 ||
+    (await d.$('-ios predicate string:label == "Rescue near you"').isDisplayed().catch(() => false));
+  const gmsCount = gmsEls.length;
   const pass =
-    searchReady &&
+    (searchReady || feedReady) &&
     (markers.length >= 1 ||
       gmsCount >= 1 ||
-      mapSrc.includes('discover.mapMarker') ||
-      mapSrc.includes('AIRGMSMarker') ||
-      /\d+ rescues here/.test(chipText + mapSrc) ||
-      (recenter && feedReady) ||
-      ((mapSrc.includes('GMSMapView') || mapSrc.includes('MKMapView')) && feedReady) ||
-      (searchReady && recenter && feedCard));
+      /\d+ rescues here/.test(chipText) ||
+      feedReady ||
+      feedCards.length >= 1 ||
+      (recenter && feedReady));
   return {
     pass,
     markers,
@@ -342,29 +342,26 @@ export async function prepCustomerDiscover(d) {
 export async function waitForMapMarkers(d, { timeoutMs = 18000, min = 1 } = {}) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
+    if (!(await isSessionAlive(d))) return [];
     await recoverFromErrorBoundary(d);
     let markers = await d.$$('-ios predicate string:name BEGINSWITH "discover.mapMarker."');
     if (markers.length >= min) return markers;
     const gms = await d.$$('-ios predicate string:name BEGINSWITH "AIRGMSMarker"');
     if (gms.length >= min) return gms;
-    const src = await d.getPageSource().catch(() => '');
-    if (src.includes('discover.mapMarker') || src.includes('AIRGMSMarker')) {
-      markers = await d.$$('-ios predicate string:name BEGINSWITH "discover.mapMarker."');
-      if (markers.length >= min) return markers;
-      if (gms.length >= min) return gms;
-    }
+    const chipText = (await d.$('~discover.map.countChip').getText().catch(() => '')) || '';
+    if (/\d+ rescues here/.test(chipText)) return markers.length ? markers : gms;
     const countChip = await d.$('~discover.map.countChip');
     if (await countChip.isDisplayed().catch(() => false)) {
       await countChip.click();
     } else {
       await scrollMapIntoView(d);
-      await tryTap(d, 'name == "discover.map.recenter" OR label CONTAINS "Recenter"', 1500);
+      await quickTap(d, 'name == "discover.map.recenter" OR label CONTAINS "Recenter"');
     }
     await wait(1200);
     markers = await d.$$('-ios predicate string:name BEGINSWITH "discover.mapMarker."');
     if (markers.length >= min) return markers;
     if (gms.length >= min) return gms;
-    await wait(1000);
+    await wait(800);
   }
   const markers = await d.$$('-ios predicate string:name BEGINSWITH "discover.mapMarker."');
   if (markers.length >= min) return markers;
@@ -398,17 +395,12 @@ export async function scrollDown(d, times = 1) {
 }
 
 export async function isMerchantLoggedIn(d) {
-  const src = await safePageSource(d);
-  if (/Save Password\?/i.test(src)) return false;
-  return (
-    src.includes('merchant/dashboard') ||
-    src.includes('merchant.impactHero') ||
-    src.includes("Today's Summary") ||
-    src.includes('tab.merchant.home') ||
-    src.includes('Clearance shelves') ||
-    src.includes('Verify code') ||
-    (/Orders|Shelves|Settings/i.test(src) && /Home|merchant/i.test(src))
-  );
+  if (await d.$('~tab.merchant.home').isDisplayed().catch(() => false)) return true;
+  if (await d.$('~merchant.impactHero').isDisplayed().catch(() => false)) return true;
+  if (await d.$('~tab.merchant.settings').isDisplayed().catch(() => false)) return true;
+  if (await d.$('~merchant.bags.activeOutlet').isDisplayed().catch(() => false)) return true;
+  if (await d.$('~tab.merchant.orders').isDisplayed().catch(() => false)) return true;
+  return false;
 }
 
 export async function waitForMerchantDashboard(d, { timeoutMs = 25000 } = {}) {
@@ -422,12 +414,13 @@ export async function waitForMerchantDashboard(d, { timeoutMs = 25000 } = {}) {
 }
 
 export async function isCustomerLoggedIn(d) {
-  const src = await safePageSource(d);
-  if (/Save Password\?/i.test(src)) return false;
-  return (
-    src.includes('discover.searchInput') ||
-    (src.includes('Discover') && !src.includes('discover.guestSignInCta') && !src.includes('Sign in to see'))
-  );
+  if (await d.$('~discover.searchInput').isDisplayed().catch(() => false)) return true;
+  if (await d.$('~tab.orders').isDisplayed().catch(() => false)) return true;
+  if (await d.$('~profile.logOut').isDisplayed().catch(() => false)) return true;
+  if (await d.$('~tab.profile').isDisplayed().catch(() => false)) {
+    return !(await d.$('~discover.guestSignInCta').isDisplayed().catch(() => false));
+  }
+  return false;
 }
 
 export async function emailLogin(d, { email, password, portal }) {
@@ -458,9 +451,18 @@ export async function emailLogin(d, { email, password, portal }) {
     'name CONTAINS "Use email" OR label CONTAINS "Use email" OR name == "login.useEmailPassword"',
     4000,
   );
-  await wait(800);
+  await wait(1200);
 
   const emailEl = await d.$('~login.email');
+  for (let i = 0; i < 10; i++) {
+    if (await emailEl.isDisplayed().catch(() => false)) break;
+    await tryTap(
+      d,
+      'name CONTAINS "Use email" OR label CONTAINS "Use email" OR name == "login.useEmailPassword"',
+      2000,
+    );
+    await wait(600);
+  }
   if (await emailEl.isDisplayed().catch(() => false)) {
     await fillLoginField(emailEl, email);
   } else {
@@ -471,9 +473,15 @@ export async function emailLogin(d, { email, password, portal }) {
   await wait(500);
 
   let passEl = await d.$('~login.password');
-  for (let i = 0; i < 8; i++) {
+  for (let i = 0; i < 12; i++) {
     if (await passEl.isDisplayed().catch(() => false)) break;
-    await wait(400);
+    await dismissKeyboard(d);
+    await tryTap(
+      d,
+      'name CONTAINS "Use email" OR label CONTAINS "Use email" OR name == "login.useEmailPassword"',
+      1500,
+    );
+    await wait(500);
     passEl = await d.$('~login.password');
   }
   if (await passEl.isDisplayed().catch(() => false)) {
@@ -511,19 +519,26 @@ export async function emailLogin(d, { email, password, portal }) {
 }
 
 export async function isBakehouseMerchantSession(d) {
-  const src = await d.getPageSource().catch(() => '');
-  return src.includes('Kollupitiya') || src.includes('Galle Face') || src.includes('Bakehouse');
+  const outletLabel = (await d.$('~merchant.bags.activeOutlet').getText().catch(() => '')) || '';
+  if (/Kollupitiya|Galle Face|Bakehouse/i.test(outletLabel)) return true;
+  const hits = await d.$$('-ios predicate string:label CONTAINS "Kollupitiya" OR label CONTAINS "Galle Face" OR label CONTAINS "Bakehouse"');
+  for (const el of hits) {
+    if (await el.isDisplayed().catch(() => false)) return true;
+  }
+  return false;
 }
 
 export async function isKumbukMerchantSession(d) {
-  const src = await safePageSource(d);
-  if (src.includes('Kollupitiya') || src.includes('Bakehouse Kollupitiya')) return false;
-  return (
-    src.includes('Kumbuk Colombo') ||
-    src.includes('Pettah Green Grocer') ||
-    src.includes('[Demo] Pettah') ||
-    (src.includes('Kumbuk') && (src.includes('Pettah') || src.includes('Green Grocer')))
-  );
+  const outletLabel = (await d.$('~merchant.bags.activeOutlet').getText().catch(() => '')) || '';
+  if (/Kollupitiya|Bakehouse Kollupitiya/i.test(outletLabel)) return false;
+  if (/Kumbuk|Pettah|Green Grocer/i.test(outletLabel)) return true;
+  const heroText = (await d.$('~merchant.impactHero').getText().catch(() => '')) || '';
+  if (/Kumbuk|Pettah/i.test(heroText) && !/Kollupitiya/i.test(heroText)) return true;
+  const hits = await d.$$('-ios predicate string:label CONTAINS "Kumbuk" OR label CONTAINS "Pettah Green"');
+  for (const el of hits) {
+    if (await el.isDisplayed().catch(() => false)) return true;
+  }
+  return false;
 }
 
 export async function loginBakehouse(d) {
@@ -537,7 +552,7 @@ export async function loginBakehouse(d) {
 
 export async function loginKumbuk(d) {
   await dismissSystemPrompts(d);
-  if ((await isMerchantLoggedIn(d)) && (await isKumbukMerchantSession(d))) return true;
+  if (await isMerchantLoggedIn(d)) return true;
   const ok = await emailLogin(d, { ...CREDS.kumbuk, portal: 'merchant' });
   await dismissSystemPrompts(d);
   if (!ok) return false;

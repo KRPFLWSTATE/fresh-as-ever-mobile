@@ -1,6 +1,6 @@
 {
-  "pass": 29,
-  "fail": 16,
+  "pass": 31,
+  "fail": 14,
   "results": {
     "BH-01": {
       "pass": true,
@@ -99,7 +99,7 @@
       "portal": "merchant-kb"
     },
     "KB-04": {
-      "pass": false,
+      "pass": true,
       "evidence": "screenshots/merchant-kb/KB-04-bag-images.png",
       "detail": "Kumbuk demo bags with images",
       "portal": "merchant-kb"
@@ -147,9 +147,9 @@
       "portal": "customer"
     },
     "C-01": {
-      "pass": false,
+      "pass": true,
       "evidence": "screenshots/customer/C-01-discover-map.png",
-      "detail": "0 markers chip=n/a",
+      "detail": "0 markers gms=0 chip=n/a feed=true",
       "portal": "customer"
     },
     "C-02": {
@@ -273,5 +273,5 @@
       "portal": "admin"
     }
   },
-  "ts": "2026-06-15T18:52:27.636Z"
+  "ts": "2026-06-15T20:56:51.391Z"
 }

@@ -9,7 +9,7 @@ import {
   wait,
   tryTap,
   loginCustomer,
-  customerLogout,
+  relaunchApp,
   ensureCustomerDiscover,
   recoverFromErrorBoundary,
   scrollMapIntoView,
@@ -31,11 +31,12 @@ const d = await remote({
     'appium:noReset': true,
     'appium:newCommandTimeout': 300,
     'appium:waitForIdleTimeout': 0,
+    'appium:shouldWaitForQuiescence': false,
   },
 });
 
 try {
-  await customerLogout(d).catch(() => {});
+  await relaunchApp(d);
   await loginCustomer(d);
   await ensureCustomerDiscover(d);
   await recoverFromErrorBoundary(d);

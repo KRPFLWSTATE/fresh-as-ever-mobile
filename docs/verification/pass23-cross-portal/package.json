@@ -12,5 +12,9 @@
   "type": "commonjs",
   "dependencies": {
     "webdriverio": "^9.28.0"
+  },
+  "devDependencies": {
+    "appium": "^2.19.0",
+    "appium-xcuitest-driver": "^7.35.1"
   }
 }

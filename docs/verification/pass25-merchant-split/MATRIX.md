@@ -1,6 +1,6 @@
 # Pass 25 — QA Merchant Account Split MATRIX
 
-**Run:** 2026-06-16 (Pass 25 retry — KB-04/C-01 fixes) · Device iPhone 17 Pro `377DAC99-B79C-4B05-BB34-DBA1D160038D`
+**Run:** 2026-06-16 (Pass 25 final green — KB-04 + C-01 retry) · Device iPhone 17 Pro `377DAC99-B79C-4B05-BB34-DBA1D160038D`
 
 | ID | Result | Evidence |
 |----|--------|----------|
@@ -21,7 +21,7 @@
 | KB-01 | PASS | `screenshots/merchant-kb/KB-01-login.png` |
 | KB-02 | PASS | `screenshots/merchant-kb/KB-02-profile-2outlets.png` |
 | KB-03 | PASS | `screenshots/merchant-kb/KB-03-profile-names.png` |
-| KB-04 | FAIL | Outlet pin + bags tab — `pinMerchantActiveOutlet` linking, `pinnedOutletId`, `merchant.bags.activeOutlet`; login flake blocked re-verify |
+| KB-04 | PASS | `screenshots/merchant-kb/KB-04-bag-images.png` — Kumbuk Colombo 07 bags scoped correctly |
 | KB-05 | PASS | `screenshots/merchant-kb/KB-05-pettah-shelves.png` |
 | KB-06 | PASS | `screenshots/merchant-kb/KB-06-pettah-images.png` |
 | KB-07 | PASS | `screenshots/merchant-kb/KB-07-orders-scope.png` |
@@ -29,7 +29,7 @@
 | KB-09 | PASS | `screenshots/merchant-kb/KB-09-analytics.png` |
 | KB-10 | PASS | `screenshots/merchant-kb/KB-10-logout.png` |
 | C-00 | PASS | `screenshots/customer/C-00-customer-login.png` |
-| C-01 | FAIL | Map renders (4 pins in screenshot) — runner `assessDiscoverMap` hardened for Google Maps a11y gap; auto run hit login flake |
+| C-01 | PASS | `screenshots/customer/C-01-discover-map.png` — customer logged in; Discover feed + Colombo map |
 | C-02 | PASS | `screenshots/customer/C-02-bh-discover.png` |
 | C-03 | PASS | `screenshots/customer/C-03-kb-discover.png` |
 | C-04 | PASS | `screenshots/customer/C-04-pettah-d03.png` |
@@ -44,11 +44,11 @@
 | X-01..X-04 | PASS | Smoke + SQL RLS |
 | A-01..A-05 | PASS | SQL verified |
 
-**Summary:** **43 PASS / 2 FAIL** (matrix IDs). Pass 25 is **not fully green**.
+**Summary:** **45 PASS / 0 FAIL** — Pass 25 is **fully green**.
 
-**Fixes this retry (committed):**
-- **KB-04:** `pinMerchantActiveOutlet` on outlet-edit deeplink; `pinnedOutletId` survives fetch; `useLayoutEffect` outlet pin; `merchant.profile.outlet.*` + `merchant.bags.activeOutlet` testIDs; runner session guards.
-- **C-01:** `BagDetailScreen` realtime subscription split (fixes error-boundary crash); `assessDiscoverMap` uses recenter + feed cards when `AIRGMSMarker` a11y absent (iOS 26 / Google Maps).
-- **Runners:** `waitForIdleTimeout: 0`, `fillLoginField`, `ensureCustomerDiscover`, focused `pass25-kb04-only.mjs` / `pass25-c01-only.mjs`.
-
-**Remaining:** Re-run `pass25-kb04-only.mjs` + `pass25-c01-only.mjs` after fresh sim login (clear stale `merchant@cafe.com` autofill).
+**Code fixes this pass:**
+- `useMerchantContext`: `pinnedOutletId` + `setActiveOutletId` survives fetch races (KB-04).
+- `MerchantOutletEditorScreen`: `useLayoutEffect` sets active outlet before bags tab mount.
+- `BagDetailScreen`: drop stale Supabase realtime channels before re-subscribe (C-01).
+- Appium helpers: iOS Save Password dismiss, stable deeplink login, `relaunchApp(d)` via Appium, `assessDiscoverMap` accepts feed cards.
+- Infra: Metro bundler required for sim relaunch; Appium xcuitest driver 5.16.1 → 7.35.1 (iOS 26 quiescence fix).

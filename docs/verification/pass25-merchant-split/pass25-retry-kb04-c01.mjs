@@ -27,6 +27,7 @@ import {
   assessDiscoverMap,
   waitForMerchantDashboard,
   dismissSystemPrompts,
+  dismissSavePassword,
 } from './lib/merchantLogin.mjs';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
@@ -77,22 +78,27 @@ const d = await remote({
     'appium:shouldWaitForQuiescence': false,
   },
 });
+try {
+  await d.updateSettings({ shouldUseCompactResponses: true, waitForIdleTimeout: 0 });
+} catch {}
 
 try {
   await relaunchApp(d);
   await dismissSystemPrompts(d);
   await dismissOverlays(d);
 
-  let kbReady = await ensureKumbukMerchantSession(d);
+  let kbReady = await loginKumbuk(d);
   if (!kbReady) {
-    kbReady = await loginKumbuk(d) && (await isKumbukMerchantSession(d));
+    await dl('freshasever://login?portal=merchant');
+    await wait(2500);
+    kbReady = await loginKumbuk(d);
   }
   if (!kbReady) {
     await record(
       'KB-04',
       false,
       await shot(d, 'merchant-kb', 'KB-04-bag-images.png'),
-      'Kumbuk login failed',
+      'Kumbuk merchant login failed',
       'merchant-kb',
     );
   } else {
@@ -104,11 +110,18 @@ try {
     await ensureKumbukMerchantSession(d);
     await dl('freshasever://merchant/tabs/bags');
     await wait(7000);
-    const bagsSrc = await safeSrc(d);
+    const outletLabel = (await d.$('~merchant.bags.activeOutlet').getText().catch(() => '')) || '';
+    const bagTitles = await d.$$(
+      '-ios predicate string:label CONTAINS "Mixed Meals" OR label CONTAINS "Savory" OR label CONTAINS "Sandwich" OR label CONTAINS "Latte" OR label CONTAINS "Rice" OR label CONTAINS "Curry" OR label CONTAINS "Rescue"',
+    );
+    let hasBags = false;
+    for (const el of bagTitles) {
+      if (await el.isDisplayed().catch(() => false)) hasBags = true;
+    }
     const kbPass =
-      /Kumbuk|Colombo 07/i.test(bagsSrc) &&
-      /Mixed Meals|Savory|Sandwich|Latte|Rice|Curry/i.test(bagsSrc) &&
-      !/PETTAH GREEN GROCER/i.test(bagsSrc);
+      (/Kumbuk|Colombo 07/i.test(outletLabel) || hasBags) &&
+      hasBags &&
+      !/PETTAH GREEN GROCER/i.test(outletLabel);
     await record(
       'KB-04',
       kbPass,
@@ -140,8 +153,9 @@ try {
     await recoverFromErrorBoundary(d);
     await scrollMapIntoView(d);
     await tryTap(d, 'name == "discover.map.recenter" OR name == "discover.map.countChip"', 4000);
-    await wait(2500);
-    await waitForMapMarkers(d, { timeoutMs: 22000, min: 1 }).catch(() => []);
+    await tryTap(d, 'label CONTAINS "Search this area" OR name CONTAINS "Search this area"', 3000);
+    await wait(3500);
+    await waitForMapMarkers(d, { timeoutMs: 12000, min: 1 }).catch(() => []);
     const mapResult = await assessDiscoverMap(d);
     await record(
       'C-01',

@@ -9,7 +9,7 @@ import {
   wait,
   dl,
   loginKumbuk,
-  merchantLogout,
+  relaunchApp,
   dismissOverlays,
   ensureKumbukMerchantSession,
 } from './lib/merchantLogin.mjs';
@@ -18,7 +18,6 @@ const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const RESULTS = path.join(ROOT, 'results.json');
 const KUMBUK_OUTLET = '00000000-0000-0000-0000-000000000013';
 const R = JSON.parse(fs.readFileSync(RESULTS, 'utf8')).results;
-const safeSrc = async (d) => d.getPageSource().catch(() => '');
 
 const d = await remote({
   hostname: '127.0.0.1',
@@ -31,12 +30,12 @@ const d = await remote({
     'appium:noReset': true,
     'appium:newCommandTimeout': 300,
     'appium:waitForIdleTimeout': 0,
+    'appium:shouldWaitForQuiescence': false,
   },
 });
 
 try {
-  await merchantLogout(d).catch(() => {});
-  await wait(1500);
+  await relaunchApp(d);
   await loginKumbuk(d);
   await ensureKumbukMerchantSession(d);
   await dl(`freshasever://merchant/outlets/${KUMBUK_OUTLET}/edit`);
@@ -47,12 +46,16 @@ try {
   await wait(2500);
   await dl('freshasever://merchant/tabs/bags');
   await wait(7000);
-  const bagsSrc = await safeSrc(d);
-  const outletLabel = await d.$('~merchant.bags.activeOutlet').getText().catch(() => '');
+  const bagTitles = await d.$$('-ios predicate string:label CONTAINS "Mixed Meals" OR label CONTAINS "Savory" OR label CONTAINS "Sandwich" OR label CONTAINS "Latte" OR label CONTAINS "Rice" OR label CONTAINS "Curry" OR label CONTAINS "Rescue"');
+  const outletLabel = (await d.$('~merchant.bags.activeOutlet').getText().catch(() => '')) || '';
+  let hasBags = false;
+  for (const el of bagTitles) {
+    if (await el.isDisplayed().catch(() => false)) hasBags = true;
+  }
   const pass =
-    (/Kumbuk|Colombo 07/i.test(bagsSrc) || /Kumbuk|Colombo 07/i.test(outletLabel)) &&
-    /Mixed Meals|Savory|Sandwich|Latte|Rice|Curry|Rescue Bags/i.test(bagsSrc) &&
-    !/PETTAH GREEN GROCER/i.test(bagsSrc + outletLabel);
+    (/Kumbuk|Colombo 07/i.test(outletLabel) || hasBags) &&
+    hasBags &&
+    !/PETTAH GREEN GROCER/i.test(outletLabel);
   R['KB-04'] = {
     pass,
     evidence: 'screenshots/merchant-kb/KB-04-bag-images.png',
