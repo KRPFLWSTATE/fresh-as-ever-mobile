@@ -22,6 +22,8 @@ type MerchantContextState = {
   merchant: MerchantProfile | null;
   outlets: MerchantOutlet[];
   activeOutletId: string | null;
+  /** Explicit merchant outlet pick — survives fetchContext races (Pass 25 KB-04). */
+  pinnedOutletId: string | null;
   loading: boolean;
   error: string | null;
   initialized: boolean;
@@ -40,6 +42,7 @@ function createInitialState(): MerchantContextState {
     merchant: null,
     outlets: [],
     activeOutletId: null,
+    pinnedOutletId: null,
     loading: true,
     error: null,
     initialized: false,
@@ -73,6 +76,18 @@ export function resetMerchantContextStore(env: AppEnv): void {
   store.fetchPromise = null;
   store.state = createInitialState();
   emitStore(store);
+}
+
+/** Synchronous outlet pin for deeplinks / QA runners (Pass 25 KB-04). */
+export function pinMerchantActiveOutlet(env: AppEnv, outletId: string): void {
+  const id = String(outletId ?? '').trim();
+  if (!id) return;
+  const store = getMerchantContextStore(env);
+  updateStore(store, (current) => ({
+    ...current,
+    activeOutletId: id,
+    pinnedOutletId: id,
+  }));
 }
 
 function emitStore(store: MerchantContextStore) {
@@ -146,6 +161,7 @@ async function fetchMerchantContext(
           merchant: null,
           outlets: [],
           activeOutletId: null,
+          pinnedOutletId: null,
           loading: false,
           error: 'Not authenticated',
           initialized: true,
@@ -217,6 +233,7 @@ async function fetchMerchantContext(
           merchant: null,
           outlets: [],
           activeOutletId: null,
+          pinnedOutletId: null,
           loading: false,
           error: null,
           initialized: true,
@@ -239,7 +256,7 @@ async function fetchMerchantContext(
       }
 
       const nextOutlets = (outletsData ?? []) as MerchantOutlet[];
-      const previousId = store.state.activeOutletId;
+      const { activeOutletId: liveActiveId, pinnedOutletId } = store.state;
       const demoOutletId = '00000000-0000-0000-0000-000000000003';
       const preferredDemo = nextOutlets.find(
         (outlet) => String(outlet.id) === demoOutletId,
@@ -247,10 +264,16 @@ async function fetchMerchantContext(
       const preferredHybrid = nextOutlets.find(
         (outlet) => String(outlet.category ?? '').toLowerCase() === 'hybrid',
       );
+      const outletInRoster = (id: string | null | undefined) =>
+        id != null &&
+        nextOutlets.some((outlet) => String(outlet.id) === String(id));
+      const explicitPick = [liveActiveId, pinnedOutletId].find((id) =>
+        outletInRoster(id),
+      );
       const nextActiveOutletId =
         nextOutlets.length > 0
-          ? nextOutlets.some((outlet) => String(outlet.id) === String(previousId))
-            ? String(previousId)
+          ? explicitPick
+            ? String(explicitPick)
             : preferredHybrid
               ? String(preferredHybrid.id)
               : preferredDemo
@@ -258,10 +281,17 @@ async function fetchMerchantContext(
                 : String(nextOutlets[0]?.id ?? '')
           : null;
 
-      updateStore(store, () => ({
+      updateStore(store, (current) => ({
         merchant: merchantData,
         outlets: nextOutlets,
         activeOutletId: nextActiveOutletId,
+        pinnedOutletId:
+          nextActiveOutletId != null &&
+          String(current.pinnedOutletId) === String(nextActiveOutletId)
+            ? current.pinnedOutletId
+            : outletInRoster(current.pinnedOutletId)
+              ? current.pinnedOutletId
+              : null,
         loading: false,
         error: null,
         initialized: true,
@@ -272,6 +302,7 @@ async function fetchMerchantContext(
         merchant: null,
         outlets: [],
         activeOutletId: null,
+        pinnedOutletId: null,
         loading: false,
         error: mapSupabaseError(e as Error, 'Failed to load merchant details.'),
         initialized: true,
@@ -323,6 +354,7 @@ export function useMerchantContext(env: AppEnv) {
           merchant: null,
           outlets: [],
           activeOutletId: null,
+          pinnedOutletId: null,
           loading: false,
           error: null,
           initialized: true,
@@ -354,10 +386,12 @@ export function useMerchantContext(env: AppEnv) {
       updateStore(store, (current) => {
         const resolved =
           typeof next === 'function' ? next(current.activeOutletId) : next;
+        const nextId =
+          resolved != null && String(resolved).length > 0 ? String(resolved) : null;
         return {
           ...current,
-          activeOutletId:
-            resolved != null && String(resolved).length > 0 ? String(resolved) : null,
+          activeOutletId: nextId,
+          pinnedOutletId: nextId,
         };
       });
     },

@@ -61,6 +61,7 @@ function OutletEditRow({
   return (
     <Pressable
       accessibilityRole="button"
+      testID={`merchant.profile.outlet.${String(outlet.id)}`}
       onPress={onPress}
       style={({ pressed }) => [
         rowStyle,

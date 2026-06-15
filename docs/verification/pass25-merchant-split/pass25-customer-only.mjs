@@ -12,6 +12,8 @@ import {
   tryTap,
   loginCustomer,
   customerLogout,
+  recoverFromErrorBoundary,
+  scrollMapIntoView,
   waitForMapMarkers,
 } from './lib/merchantLogin.mjs';
 
@@ -51,6 +53,7 @@ const d = await remote({
     'appium:bundleId': BUNDLE,
     'appium:noReset': true,
     'appium:newCommandTimeout': 300,
+    'appium:waitForIdleTimeout': 0,
   },
 });
 
@@ -60,18 +63,22 @@ try {
 
   await dl('freshasever://discover');
   await wait(6000);
+  await recoverFromErrorBoundary(d);
   const searchReady = await d.$('~discover.searchInput').isDisplayed().catch(() => false);
+  await scrollMapIntoView(d);
   await tryTap(d, 'name == "discover.map.recenter" OR name == "discover.map.countChip"', 4000);
   await wait(2500);
   const markers = await waitForMapMarkers(d, { timeoutMs: 22000, min: 1 });
   const mapSrc = await safeSrc(d);
   const chipText = (await d.$('~discover.map.countChip').getText().catch(() => '')) || '';
+  const gmsCount = (mapSrc.match(/AIRGMSMarker/g) || []).length;
   const mapPass =
     markers.length >= 1 ||
+    gmsCount >= 1 ||
     mapSrc.includes('discover.mapMarker') ||
     mapSrc.includes('AIRGMSMarker') ||
     /\d+ rescues here/.test(chipText + mapSrc);
-  await record('C-01', mapPass && searchReady, await shot(d, 'C-01-discover-map.png'), `${markers.length} markers chip=${chipText || 'n/a'}`);
+  await record('C-01', mapPass && searchReady, await shot(d, 'C-01-discover-map.png'), `${markers.length} markers gms=${gmsCount} chip=${chipText || 'n/a'}`);
 
   for (const [id, url, re, name, detail] of [
     ['C-02', `freshasever://outlet/${BAKEHOUSE_OUTLET}`, /Pastries|Bread|Croissant|Rescue/i, 'C-02-bh-discover.png', 'Bakehouse bag cards'],

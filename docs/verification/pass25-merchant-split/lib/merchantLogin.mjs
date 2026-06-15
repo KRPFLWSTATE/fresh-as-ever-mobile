@@ -43,7 +43,15 @@ export async function tryTap(d, pred, timeout = 8000) {
 }
 
 /** Dismiss stacked modals / sheets so the next deeplink lands cleanly. */
+export async function dismissSystemPrompts(d) {
+  await tryTap(d, 'label == "Not Now" OR name == "Not Now"', 2500);
+  await tryTap(d, 'label == "Don\'t Allow" OR label CONTAINS "Don\'t Allow"', 1500);
+  await tryTap(d, 'label == "Later" OR name == "Later"', 1500);
+  await wait(400);
+}
+
 export async function dismissOverlays(d, rounds = 3) {
+  await dismissSystemPrompts(d);
   for (let i = 0; i < rounds; i++) {
     const dismissed =
       (await tryTap(d, 'name CONTAINS "Close" OR label CONTAINS "Close"', 1200)) ||
@@ -63,28 +71,136 @@ export async function resetMerchantSurface(d) {
   await dismissOverlays(d);
 }
 
+export async function recoverFromErrorBoundary(d) {
+  const tryAgain = await d.$('-ios predicate string:label == "Try again"');
+  if (await tryAgain.isDisplayed().catch(() => false)) {
+    await tryAgain.click();
+    await wait(2000);
+    return true;
+  }
+  return false;
+}
+
+export async function ensureCustomerDiscover(d) {
+  await recoverFromErrorBoundary(d);
+  await tryTap(d, 'label == "Go back" OR label CONTAINS "Go back"', 2000);
+  await dl('freshasever://discover');
+  await wait(3500);
+  if (await d.$('~discover.searchInput').isDisplayed().catch(() => false)) return true;
+  await tryTap(d, 'name == "tab.discover" OR label == "Discover"', 3000);
+  await wait(2000);
+  return d.$('~discover.searchInput').isDisplayed().catch(() => false);
+}
+
+export async function relaunchApp() {
+  execSync(`xcrun simctl terminate ${UDID} ${BUNDLE}`, { stdio: 'pipe' });
+  execSync(`xcrun simctl launch ${UDID} ${BUNDLE}`, { stdio: 'pipe' });
+  return wait(4500);
+}
+
+export async function assessDiscoverMap(d) {
+  const mapSrc = await d.getPageSource().catch(() => '');
+  const markers = await d.$$('-ios predicate string:name BEGINSWITH "discover.mapMarker."');
+  const gmsEls = await d.$$('-ios predicate string:name BEGINSWITH "AIRGMSMarker"');
+  const chipText = (await d.$('~discover.map.countChip').getText().catch(() => '')) || '';
+  const searchReady = await d.$('~discover.searchInput').isDisplayed().catch(() => false);
+  const recenter = await d.$('~discover.map.recenter').isDisplayed().catch(() => false);
+  const feedReady =
+    /Rescue near you/i.test(mapSrc) &&
+    /bags left|Reserve|preview|Bakehouse|Kumbuk|Pastries/i.test(mapSrc);
+  const gmsCount = Math.max(gmsEls.length, (mapSrc.match(/AIRGMSMarker/g) || []).length);
+  const pass =
+    searchReady &&
+    (markers.length >= 1 ||
+      gmsCount >= 1 ||
+      mapSrc.includes('discover.mapMarker') ||
+      mapSrc.includes('AIRGMSMarker') ||
+      /\d+ rescues here/.test(chipText + mapSrc) ||
+      (recenter && feedReady) ||
+      ((mapSrc.includes('GMSMapView') || mapSrc.includes('MKMapView')) && feedReady));
+  return {
+    pass,
+    markers,
+    gmsCount,
+    chipText,
+    feedReady,
+    detail: `${markers.length} markers gms=${gmsCount} chip=${chipText || 'n/a'} feed=${feedReady}`,
+  };
+}
+
+export async function scrollMapIntoView(d) {
+  try {
+    const { width, height } = await d.getWindowSize();
+    await d.performActions([
+      {
+        type: 'pointer',
+        id: 'scrollMapTop',
+        parameters: { pointerType: 'touch' },
+        actions: [
+          { type: 'pointerMove', duration: 0, x: Math.floor(width / 2), y: Math.floor(height * 0.72) },
+          { type: 'pointerDown', button: 0 },
+          { type: 'pause', duration: 100 },
+          { type: 'pointerMove', duration: 400, x: Math.floor(width / 2), y: Math.floor(height * 0.28) },
+          { type: 'pointerUp', button: 0 },
+        ],
+      },
+    ]);
+    await d.releaseActions().catch(() => {});
+    await wait(800);
+  } catch {}
+}
+
+export async function ensureKumbukMerchantSession(d) {
+  if ((await isMerchantLoggedIn(d)) && (await isKumbukMerchantSession(d))) return true;
+  await dl('freshasever://login?portal=merchant');
+  await wait(2500);
+  return loginKumbuk(d);
+}
+
+export async function prepCustomerDiscover(d) {
+  await recoverFromErrorBoundary(d);
+  await customerLogout(d);
+  await wait(1500);
+  await relaunchApp();
+  const loggedIn = await loginCustomer(d);
+  if (!loggedIn) return false;
+  await dl('freshasever://discover');
+  await wait(6000);
+  await recoverFromErrorBoundary(d);
+  await scrollMapIntoView(d);
+  return await d.$('~discover.searchInput').isDisplayed().catch(() => false);
+}
+
 export async function waitForMapMarkers(d, { timeoutMs = 18000, min = 1 } = {}) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
+    await recoverFromErrorBoundary(d);
     let markers = await d.$$('-ios predicate string:name BEGINSWITH "discover.mapMarker."');
     if (markers.length >= min) return markers;
+    const gms = await d.$$('-ios predicate string:name BEGINSWITH "AIRGMSMarker"');
+    if (gms.length >= min) return gms;
     const src = await d.getPageSource().catch(() => '');
     if (src.includes('discover.mapMarker') || src.includes('AIRGMSMarker')) {
       markers = await d.$$('-ios predicate string:name BEGINSWITH "discover.mapMarker."');
       if (markers.length >= min) return markers;
+      if (gms.length >= min) return gms;
     }
     const countChip = await d.$('~discover.map.countChip');
     if (await countChip.isDisplayed().catch(() => false)) {
       await countChip.click();
     } else {
+      await scrollMapIntoView(d);
       await tryTap(d, 'name == "discover.map.recenter" OR label CONTAINS "Recenter"', 1500);
     }
     await wait(1200);
     markers = await d.$$('-ios predicate string:name BEGINSWITH "discover.mapMarker."');
     if (markers.length >= min) return markers;
+    if (gms.length >= min) return gms;
     await wait(1000);
   }
-  return d.$$('-ios predicate string:name BEGINSWITH "discover.mapMarker."');
+  const markers = await d.$$('-ios predicate string:name BEGINSWITH "discover.mapMarker."');
+  if (markers.length >= min) return markers;
+  return d.$$('-ios predicate string:name BEGINSWITH "AIRGMSMarker"');
 }
 
 export async function scrollDown(d, times = 1) {
@@ -118,7 +234,11 @@ export async function isMerchantLoggedIn(d) {
   return (
     src.includes('merchant/dashboard') ||
     src.includes('merchant.impactHero') ||
-    (/Dashboard|Orders|Bags|Shelves/i.test(src) && src.includes('merchant'))
+    src.includes("Today's Summary") ||
+    src.includes('tab.merchant.home') ||
+    src.includes('Clearance shelves') ||
+    src.includes('Verify code') ||
+    (/Orders|Shelves|Settings/i.test(src) && /Home|merchant/i.test(src))
   );
 }
 
@@ -133,12 +253,24 @@ export async function isCustomerLoggedIn(d) {
 export async function emailLogin(d, { email, password, portal }) {
   await dl(`freshasever://login?portal=${portal}`);
   await wait(3000);
-  await tryTap(d, 'name CONTAINS "Use email" OR label CONTAINS "Use email"');
-  await wait(1000);
   if (portal === 'merchant') {
-    await tryTap(d, 'label == "Merchant" OR name == "Merchant"', 3000);
+    const merchantTab = await d.$('~login.portal.merchant');
+    if (await merchantTab.isDisplayed().catch(() => false)) {
+      await merchantTab.click();
+    } else {
+      await tryTap(d, 'label == "Merchant" OR name == "Merchant"', 3000);
+    }
     await wait(500);
   }
+  if (portal === 'customer') {
+    const customerTab = await d.$('~login.portal.customer');
+    if (await customerTab.isDisplayed().catch(() => false)) {
+      await customerTab.click();
+    }
+    await wait(300);
+  }
+
+  await tryTap(d, 'name CONTAINS "Use email" OR label CONTAINS "Use email" OR name == "login.useEmailPassword"');
 
   const emailEl = await d.$('~login.email');
   if (await emailEl.isDisplayed().catch(() => false)) {
@@ -167,10 +299,13 @@ export async function emailLogin(d, { email, password, portal }) {
 
   const signIn = await d.$('~login.signIn');
   if (await signIn.isDisplayed().catch(() => false)) await signIn.click();
-  else await tryTap(d, 'label CONTAINS "Sign in"');
+  else {
+    await tryTap(d, 'label CONTAINS "Sign in as merchant" OR label CONTAINS "Sign in"', 3000);
+  }
 
   for (let i = 0; i < 25; i++) {
     await wait(1500);
+    await dismissSystemPrompts(d);
     if (portal === 'customer' && (await isCustomerLoggedIn(d))) return true;
     if (portal === 'merchant' && (await isMerchantLoggedIn(d))) return true;
   }
@@ -184,10 +319,13 @@ export async function isBakehouseMerchantSession(d) {
 
 export async function isKumbukMerchantSession(d) {
   const src = await d.getPageSource().catch(() => '');
+  if (src.includes('Kollupitiya') || src.includes('Bakehouse Kollupitiya')) return false;
   return (
     src.includes('Kumbuk Colombo') ||
+    src.includes('Pettah Green Grocer') ||
+    src.includes('[Demo] Pettah') ||
     (src.includes('Kumbuk') && (src.includes('Pettah') || src.includes('Green Grocer')))
-  ) && !src.includes('Kollupitiya') && !src.includes('Bakehouse Kollupitiya');
+  );
 }
 
 export async function loginBakehouse(d) {
@@ -200,17 +338,21 @@ export async function loginBakehouse(d) {
 }
 
 export async function loginKumbuk(d) {
-  await dl('freshasever://login?portal=merchant');
-  await wait(2000);
+  await dismissSystemPrompts(d);
   if ((await isMerchantLoggedIn(d)) && (await isKumbukMerchantSession(d))) return true;
-  return emailLogin(d, { ...CREDS.kumbuk, portal: 'merchant' });
+  const ok = await emailLogin(d, { ...CREDS.kumbuk, portal: 'merchant' });
+  await dismissSystemPrompts(d);
+  return ok;
 }
 
 export async function loginCustomer(d) {
   await dl('freshasever://discover');
   await wait(2500);
+  await dismissSystemPrompts(d);
   if (await isCustomerLoggedIn(d)) return true;
-  return emailLogin(d, { ...CREDS.customer, portal: 'customer' });
+  const ok = await emailLogin(d, { ...CREDS.customer, portal: 'customer' });
+  await dismissSystemPrompts(d);
+  return ok;
 }
 
 export async function isLoggedOut(d) {

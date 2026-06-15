@@ -16,7 +16,7 @@
  *     `update outlets set location = ST_SetSRID(ST_MakePoint(lng, lat), 4326)::geography
  *     where id = $1` (we verified `outlets.location` is `geography`).
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -139,7 +139,7 @@ export function MerchantOutletEditorScreen(): React.ReactElement {
     [name, category],
   );
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (outletId) {
       setActiveOutletId(outletId);
     }

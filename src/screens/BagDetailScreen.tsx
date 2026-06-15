@@ -133,9 +133,24 @@ export function BagDetailScreen() {
       return undefined;
     }
     void fetchBag();
+  }, [id, env, navigation, fetchBag]);
+
+  useEffect(() => {
+    if (!id) return undefined;
     const sb = getSupabase(env);
+    const channelName = `bag-${id}`;
+    const channelTopic = `realtime:${channelName}`;
+
+    // React remounts / noReset Appium runs reuse the same topic — drop stale channels
+    // before calling `.on()` so Supabase never throws after an earlier `.subscribe()`.
+    for (const existing of sb.getChannels()) {
+      if (existing.topic === channelTopic) {
+        void sb.removeChannel(existing);
+      }
+    }
+
     const channel = sb
-      .channel(`bag-${id}`)
+      .channel(channelName)
       .on(
         'postgres_changes',
         {
@@ -163,7 +178,7 @@ export function BagDetailScreen() {
     return () => {
       void sb.removeChannel(channel);
     };
-  }, [id, env, navigation, fetchBag]);
+  }, [id, env]);
 
   const outlet = bag?.outlet as Record<string, unknown> | undefined;
   const merch = outlet?.merchant as Record<string, unknown> | undefined;

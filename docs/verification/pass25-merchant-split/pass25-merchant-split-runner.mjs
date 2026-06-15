@@ -24,6 +24,9 @@ import {
   isLoggedOut,
   dismissOverlays,
   resetMerchantSurface,
+  recoverFromErrorBoundary,
+  scrollMapIntoView,
+  relaunchApp,
   waitForMapMarkers,
 } from './lib/merchantLogin.mjs';
 
@@ -200,11 +203,14 @@ try {
   await record('KB-02', kbTwoOnly && !profSrc.includes('Kollupitiya'), await shot(d, 'kb', 'KB-02-profile-2outlets.png'), `Edit outlets: ${kbOutletHits} named hits`, 'merchant-kb');
   await record('KB-03', profSrc.includes('Kumbuk') && (profSrc.includes('Pettah') || profSrc.includes('Green Grocer')), await shot(d, 'kb', 'KB-03-profile-names.png'), 'Kumbuk + Pettah roster', 'merchant-kb');
 
+  await openEditOutlets(d);
+  await tryTap(d, `name == "merchant.profile.outlet.${KUMBUK_OUTLET}"`, 6000);
+  await wait(2000);
   await dl(`freshasever://merchant/outlets/${KUMBUK_OUTLET}/edit`);
-  await wait(5000);
+  await wait(4000);
   await dismissOverlays(d);
   await dl('freshasever://merchant/tabs/bags');
-  await wait(6000);
+  await wait(7000);
   bagsSrc = await d.getPageSource();
   await record('KB-04', /Mixed Meals|Savory|Sandwich|Latte|Rice|Curry/i.test(bagsSrc), await shot(d, 'kb', 'KB-04-bag-images.png'), 'Kumbuk demo bags with images', 'merchant-kb');
 
@@ -242,37 +248,26 @@ try {
   await record('KB-10', kbLogout || postKbLogout, await shot(d, 'kb', 'KB-10-logout.png'), 'Kumbuk logout', 'merchant-kb');
 
   // ═══ CUSTOMER ═══
-  await customerLogout(d);
+  await relaunchApp();
   const custLogin = await loginCustomer(d);
   await record('C-00', custLogin, await shot(d, 'customer', 'C-00-customer-login.png'), 'Customer login', 'customer');
 
-  await dl('freshasever://discover');
-  await wait(6000);
+  if (custLogin) {
+    await dl('freshasever://discover');
+    await wait(6000);
+    await recoverFromErrorBoundary(d);
+    await scrollMapIntoView(d);
+  }
   const searchReady = await d.$('~discover.searchInput').isDisplayed().catch(() => false);
-  const { width, height } = await d.getWindowSize();
-  await d.performActions([
-    {
-      type: 'pointer',
-      id: 'scrollTop',
-      parameters: { pointerType: 'touch' },
-      actions: [
-        { type: 'pointerMove', duration: 0, x: Math.floor(width / 2), y: Math.floor(height * 0.35) },
-        { type: 'pointerDown', button: 0 },
-        { type: 'pause', duration: 100 },
-        { type: 'pointerMove', duration: 400, x: Math.floor(width / 2), y: Math.floor(height * 0.75) },
-        { type: 'pointerUp', button: 0 },
-      ],
-    },
-  ]).catch(() => {});
-  await d.releaseActions().catch(() => {});
-  await wait(2000);
   await tryTap(d, 'name == "discover.map.recenter" OR name == "discover.map.countChip"', 4000);
   await wait(2500);
   const markers = await waitForMapMarkers(d, { timeoutMs: 22000, min: 1 });
   const mapSrc = await d.getPageSource().catch(() => '');
   const chipText = (await d.$('~discover.map.countChip').getText().catch(() => '')) || '';
+  const gmsCount = (mapSrc.match(/AIRGMSMarker/g) || []).length;
   const mapPass =
     markers.length >= 1 ||
+    gmsCount >= 1 ||
     mapSrc.includes('discover.mapMarker') ||
     mapSrc.includes('AIRGMSMarker') ||
     /\d+ rescues here/.test(chipText + mapSrc);
@@ -280,7 +275,7 @@ try {
     'C-01',
     mapPass && searchReady,
     await shot(d, 'customer', 'C-01-discover-map.png'),
-    `${markers.length} map markers · chip=${chipText || 'n/a'}`,
+    `${markers.length} map markers · gms=${gmsCount} · chip=${chipText || 'n/a'}`,
     'customer',
   );
 

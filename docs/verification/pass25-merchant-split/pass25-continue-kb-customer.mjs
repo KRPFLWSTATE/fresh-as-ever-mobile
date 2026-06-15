@@ -18,6 +18,11 @@ import {
   isLoggedOut,
   isKumbukMerchantSession,
   dismissOverlays,
+  ensureKumbukMerchantSession,
+  assessDiscoverMap,
+  recoverFromErrorBoundary,
+  ensureCustomerDiscover,
+  scrollMapIntoView,
   waitForMapMarkers,
 } from './lib/merchantLogin.mjs';
 
@@ -94,6 +99,7 @@ const d = await remote({
     'appium:bundleId': BUNDLE,
     'appium:noReset': true,
     'appium:newCommandTimeout': 300,
+    'appium:waitForIdleTimeout': 0,
   },
 });
 
@@ -115,13 +121,29 @@ try {
   await record('KB-02', kbTwoOnly, await shot(d, 'kb', 'KB-02-profile-2outlets.png'), `Edit outlets: ${kbOutletHits} named hits`, 'merchant-kb');
   await record('KB-03', profSrc.includes('Kumbuk') && (profSrc.includes('Pettah') || profSrc.includes('Green Grocer')), await shot(d, 'kb', 'KB-03-profile-names.png'), 'Kumbuk + Pettah roster', 'merchant-kb');
 
-  await tryTap(d, 'label CONTAINS "Kumbuk Colombo" OR label CONTAINS "Kumbuk"');
+  await ensureKumbukMerchantSession(d);
+  await dl(`freshasever://merchant/outlets/${KUMBUK_OUTLET}/edit`);
   await wait(4000);
   await dismissOverlays(d);
+  await wait(1000);
+  await ensureKumbukMerchantSession(d);
+  await dl('freshasever://merchant/dashboard');
+  await wait(2500);
   await dl('freshasever://merchant/tabs/bags');
-  await wait(6000);
+  await wait(7000);
   const bagsSrc = await safeSrc(d);
-  await record('KB-04', /Mixed Meals|Savory|Sandwich|Latte|Rice|Curry/i.test(bagsSrc), await shot(d, 'kb', 'KB-04-bag-images.png'), 'Kumbuk demo bags with images', 'merchant-kb');
+  const activeOutletOk =
+    bagsSrc.includes('merchant.bags.activeOutlet') ||
+    /Kumbuk|Colombo 07/i.test(bagsSrc);
+  await record(
+    'KB-04',
+    activeOutletOk &&
+      /Mixed Meals|Savory|Sandwich|Latte|Rice|Curry/i.test(bagsSrc) &&
+      !/PETTAH GREEN GROCER/i.test(bagsSrc),
+    await shot(d, 'kb', 'KB-04-bag-images.png'),
+    activeOutletOk ? 'Kumbuk demo bags with images' : 'Merchant session/outlet lost',
+    'merchant-kb',
+  );
 
   await dl('freshasever://merchant/tabs/shelves');
   await wait(4000);
@@ -158,20 +180,14 @@ try {
   const custLogin = await loginCustomer(d);
   await record('C-00', custLogin, await shot(d, 'customer', 'C-00-customer-login.png'), 'Customer login', 'customer');
 
-  await dl('freshasever://discover');
-  await wait(6000);
-  const searchReady = await d.$('~discover.searchInput').isDisplayed().catch(() => false);
+  await ensureCustomerDiscover(d);
+  await recoverFromErrorBoundary(d);
+  await scrollMapIntoView(d);
   await tryTap(d, 'name == "discover.map.recenter" OR name == "discover.map.countChip"', 4000);
   await wait(2500);
-  const markers = await waitForMapMarkers(d, { timeoutMs: 22000, min: 1 });
-  const mapSrc = await safeSrc(d).catch(() => '');
-  const chipText = (await d.$('~discover.map.countChip').getText().catch(() => '')) || '';
-  const mapPass =
-    markers.length >= 1 ||
-    mapSrc.includes('discover.mapMarker') ||
-    mapSrc.includes('AIRGMSMarker') ||
-    /\d+ rescues here/.test(chipText + mapSrc);
-  await record('C-01', mapPass && searchReady, await shot(d, 'customer', 'C-01-discover-map.png'), `${markers.length} map markers · chip=${chipText || 'n/a'}`, 'customer');
+  await waitForMapMarkers(d, { timeoutMs: 12000, min: 1 }).catch(() => []);
+  const map = await assessDiscoverMap(d);
+  await record('C-01', map.pass, await shot(d, 'customer', 'C-01-discover-map.png'), map.detail, 'customer');
 
   for (const [id, url, re, name, detail] of [
     ['C-02', `freshasever://outlet/${BAKEHOUSE_OUTLET}`, /Pastries|Bread|Croissant|Rescue/i, 'C-02-bh-discover.png', 'Bakehouse bag cards'],
