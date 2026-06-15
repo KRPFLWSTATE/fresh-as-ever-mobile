@@ -1,0 +1,20 @@
+{
+  "qa_merchant_user_id": "c749c703-1306-437f-afb8-2bf5841f0b66",
+  "merchants": [
+    {"id":"00000000-0000-0000-0000-000000000002","business_name":"Bakehouse Colombo","owner_id":"c749c703-1306-437f-afb8-2bf5841f0b66","owner_email":"qa.merchant@freshasever.test"},
+    {"id":"00000000-0000-0000-0000-000000000012","business_name":"Kumbuk QA Cafe","owner_id":"c749c703-1306-437f-afb8-2bf5841f0b66","owner_email":"qa.merchant@freshasever.test"}
+  ],
+  "merchant_staff": [
+    {"id":"00000000-0000-0000-0000-000000000099","merchant_id":"00000000-0000-0000-0000-000000000002","user_id":"c749c703-1306-437f-afb8-2bf5841f0b66","role":"owner","status":"active","email":"qa.merchant@freshasever.test"}
+  ],
+  "outlet_uuids_confirmed": {
+    "bakehouse_kollupitiya": "00000000-0000-0000-0000-000000000003",
+    "galle_face_bites": "b4884c9f-5a7c-41b0-af19-321c66f24dea",
+    "kumbuk_colombo_07": "00000000-0000-0000-0000-000000000013",
+    "pettah_green_grocer": "8fbdd459-d8b1-4c84-a6c4-fd00ccf57ac4"
+  },
+  "merchant_uuids": {
+    "bakehouse": "00000000-0000-0000-0000-000000000002",
+    "kumbuk": "00000000-0000-0000-0000-000000000012"
+  }
+}

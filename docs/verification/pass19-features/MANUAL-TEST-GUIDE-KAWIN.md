@@ -7,7 +7,10 @@ Click-by-click navigation for Pass 19 customer and merchant features. No code re
 | Role | Email | Password |
 |------|-------|----------|
 | Customer | `qa.customer@freshasever.test` | `TempCustomer#12345` |
-| Merchant | `qa.merchant@freshasever.test` | `TempMerchant#12345` |
+| Merchant (Bakehouse) | `qa.merchant@freshasever.test` | `TempMerchant#12345` |
+| Merchant (Kumbuk) | `qa.kumbuk@freshasever.test` | `TempMerchant#12345` |
+
+**Pass 25 split:** Each merchant account owns **2 outlets** (not 4 combined). Bakehouse = Kollupitiya + Galle Face. Kumbuk = Colombo 07 + Pettah Green Grocer.
 
 **Primary demo outlet:** Bakehouse Kollupitiya (`00000000-0000-0000-0000-000000000003`)
 

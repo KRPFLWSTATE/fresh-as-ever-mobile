@@ -1,0 +1,6 @@
+[
+  {"id":"b4884c9f-5a7c-41b0-af19-321c66f24dea","name":"[Demo] Galle Face Bites","category":"restaurant","has_cover":false,"merchant_id":"00000000-0000-0000-0000-000000000002","business_name":"Bakehouse Colombo","owner_email":"qa.merchant@freshasever.test"},
+  {"id":"00000000-0000-0000-0000-000000000003","name":"Bakehouse Kollupitiya","category":"hybrid","has_cover":false,"merchant_id":"00000000-0000-0000-0000-000000000002","business_name":"Bakehouse Colombo","owner_email":"qa.merchant@freshasever.test"},
+  {"id":"8fbdd459-d8b1-4c84-a6c4-fd00ccf57ac4","name":"[Demo] Pettah Green Grocer","category":"supermarket","has_cover":false,"merchant_id":"00000000-0000-0000-0000-000000000012","business_name":"Kumbuk QA Cafe","owner_email":"qa.merchant@freshasever.test"},
+  {"id":"00000000-0000-0000-0000-000000000013","name":"Kumbuk Colombo 07","category":"cafe","has_cover":false,"merchant_id":"00000000-0000-0000-0000-000000000012","business_name":"Kumbuk QA Cafe","owner_email":"qa.merchant@freshasever.test"}
+]

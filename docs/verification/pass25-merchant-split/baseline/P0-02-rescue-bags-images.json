@@ -1,0 +1,9 @@
+{
+  "rescue_bags_null_images": [
+    {"id":"8ba2bbb6-c74a-4ad5-b14e-2d22912c7c55","title":"Pass8 S13 Pastry Rescue","status":"live","outlet_id":"00000000-0000-0000-0000-000000000003"},
+    {"id":"29234b39-277f-421b-9aaa-687481e22c77","title":"Pass8 S12 Pastry Rescue","status":"removed","outlet_id":"00000000-0000-0000-0000-000000000003"},
+    {"id":"dfa7079f-dac1-45e6-ba10-0ea862534afc","title":"[Demo] Curry Lunch Rescue","status":"live","outlet_id":"b4884c9f-5a7c-41b0-af19-321c66f24dea"}
+  ],
+  "live_demo_bags_with_images": 8,
+  "live_demo_bags_without_images": 2
+}

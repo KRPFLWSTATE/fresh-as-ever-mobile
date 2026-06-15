@@ -546,14 +546,28 @@ try {
   const bagsSrc = await d.getPageSource();
   await record('M-BAG-01', /Bag|Rescue|Create|Active/i.test(bagsSrc), evBags, 'Bags tab regression', 'merchant');
 
-  // Profile — 4 outlets
+  // Profile — Bakehouse 2 outlets (pass25 split)
   await dl('freshasever://merchant/profile');
   await wait(5000);
   await scrollDown(d, 2);
+  await tryTap(d, 'label CONTAINS "Edit outlets" OR label CONTAINS "EDIT OUTLETS"');
+  await wait(2000);
   const profSrc = await d.getPageSource();
-  const outletMatches = (profSrc.match(/Outlet|Bakehouse|Kumbuk|Cafe|Grocer/gi) || []).length;
-  const evProf = await shot(d, 'merchant', 'M-PROF-01-multi-outlet.png');
-  await record('M-PROF-01', outletMatches >= 2, evProf, `Multi-outlet profile (${outletMatches} mentions)`, 'merchant');
+  const bhOutlets = (profSrc.match(/Kollupitiya|Galle Face/gi) || []).length;
+  const evProfBh = await shot(d, 'merchant', 'BH-PROF-01-bakehouse-2outlets.png');
+  await record('BH-PROF-01', bhOutlets >= 2 && !profSrc.includes('Pettah'), evProfBh, `Bakehouse profile 2 outlets (${bhOutlets} hits)`, 'merchant');
+
+  await guestLogout(d);
+  await emailLogin(d, { email: 'qa.kumbuk@freshasever.test', password: 'TempMerchant#12345', portal: 'merchant' });
+  await dl('freshasever://merchant/profile');
+  await wait(5000);
+  await scrollDown(d, 2);
+  await tryTap(d, 'label CONTAINS "Edit outlets" OR label CONTAINS "EDIT OUTLETS"');
+  await wait(2000);
+  const kbProfSrc = await d.getPageSource();
+  const kbOutlets = (kbProfSrc.match(/Kumbuk|Pettah|Green Grocer/gi) || []).length;
+  const evProfKb = await shot(d, 'merchant', 'KB-PROF-01-kumbuk-2outlets.png');
+  await record('KB-PROF-01', kbOutlets >= 2 && !kbProfSrc.includes('Kollupitiya'), evProfKb, `Kumbuk profile 2 outlets (${kbOutlets} hits)`, 'merchant');
 
   // Live monitor
   await dl('freshasever://merchant/orders?view=live-monitor');

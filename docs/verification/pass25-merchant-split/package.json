@@ -1,0 +1,8 @@
+{
+  "name": "pass25-merchant-split",
+  "version": "1.0.0",
+  "type": "module",
+  "dependencies": {
+    "webdriverio": "^9.28.0"
+  }
+}

@@ -122,7 +122,8 @@ async function fetchResolvedUser(
   const qaEmailRole = allowQaEmailRoleOverrides
     ? authUser.email === 'qa.admin@freshasever.test'
       ? 'admin'
-      : authUser.email === 'qa.merchant@freshasever.test'
+      : authUser.email === 'qa.merchant@freshasever.test' ||
+          authUser.email === 'qa.kumbuk@freshasever.test'
         ? 'merchant_staff'
         : null
     : null;
@@ -252,7 +253,8 @@ export function AuthProvider({
       const qa = allowQaEmailRoleOverrides
         ? email === 'qa.admin@freshasever.test'
           ? 'admin'
-          : email === 'qa.merchant@freshasever.test'
+          : email === 'qa.merchant@freshasever.test' ||
+              email === 'qa.kumbuk@freshasever.test'
             ? 'merchant_staff'
             : null
         : null;
