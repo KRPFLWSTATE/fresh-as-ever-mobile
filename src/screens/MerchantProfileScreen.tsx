@@ -94,7 +94,7 @@ function OutletEditRow({
 export function MerchantProfileScreen() {
   const navigation = useNavigation<Nav>();
   const { env } = useAuthContext();
-  const { merchant, activeOutlet, outlets, loading, error } = useMerchantContext(env);
+  const { merchant, activeOutlet, outlets, loading, error, setActiveOutletId } = useMerchantContext(env);
   const { colors, radii, spacing } = useStitchTheme();
 
   const outletTitle = activeOutlet?.name?.trim() || 'Your outlet';
@@ -210,11 +210,12 @@ export function MerchantProfileScreen() {
                 key={String(o.id)}
                 outlet={o}
                 last={ix === outlets.length - 1}
-                onPress={() =>
+                onPress={() => {
+                  setActiveOutletId(String(o.id));
                   navigation.navigate('MerchantOutletEditor', {
                     outletId: String(o.id),
-                  })
-                }
+                  });
+                }}
                 rowStyle={styles.row}
               />
             ))
