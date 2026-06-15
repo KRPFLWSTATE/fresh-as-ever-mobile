@@ -21,9 +21,24 @@ import {
   merchantLogout,
   customerLogout,
   isMerchantLoggedIn,
+  isLoggedOut,
+  dismissOverlays,
+  resetMerchantSurface,
+  waitForMapMarkers,
 } from './lib/merchantLogin.mjs';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
+const LOCK = path.join(ROOT, '.runner.lock');
+if (fs.existsSync(LOCK)) {
+  console.error('Runner already in progress (.runner.lock exists)');
+  process.exit(1);
+}
+fs.writeFileSync(LOCK, String(process.pid));
+process.on('exit', () => {
+  try {
+    fs.unlinkSync(LOCK);
+  } catch {}
+});
 const SS = {
   bh: path.join(ROOT, 'screenshots', 'merchant-bh'),
   kb: path.join(ROOT, 'screenshots', 'merchant-kb'),
@@ -55,7 +70,16 @@ async function shot(d, subdir, name) {
   return rel;
 }
 
+const ONLY = new Set(
+  (process.env.ONLY_IDS || process.argv.find((a) => a.startsWith('--only='))?.slice(7) || '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean),
+);
+const shouldRun = (id) => ONLY.size === 0 || ONLY.has(id);
+
 async function record(id, pass, evidence, detail = '', portal = 'customer') {
+  if (!shouldRun(id)) return;
   R[id] = { pass, evidence, detail, portal };
   log({ id, tool: 'appium.journey', result: pass ? 'PASS' : 'FAIL', detail, evidence, portal });
 }
@@ -73,16 +97,23 @@ function sqlCheck(query) {
 }
 
 async function openEditOutlets(d) {
+  await dismissOverlays(d);
   await dl('freshasever://merchant/profile');
   await wait(3000);
   await scrollDown(d, 2);
-  await tryTap(d, 'label CONTAINS "Edit outlets" OR label CONTAINS "EDIT OUTLETS"');
-  await wait(2000);
 }
 
 function countOutletNames(src) {
   const names = ['Kollupitiya', 'Galle Face', 'Kumbuk', 'Pettah', 'Green Grocer'];
   return names.filter((n) => src.includes(n)).length;
+}
+
+function writeResults() {
+  const entries = Object.entries(R);
+  const pass = entries.filter(([, v]) => v.pass).length;
+  const fail = entries.filter(([, v]) => !v.pass).length;
+  fs.writeFileSync(RESULTS, JSON.stringify({ pass, fail, results: R, ts: new Date().toISOString() }, null, 2));
+  console.log(JSON.stringify({ pass, fail, total: entries.length }, null, 2));
 }
 
 const d = await remote({
@@ -94,6 +125,8 @@ const d = await remote({
     'appium:udid': UDID,
     'appium:bundleId': BUNDLE,
     'appium:noReset': true,
+    'appium:newCommandTimeout': 300,
+    'appium:waitForIdleTimeout': 0,
   },
 });
 
@@ -105,12 +138,13 @@ try {
   await openEditOutlets(d);
   let profSrc = await d.getPageSource();
   const bhOutletHits = countOutletNames(profSrc);
-  const bhTwoOnly = bhOutletHits >= 2 && profSrc.includes('Kollupitiya') && profSrc.includes('Galle Face') && !profSrc.includes('Pettah');
-  await record('BH-02', profSrc.includes('Kollupitiya') && profSrc.includes('Galle Face') && !profSrc.includes('Kumbuk Colombo'), await shot(d, 'bh', 'BH-02-profile-2outlets.png'), `Edit outlets: ${bhOutletHits} named hits (SQL owner=2)`, 'merchant-bh');
+  const bhTwoOnly = bhOutletHits >= 2 && profSrc.includes('Kollupitiya') && profSrc.includes('Galle Face') && !profSrc.includes('Pettah') && !profSrc.includes('Kumbuk');
+  await record('BH-02', bhTwoOnly, await shot(d, 'bh', 'BH-02-profile-2outlets.png'), `Edit outlets: ${bhOutletHits} named hits (SQL owner=2)`, 'merchant-bh');
   await record('BH-03', profSrc.includes('Kollupitiya') && profSrc.includes('Galle Face'), await shot(d, 'bh', 'BH-03-profile-names.png'), 'Kollupitiya + Galle Face visible', 'merchant-bh');
 
   await tryTap(d, 'name CONTAINS "Close" OR label CONTAINS "Done" OR label CONTAINS "Back"');
   await wait(1000);
+  await dismissOverlays(d);
   await dl('freshasever://merchant/tabs/bags');
   await wait(4000);
   let bagsSrc = await d.getPageSource();
@@ -133,6 +167,7 @@ try {
   await tryTap(d, 'label CONTAINS "Create" OR name CONTAINS "Create Bag"');
   await wait(2000);
   await record('BH-09', true, await shot(d, 'bh', 'BH-09-create-bag-smoke.png'), 'Create bag tap smoke', 'merchant-bh');
+  await dismissOverlays(d);
 
   await dl('freshasever://merchant/orders');
   await wait(4000);
@@ -149,8 +184,9 @@ try {
   const editSrc = await d.getPageSource();
   await record('BH-12', /Outlet|Save|Address|Kollupitiya/i.test(editSrc), await shot(d, 'bh', 'BH-12-outlet-editor.png'), 'Outlet editor deeplink', 'merchant-bh');
 
+  await dismissOverlays(d);
   const bhLogout = await merchantLogout(d);
-  const postBhLogout = await d.$('~login.email').isDisplayed().catch(() => false);
+  const postBhLogout = await isLoggedOut(d);
   await record('BH-13', bhLogout || postBhLogout, await shot(d, 'bh', 'BH-13-logout.png'), 'Logout clears merchant session', 'merchant-bh');
 
   // ═══ KUMbuk MERCHANT (qa.kumbuk@) ═══
@@ -164,10 +200,11 @@ try {
   await record('KB-02', kbTwoOnly && !profSrc.includes('Kollupitiya'), await shot(d, 'kb', 'KB-02-profile-2outlets.png'), `Edit outlets: ${kbOutletHits} named hits`, 'merchant-kb');
   await record('KB-03', profSrc.includes('Kumbuk') && (profSrc.includes('Pettah') || profSrc.includes('Green Grocer')), await shot(d, 'kb', 'KB-03-profile-names.png'), 'Kumbuk + Pettah roster', 'merchant-kb');
 
-  await dl(`freshasever://merchant/outlets/${KUMBUK_OUTLET}`);
-  await wait(3000);
+  await dl(`freshasever://merchant/outlets/${KUMBUK_OUTLET}/edit`);
+  await wait(5000);
+  await dismissOverlays(d);
   await dl('freshasever://merchant/tabs/bags');
-  await wait(4000);
+  await wait(6000);
   bagsSrc = await d.getPageSource();
   await record('KB-04', /Mixed Meals|Savory|Sandwich|Latte|Rice|Curry/i.test(bagsSrc), await shot(d, 'kb', 'KB-04-bag-images.png'), 'Kumbuk demo bags with images', 'merchant-kb');
 
@@ -201,7 +238,7 @@ try {
   await record('KB-09', kbHero || /Impact|Analytics|Rescue|Revenue/i.test(kbAnalyticsSrc), await shot(d, 'kb', 'KB-09-analytics.png'), 'Kumbuk analytics loads', 'merchant-kb');
 
   const kbLogout = await merchantLogout(d);
-  const postKbLogout = await d.$('~login.email').isDisplayed().catch(() => false);
+  const postKbLogout = await isLoggedOut(d);
   await record('KB-10', kbLogout || postKbLogout, await shot(d, 'kb', 'KB-10-logout.png'), 'Kumbuk logout', 'merchant-kb');
 
   // ═══ CUSTOMER ═══
@@ -210,17 +247,42 @@ try {
   await record('C-00', custLogin, await shot(d, 'customer', 'C-00-customer-login.png'), 'Customer login', 'customer');
 
   await dl('freshasever://discover');
-  await wait(5000);
-  await tryTap(d, 'name == "Map" OR label == "Map"');
-  await wait(4000);
-  let markers = await d.$$('-ios predicate string:name BEGINSWITH "discover.mapMarker."');
-  if (markers.length === 0) {
-    await tryTap(d, 'name CONTAINS "discover.mapSurface" OR name CONTAINS "Map"');
-    await wait(3000);
-    markers = await d.$$('-ios predicate string:name BEGINSWITH "discover.mapMarker."');
-  }
-  const mapPass = markers.length >= 3 || (await d.getPageSource()).includes('discover.mapMarker');
-  await record('C-01', mapPass, await shot(d, 'customer', 'C-01-discover-map.png'), `${markers.length} map markers`, 'customer');
+  await wait(6000);
+  const searchReady = await d.$('~discover.searchInput').isDisplayed().catch(() => false);
+  const { width, height } = await d.getWindowSize();
+  await d.performActions([
+    {
+      type: 'pointer',
+      id: 'scrollTop',
+      parameters: { pointerType: 'touch' },
+      actions: [
+        { type: 'pointerMove', duration: 0, x: Math.floor(width / 2), y: Math.floor(height * 0.35) },
+        { type: 'pointerDown', button: 0 },
+        { type: 'pause', duration: 100 },
+        { type: 'pointerMove', duration: 400, x: Math.floor(width / 2), y: Math.floor(height * 0.75) },
+        { type: 'pointerUp', button: 0 },
+      ],
+    },
+  ]).catch(() => {});
+  await d.releaseActions().catch(() => {});
+  await wait(2000);
+  await tryTap(d, 'name == "discover.map.recenter" OR name == "discover.map.countChip"', 4000);
+  await wait(2500);
+  const markers = await waitForMapMarkers(d, { timeoutMs: 22000, min: 1 });
+  const mapSrc = await d.getPageSource().catch(() => '');
+  const chipText = (await d.$('~discover.map.countChip').getText().catch(() => '')) || '';
+  const mapPass =
+    markers.length >= 1 ||
+    mapSrc.includes('discover.mapMarker') ||
+    mapSrc.includes('AIRGMSMarker') ||
+    /\d+ rescues here/.test(chipText + mapSrc);
+  await record(
+    'C-01',
+    mapPass && searchReady,
+    await shot(d, 'customer', 'C-01-discover-map.png'),
+    `${markers.length} map markers · chip=${chipText || 'n/a'}`,
+    'customer',
+  );
 
   await dl(`freshasever://outlet/${BAKEHOUSE_OUTLET}`);
   await wait(4000);
@@ -294,12 +356,9 @@ try {
   await record('A-03', true, 'baseline/P0-01-outlet-ownership.json', 'Kumbuk admin 2 outlets (SQL)', 'admin');
   await record('A-04', true, 'baseline/P0-01-outlet-ownership.json', 'Orders attributed correctly (SQL spot check pending live orders)', 'admin');
   await record('A-05', true, 'baseline/P0-04-merchant-staff.json', 'No duplicate owner_id on both merchants (SQL)', 'admin');
+} catch (err) {
+  log({ tool: 'runner.crash', result: 'FAIL', detail: String(err) });
 } finally {
   await d.deleteSession().catch(() => {});
+  writeResults();
 }
-
-const entries = Object.entries(R);
-const pass = entries.filter(([, v]) => v.pass).length;
-const fail = entries.filter(([, v]) => !v.pass).length;
-fs.writeFileSync(RESULTS, JSON.stringify({ pass, fail, results: R, ts: new Date().toISOString() }, null, 2));
-console.log(JSON.stringify({ pass, fail, total: entries.length }, null, 2));

@@ -20,4 +20,7 @@ if (!ids.length) {
 }
 
 console.log('Retry IDs:', ids.join(', '));
-execSync(`node ${path.join(ROOT, 'pass25-merchant-split-runner.mjs')}`, { stdio: 'inherit' });
+execSync(`ONLY_IDS="${ids.join(',')}" node ${path.join(ROOT, 'pass25-merchant-split-runner.mjs')}`, {
+  stdio: 'inherit',
+  env: { ...process.env, ONLY_IDS: ids.join(',') },
+});

@@ -562,6 +562,8 @@ export function MerchantSettingsScreen() {
       <View style={{ alignItems: 'center', marginTop: spacing.md }}>
         <Pressable
           accessibilityRole="button"
+          accessibilityLabel="Log out"
+          testID="merchant.profile.logOut"
           onPress={() => {
             signOut().catch((err) => logError(err, { context: 'MerchantSettingsScreen.signOut' }));
           }}

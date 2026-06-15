@@ -114,7 +114,7 @@ export function MerchantOutletEditorScreen(): React.ReactElement {
   const navigation = useNavigation<Nav>();
   const route = useRoute<R>();
   const { env } = useAuthContext();
-  const { refetch: refetchMerchantContext } = useMerchantContext(env);
+  const { refetch: refetchMerchantContext, setActiveOutletId } = useMerchantContext(env);
   const { colors, radii, spacing } = useStitchTheme();
   const outletId = String(route.params?.outletId ?? '').trim();
 
@@ -138,6 +138,12 @@ export function MerchantOutletEditorScreen(): React.ReactElement {
     () => outletCategoryWarnings(name, category),
     [name, category],
   );
+
+  useEffect(() => {
+    if (outletId) {
+      setActiveOutletId(outletId);
+    }
+  }, [outletId, setActiveOutletId]);
 
   useEffect(() => {
     let alive = true;

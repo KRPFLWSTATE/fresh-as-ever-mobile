@@ -1,147 +1,147 @@
 {
-  "pass": 37,
-  "fail": 8,
+  "pass": 29,
+  "fail": 16,
   "results": {
     "BH-01": {
       "pass": true,
-      "evidence": "screenshots/bh/BH-01-login.png",
+      "evidence": "screenshots/merchant-bh/BH-01-login.png",
       "detail": "Bakehouse merchant login",
       "portal": "merchant-bh"
     },
     "BH-02": {
-      "pass": false,
-      "evidence": "screenshots/bh/BH-02-profile-2outlets.png",
-      "detail": "Edit outlets: 3 named hits",
+      "pass": true,
+      "evidence": "screenshots/merchant-bh/BH-02-profile-2outlets.png",
+      "detail": "Edit outlets: 2 named hits (SQL owner=2)",
       "portal": "merchant-bh"
     },
     "BH-03": {
-      "pass": false,
-      "evidence": "screenshots/bh/BH-03-profile-names.png",
+      "pass": true,
+      "evidence": "screenshots/merchant-bh/BH-03-profile-names.png",
       "detail": "Kollupitiya + Galle Face visible",
       "portal": "merchant-bh"
     },
     "BH-04": {
-      "pass": false,
-      "evidence": "screenshots/bh/BH-04-bags-tab.png",
+      "pass": true,
+      "evidence": "screenshots/merchant-bh/BH-04-bags-tab.png",
       "detail": "Bags tab loads",
       "portal": "merchant-bh"
     },
     "BH-05": {
-      "pass": false,
-      "evidence": "screenshots/bh/BH-05-bag-images.png",
+      "pass": true,
+      "evidence": "screenshots/merchant-bh/BH-05-bag-images.png",
       "detail": "Demo bags listed with titles",
       "portal": "merchant-bh"
     },
     "BH-06": {
       "pass": true,
-      "evidence": "screenshots/bh/BH-06-qa-bags.png",
+      "evidence": "screenshots/merchant-bh/BH-06-qa-bags.png",
       "detail": "Pass8 S13 removed or absent",
       "portal": "merchant-bh"
     },
     "BH-07": {
       "pass": true,
-      "evidence": "screenshots/bh/BH-07-shelves-tab.png",
+      "evidence": "screenshots/merchant-bh/BH-07-shelves-tab.png",
       "detail": "Shelves tab demo shelf visible",
       "portal": "merchant-bh"
     },
     "BH-08": {
       "pass": true,
-      "evidence": "screenshots/bh/BH-08-shelf-thumbnails.png",
+      "evidence": "screenshots/merchant-bh/BH-08-shelf-thumbnails.png",
       "detail": "Shelf items visible",
       "portal": "merchant-bh"
     },
     "BH-09": {
       "pass": true,
-      "evidence": "screenshots/bh/BH-09-create-bag-smoke.png",
+      "evidence": "screenshots/merchant-bh/BH-09-create-bag-smoke.png",
       "detail": "Create bag tap smoke",
       "portal": "merchant-bh"
     },
     "BH-10": {
       "pass": true,
-      "evidence": "screenshots/bh/BH-10-orders.png",
+      "evidence": "screenshots/merchant-bh/BH-10-orders.png",
       "detail": "Orders tab scoped Bakehouse",
       "portal": "merchant-bh"
     },
     "BH-11": {
       "pass": true,
-      "evidence": "screenshots/bh/BH-11-analytics.png",
+      "evidence": "screenshots/merchant-bh/BH-11-analytics.png",
       "detail": "Analytics hero loads",
       "portal": "merchant-bh"
     },
     "BH-12": {
       "pass": true,
-      "evidence": "screenshots/bh/BH-12-outlet-editor.png",
+      "evidence": "screenshots/merchant-bh/BH-12-outlet-editor.png",
       "detail": "Outlet editor deeplink",
       "portal": "merchant-bh"
     },
     "BH-13": {
-      "pass": false,
-      "evidence": "screenshots/bh/BH-13-logout.png",
-      "detail": "Logout clears merchant session",
+      "pass": true,
+      "evidence": "screenshots/merchant-bh/BH-13-logout.png",
+      "detail": "Logout → guest discover (isLoggedOut)",
       "portal": "merchant-bh"
     },
     "KB-01": {
       "pass": true,
-      "evidence": "screenshots/kb/KB-01-login.png",
+      "evidence": "screenshots/merchant-kb/KB-01-login.png",
       "detail": "Kumbuk merchant login",
       "portal": "merchant-kb"
     },
     "KB-02": {
       "pass": true,
-      "evidence": "screenshots/kb/KB-02-profile-2outlets.png",
+      "evidence": "screenshots/merchant-kb/KB-02-profile-2outlets.png",
       "detail": "Edit outlets: 3 named hits",
       "portal": "merchant-kb"
     },
     "KB-03": {
       "pass": true,
-      "evidence": "screenshots/kb/KB-03-profile-names.png",
+      "evidence": "screenshots/merchant-kb/KB-03-profile-names.png",
       "detail": "Kumbuk + Pettah roster",
       "portal": "merchant-kb"
     },
     "KB-04": {
       "pass": false,
-      "evidence": "screenshots/kb/KB-04-bag-images.png",
+      "evidence": "screenshots/merchant-kb/KB-04-bag-images.png",
       "detail": "Kumbuk demo bags with images",
       "portal": "merchant-kb"
     },
     "KB-05": {
-      "pass": true,
-      "evidence": "screenshots/kb/KB-05-pettah-shelves.png",
+      "pass": false,
+      "evidence": "screenshots/merchant-kb/KB-05-pettah-shelves.png",
       "detail": "Pettah shelves tab",
       "portal": "merchant-kb"
     },
     "KB-06": {
-      "pass": true,
-      "evidence": "screenshots/kb/KB-06-pettah-images.png",
+      "pass": false,
+      "evidence": "screenshots/merchant-kb/KB-06-pettah-images.png",
       "detail": "Pettah shelf item thumbnails",
       "portal": "merchant-kb"
     },
     "KB-07": {
       "pass": true,
-      "evidence": "screenshots/kb/KB-07-orders-scope.png",
+      "evidence": "screenshots/merchant-kb/KB-07-orders-scope.png",
       "detail": "Orders scoped Kumbuk only",
       "portal": "merchant-kb"
     },
     "KB-08": {
       "pass": true,
-      "evidence": "screenshots/kb/KB-08-rls-negative.png",
+      "evidence": "screenshots/merchant-kb/KB-08-rls-negative.png",
       "detail": "Cannot see Bakehouse bags",
       "portal": "merchant-kb"
     },
     "KB-09": {
-      "pass": true,
-      "evidence": "screenshots/kb/KB-09-analytics.png",
+      "pass": false,
+      "evidence": "screenshots/merchant-kb/KB-09-analytics.png",
       "detail": "Kumbuk analytics loads",
       "portal": "merchant-kb"
     },
     "KB-10": {
-      "pass": false,
-      "evidence": "screenshots/kb/KB-10-logout.png",
+      "pass": true,
+      "evidence": "screenshots/merchant-kb/KB-10-logout.png",
       "detail": "Kumbuk logout",
       "portal": "merchant-kb"
     },
     "C-00": {
-      "pass": true,
+      "pass": false,
       "evidence": "screenshots/customer/C-00-customer-login.png",
       "detail": "Customer login",
       "portal": "customer"
@@ -149,55 +149,55 @@
     "C-01": {
       "pass": false,
       "evidence": "screenshots/customer/C-01-discover-map.png",
-      "detail": "0 map markers",
+      "detail": "0 markers chip=n/a",
       "portal": "customer"
     },
     "C-02": {
-      "pass": true,
+      "pass": false,
       "evidence": "screenshots/customer/C-02-bh-discover.png",
       "detail": "Bakehouse bag cards",
       "portal": "customer"
     },
     "C-03": {
-      "pass": true,
+      "pass": false,
       "evidence": "screenshots/customer/C-03-kb-discover.png",
       "detail": "Kumbuk bag cards",
       "portal": "customer"
     },
     "C-04": {
-      "pass": true,
+      "pass": false,
       "evidence": "screenshots/customer/C-04-pettah-d03.png",
       "detail": "Pettah shelf-only discover",
       "portal": "customer"
     },
     "C-05": {
-      "pass": true,
+      "pass": false,
       "evidence": "screenshots/customer/C-05-galle-face.png",
       "detail": "Galle Face outlet visible",
       "portal": "customer"
     },
     "C-06": {
-      "pass": true,
+      "pass": false,
       "evidence": "screenshots/customer/C-06-group-checkout.png",
-      "detail": "Group checkout 2 Bakehouse bags",
+      "detail": "Group checkout",
       "portal": "customer"
     },
     "C-07": {
-      "pass": true,
+      "pass": false,
       "evidence": "screenshots/customer/C-07-kumbuk-checkout.png",
-      "detail": "Kumbuk single bag checkout",
+      "detail": "Kumbuk checkout",
       "portal": "customer"
     },
     "C-08": {
-      "pass": true,
+      "pass": false,
       "evidence": "screenshots/customer/C-08-shelf-checkout.png",
-      "detail": "Bakehouse shelf checkout path",
+      "detail": "Shelf checkout",
       "portal": "customer"
     },
     "C-09": {
-      "pass": true,
+      "pass": false,
       "evidence": "screenshots/customer/C-09-cross-outlet-guard.png",
-      "detail": "Cross-outlet cart guard",
+      "detail": "Cross-outlet guard",
       "portal": "customer"
     },
     "C-10": {
@@ -207,39 +207,39 @@
       "portal": "customer"
     },
     "C-11": {
-      "pass": true,
+      "pass": false,
       "evidence": "screenshots/customer/C-11-orders-mixed.png",
-      "detail": "Customer orders tab",
+      "detail": "Orders tab",
       "portal": "customer"
     },
     "C-12": {
-      "pass": true,
+      "pass": false,
       "evidence": "screenshots/customer/C-12-impact.png",
-      "detail": "Impact/streak unaffected",
+      "detail": "Impact streak",
       "portal": "customer"
     },
     "X-01": {
       "pass": true,
       "evidence": "screenshots/cross/X-01-bh-handover-smoke.png",
-      "detail": "BH handover path smoke (manual order code if needed)",
+      "detail": "Smoke + SQL RLS",
       "portal": "cross"
     },
     "X-02": {
       "pass": true,
       "evidence": "screenshots/cross/X-02-kb-handover-smoke.png",
-      "detail": "KB handover path smoke",
+      "detail": "Smoke + SQL RLS",
       "portal": "cross"
     },
     "X-03": {
       "pass": true,
       "evidence": "screenshots/cross/X-03-bh-negative-smoke.png",
-      "detail": "BH cannot collect KB code (RLS SQL verified)",
+      "detail": "Smoke + SQL RLS",
       "portal": "cross"
     },
     "X-04": {
       "pass": true,
       "evidence": "screenshots/cross/X-04-kb-negative-smoke.png",
-      "detail": "KB cannot collect BH code (RLS SQL verified)",
+      "detail": "Smoke + SQL RLS",
       "portal": "cross"
     },
     "A-01": {
@@ -263,7 +263,7 @@
     "A-04": {
       "pass": true,
       "evidence": "baseline/P0-01-outlet-ownership.json",
-      "detail": "Orders attributed correctly (SQL spot check pending live orders)",
+      "detail": "Orders attributed correctly (SQL)",
       "portal": "admin"
     },
     "A-05": {
@@ -273,5 +273,5 @@
       "portal": "admin"
     }
   },
-  "ts": "2026-06-15T17:40:43.741Z"
+  "ts": "2026-06-15T18:52:27.636Z"
 }

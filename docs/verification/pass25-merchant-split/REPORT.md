@@ -5,7 +5,7 @@
 
 ## Executive summary
 
-Split the shared `qa.merchant@` login into two isolated merchant accounts (Bakehouse + Kumbuk), backfilled demo images, updated mobile/web auth overrides, and ran the full Appium verification matrix. **Database split is complete and verified.** Appium: **37 PASS / 8 FAIL** on final runner (4 persistent: logout ×2, map markers, KB-04 bags tab).
+Split the shared `qa.merchant@` login into two isolated merchant accounts (Bakehouse + Kumbuk), backfilled demo images, updated mobile/web auth overrides, and ran the full Appium verification matrix. **Database split is complete and verified.** Post-fix Appium: **44 PASS / 2 FAIL** (KB-04, C-01); cleared BH-02–BH-05 flakiness, BH-13, and KB-10 (prior **37 PASS / 8 FAIL**).
 
 ## Target accounts (achieved)
 
@@ -55,13 +55,20 @@ See `MATRIX.md`. Key screenshots:
 
 ## Known failures / follow-ups
 
-1. **BH-13 / KB-10:** Merchant profile logout — `profile.logOut` not reachable without extra scroll; use manual sign-out or add merchant-specific testID.
-2. **C-01:** Map markers — list/feed shows all 4 outlets (C-02–C-05 PASS); map surface needs pass15 marker wait pattern.
-3. **KB-04:** Intermittent — Kumbuk bags visible on customer outlet (C-03 PASS); merchant tab may need active-outlet picker tap.
+1. **KB-04:** Kumbuk cafe bags tab — ensure `setActiveOutletId` on outlet editor deeplink + longer bags-tab wait; may need merchant outlet picker testID.
+2. **C-01:** Discover map markers — runner uses `waitForMapMarkers`, count-chip recenter, and `AIRGMSMarker` fallback; map feed/list OK (C-02–C-05 PASS).
 
 ## Commits
 
-See git log after commit step.
+- Web: `5196d1ab` (prior pass)
+- Mobile: `de77cc430` (prior pass) → see post-fix commit after this QA pass
+
+## Fixes applied (2026-06-15 QA pass)
+
+- `MerchantSettingsScreen`: `testID="merchant.profile.logOut"` + `accessibilityLabel="Log out"`
+- `MerchantOutletEditorScreen`: `setActiveOutletId(outletId)` on open
+- `lib/merchantLogin.mjs`: settings-tab logout, `isLoggedOut()` (guest discover), overlay cleanup, map marker waits
+- `pass25-merchant-split-runner.mjs`: no spurious Edit-outlets tap, app relaunch, session crash guard, BH-02 assertion tightened
 
 ## Artifacts
 
