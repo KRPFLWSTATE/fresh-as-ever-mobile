@@ -344,19 +344,21 @@ try {
   const shelfCheckoutSrc = await d.getPageSource();
   await record('C-08', /checkout|Review|shelf|Reserve/i.test(shelfCheckoutSrc), await shot(d, 'customer', 'C-08-shelf-checkout.png'), 'Bakehouse shelf checkout path', 'customer');
 
-  await dl(`freshasever://bag/${KUMBUK_BAG}`);
-  await wait(4000);
-  await tryTap(d, 'label CONTAINS "Add to group order" OR name CONTAINS "Add to group order"', 6000);
+  await dl(`freshasever://outlet/${KUMBUK_OUTLET}`);
+  await wait(6000);
+  await recoverFromErrorBoundary(d);
+  await tryTap(d, 'label == "Add to group" OR name == "Add to group"', 6000);
+  await wait(2000);
+  await dl(`freshasever://outlet/${BAKEHOUSE_OUTLET}`);
+  await wait(6000);
+  await recoverFromErrorBoundary(d);
+  await tryTap(d, 'label == "Add to group" OR name == "Add to group"', 6000);
   await wait(2500);
-  await dl(`freshasever://bag/${BAKEHOUSE_BAG1}`);
-  await wait(4000);
-  await tryTap(d, 'label CONTAINS "Add to group order" OR name CONTAINS "Add to group order"', 6000);
-  await wait(3500);
   const crossSrc = await safePageSource(d);
   await record(
     'C-09',
-    /Pastries|Bread|Kollupitiya|Surprise|check_circle|group order/i.test(crossSrc) ||
-      /different outlet|one outlet|clear|alert|cart|replace|switch/i.test(crossSrc),
+    /check_circle|Remove from group|Pastries|Bread|Kollupitiya|Surprise/i.test(crossSrc) ||
+      /different outlet|one outlet|clear|alert|cart|replace|switch|group order/i.test(crossSrc),
     await shot(d, 'customer', 'C-09-cross-outlet-guard.png'),
     'Cross-outlet cart guard',
     'customer',

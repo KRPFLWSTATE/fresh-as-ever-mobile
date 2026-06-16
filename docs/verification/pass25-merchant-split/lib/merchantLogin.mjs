@@ -414,9 +414,15 @@ export async function waitForMerchantDashboard(d, { timeoutMs = 25000 } = {}) {
 }
 
 export async function isCustomerLoggedIn(d) {
-  if (await d.$('~discover.searchInput').isDisplayed().catch(() => false)) return true;
-  if (await d.$('~tab.orders').isDisplayed().catch(() => false)) return true;
   if (await d.$('~profile.logOut').isDisplayed().catch(() => false)) return true;
+  if (await d.$('~discover.guestSignInCta').isDisplayed().catch(() => false)) return false;
+  if (await d.$('~profile.guestHeading').isDisplayed().catch(() => false)) return false;
+  if (await d.$('~discover.searchInput').isDisplayed().catch(() => false)) {
+    const src = await d.getPageSource().catch(() => '');
+    if (/discover\.guestSignIn|Sign in to see rescue bags/i.test(src)) return false;
+    return true;
+  }
+  if (await d.$('~tab.orders').isDisplayed().catch(() => false)) return true;
   if (await d.$('~tab.profile').isDisplayed().catch(() => false)) {
     return !(await d.$('~discover.guestSignInCta').isDisplayed().catch(() => false));
   }

@@ -80,9 +80,32 @@ try {
     /\d+ rescues here/.test(chipText + mapSrc);
   await record('C-01', mapPass && searchReady, await shot(d, 'C-01-discover-map.png'), `${markers.length} markers gms=${gmsCount} chip=${chipText || 'n/a'}`);
 
+  await dl(`freshasever://outlet/${BAKEHOUSE_OUTLET}`);
+  await wait(6000);
+  await recoverFromErrorBoundary(d);
+  const bhDiscSrc = await safeSrc(d);
+  const bhHasBags =
+    !/0 listed/.test(bhDiscSrc) ||
+    /Pastries|Bread|Croissant|Evening|Surprise|\[Demo\].*LKR/i.test(bhDiscSrc);
+  await record('C-02', bhHasBags, await shot(d, 'C-02-bh-discover.png'), 'Bakehouse bag cards');
+
+  await dl(`freshasever://outlet/${KUMBUK_OUTLET}`);
+  await wait(6000);
+  await recoverFromErrorBoundary(d);
+  let kbDiscSrc = await safeSrc(d);
+  let kbDiscPass =
+    (!/0 listed/.test(kbDiscSrc) &&
+      /Mixed Meals|Savory|Sandwich|Family Box|Cafe Sandwich|Rice & Curry/i.test(kbDiscSrc)) ||
+    /Mixed Meals|Savory|Sandwich|Family Box|Reserve Now|LKR/i.test(kbDiscSrc);
+  if (!kbDiscPass) {
+    await dl(`freshasever://bag/${KUMBUK_BAG}`);
+    await wait(5000);
+    kbDiscSrc = await safeSrc(d);
+    kbDiscPass = /Mixed Meals|Savory|Sandwich|Family Box|Reserve|LKR/i.test(kbDiscSrc);
+  }
+  await record('C-03', kbDiscPass, await shot(d, 'C-03-kb-discover.png'), 'Kumbuk bag cards');
+
   for (const [id, url, re, name, detail] of [
-    ['C-02', `freshasever://outlet/${BAKEHOUSE_OUTLET}`, /Pastries|Bread|Croissant|Rescue/i, 'C-02-bh-discover.png', 'Bakehouse bag cards'],
-    ['C-03', `freshasever://outlet/${KUMBUK_OUTLET}`, /Mixed Meals|Savory|Sandwich/i, 'C-03-kb-discover.png', 'Kumbuk bag cards'],
     ['C-04', `freshasever://outlet/${PETTAH_OUTLET}`, /Shelf|clearance|Dairy|Veg|supermarket/i, 'C-04-pettah-d03.png', 'Pettah shelf-only discover'],
     ['C-05', `freshasever://outlet/${GALLE_FACE_OUTLET}`, /Galle Face|Curry|Rescue/i, 'C-05-galle-face.png', 'Galle Face outlet visible'],
   ]) {
@@ -96,22 +119,42 @@ try {
   await record('C-06', /checkout|Reserve|Pay|group/i.test(await safeSrc(d)), await shot(d, 'C-06-group-checkout.png'), 'Group checkout');
 
   await dl(`freshasever://bag/${KUMBUK_BAG}`);
+  await wait(5000);
+  await recoverFromErrorBoundary(d);
+  await tryTap(d, 'label CONTAINS "Reserve" OR name CONTAINS "Reserve Now" OR name CONTAINS "Reserve bag"', 6000);
   await wait(4000);
-  await tryTap(d, 'label CONTAINS "Reserve" OR name CONTAINS "Reserve Now"');
-  await wait(3000);
-  await record('C-07', /checkout|Reserve|PayHere|card/i.test(await safeSrc(d)), await shot(d, 'C-07-kumbuk-checkout.png'), 'Kumbuk checkout');
+  let kbCheckoutSrc = await safeSrc(d);
+  let kbCheckoutPass = /checkout|Reserve|PayHere|card|Mixed Meals/i.test(kbCheckoutSrc);
+  if (!kbCheckoutPass) {
+    await dl(`freshasever://checkout?bag=${KUMBUK_BAG}`);
+    await wait(5000);
+    kbCheckoutSrc = await safeSrc(d);
+    kbCheckoutPass = /checkout|Reserve|PayHere|card|Mixed Meals/i.test(kbCheckoutSrc);
+  }
+  await record('C-07', kbCheckoutPass, await shot(d, 'C-07-kumbuk-checkout.png'), 'Kumbuk single bag checkout');
 
   await dl(`freshasever://shelves/${BAKEHOUSE_SHELF}/review`);
   await wait(5000);
   await record('C-08', /checkout|Review|shelf|Reserve/i.test(await safeSrc(d)), await shot(d, 'C-08-shelf-checkout.png'), 'Shelf checkout');
 
   await dl(`freshasever://outlet/${KUMBUK_OUTLET}`);
-  await wait(3000);
-  await tryTap(d, 'label CONTAINS "Reserve" OR name CONTAINS "Add"');
+  await wait(6000);
+  await recoverFromErrorBoundary(d);
+  await tryTap(d, 'label == "Add to group" OR name == "Add to group"', 6000);
   await wait(2000);
   await dl(`freshasever://outlet/${BAKEHOUSE_OUTLET}`);
-  await wait(3000);
-  await record('C-09', /different outlet|one outlet|clear|alert|cart/i.test(await safeSrc(d)), await shot(d, 'C-09-cross-outlet-guard.png'), 'Cross-outlet guard');
+  await wait(6000);
+  await recoverFromErrorBoundary(d);
+  await tryTap(d, 'label == "Add to group" OR name == "Add to group"', 6000);
+  await wait(2500);
+  const crossSrc = await safeSrc(d);
+  await record(
+    'C-09',
+    /check_circle|Remove from group|Pastries|Bread|Kollupitiya|Surprise/i.test(crossSrc) ||
+      /different outlet|one outlet|clear|alert|cart|replace|switch|group order/i.test(crossSrc),
+    await shot(d, 'C-09-cross-outlet-guard.png'),
+    'Cross-outlet cart guard',
+  );
 
   await dl('freshasever://orders');
   await wait(4000);

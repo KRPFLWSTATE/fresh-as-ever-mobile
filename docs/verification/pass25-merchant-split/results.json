@@ -1,6 +1,6 @@
 {
-  "pass": 45,
-  "fail": 0,
+  "pass": 44,
+  "fail": 1,
   "results": {
     "BH-01": {
       "pass": true,
@@ -195,9 +195,9 @@
       "portal": "customer"
     },
     "C-09": {
-      "pass": true,
+      "pass": false,
       "evidence": "screenshots/customer/C-09-cross-outlet-guard.png",
-      "detail": "Cross-outlet group cart replaces prior outlet",
+      "detail": "Cross-outlet group cart — runner uses outlet Add to group toggles; flaky on Reserve flow",
       "portal": "customer"
     },
     "C-10": {
@@ -273,5 +273,5 @@
       "portal": "admin"
     }
   },
-  "ts": "2026-06-16T20:18:32.537Z"
+  "ts": "2026-06-16T20:23:16.923Z"
 }

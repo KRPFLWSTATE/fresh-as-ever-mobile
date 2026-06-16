@@ -5,7 +5,7 @@
 
 ## Executive summary
 
-Split the shared `qa.merchant@` login into two isolated merchant accounts (Bakehouse + Kumbuk), backfilled demo images, updated mobile/web auth overrides, and ran the full Appium verification matrix. **Database split is complete and verified.** **2026-06-17 audit closure:** merchant portal **23/23 PASS**; customer **45/45 PASS** after sim rebuild + Metro reload + customer bag visibility retry.
+Split the shared `qa.merchant@` login into two isolated merchant accounts (Bakehouse + Kumbuk), backfilled demo images, updated mobile/web auth overrides, and ran the full Appium verification matrix. **Database split is complete and verified.** **2026-06-17 post-rebuild retry:** merchant **23/23 PASS**; customer **44/45 PASS** (C-09 group-cart guard still flaky).
 
 ## Target accounts (achieved)
 
@@ -130,15 +130,18 @@ Customer portal failures (installed sim build, pre-Metro-reload):
 
 | Step | Result |
 |------|--------|
-| `build_run_sim` on sim `377DAC99` (commit `7afba0d`) | PASS |
-| Supabase live bags BH `...003` (3) + Kumbuk `...013` (5) | PASS |
-| Customer retry C-02, C-03, C-07, C-09 | **All PASS** |
-| Full matrix `results.json` | **45/45 PASS** |
+| `react-native run-ios --udid 377DAC99` (commit `7afba0d`, Metro `:8081`) | PASS |
+| Supabase live bags BH `...003` (3) + Kumbuk `...013` (5) as `qa.customer@` | PASS |
+| Root cause: `isCustomerLoggedIn` false-positive on guest discover | Fixed in `merchantLogin.mjs` |
+| Customer retry C-02, C-03, C-07 | **PASS** (`pass25-customer-only.mjs`) |
+| Customer retry C-09 | **FAIL** (intermittent PASS; runner uses outlet `Add to group` toggles) |
+| Full matrix `results.json` | **44/45 PASS** |
 
-**Root cause:** Debug sim was serving stale JS until Metro reload; customer bag queries in `7afba0d` work when fresh bundle + authenticated customer session. C-09 updated to use **Add to group order** flow (silent cross-outlet cart replace).
+**Root cause (C-02..C-07):** Guest discover exposes `discover.searchInput`, so the runner skipped customer login; RLS blocked bag queries → `0 listed` / `Bag unavailable`. Sim rebuild + login guard + `7afba0d` bag queries resolve outlet/checkout visibility.
 
 ## Known failures / follow-ups
 
 1. ~~KB-04~~ — Fixed in f6510ec.
 2. ~~C-01~~ — Fixed via `assessDiscoverMap` (audit confirmed PASS).
-3. ~~C-02/C-03/C-07/C-09~~ — **Closed 2026-06-17** after sim rebuild + Metro reload + customer retry (45/45).
+3. ~~C-02/C-03/C-07~~ — **Closed 2026-06-17** after sim rebuild + `isCustomerLoggedIn` guest guard.
+4. **C-09** — Cross-outlet group cart Appium step still flaky; outlet `Add to group` toggles in runner.
