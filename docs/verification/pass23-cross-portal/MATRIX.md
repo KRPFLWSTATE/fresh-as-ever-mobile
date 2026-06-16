@@ -21,7 +21,7 @@
 | M20 | 20 | Shelf consistency | `merchant/tabs/shelves` | Today's shelf status vs orders |
 | M-ORD | 20 | Merchant orders | `merchant/orders`, `?view=late-pickups`, `?view=live-monitor` | Pickup windows, lateness labels |
 | M-BAG | regression | Bags tab | `merchant/tabs/bags` | Bags list (untouched) |
-| MO | 21 | Multi-outlet profile | `merchant/profile`, `merchant/outlets/:id/edit` | Outlet roster (4 outlets intentional) |
+| MO | 21 | Multi-outlet profile | `merchant/profile`, `merchant/outlets/:id/edit` | Outlet roster (2 outlets per merchant after Pass 25 split) |
 
 ---
 
@@ -67,7 +67,7 @@
 | M-ORD-02 | Late pickups human labels | pass20 | **PASS** | `screenshots/pass23/merchant/M-ORD-02-late-pickups.png` — no `781M LATE` |
 | M-ORD-03 | Live monitor | cross | **PASS** | `screenshots/pass23/merchant/M-ORD-03-live-monitor.png` |
 | M-BAG-01 | Bags tab regression | regression | **PASS** | `screenshots/pass23/merchant/M-BAG-01-bags-tab.png` |
-| M-PROF-01 | Multi-outlet profile (4 outlets) | MO pass21 | **PASS** (retry) | `screenshots/pass23/merchant/M-PROF-01-retry-multi-outlet.png` + SQL `outlet_count=4` |
+| M-PROF-01 | Multi-outlet profile (2 outlets per merchant) | MO pass21 / Pass 25 split | **PASS** (retry) | `screenshots/pass23/merchant/M-PROF-01-retry-multi-outlet.png` + SQL `outlet_count=2` per account |
 
 ---
 

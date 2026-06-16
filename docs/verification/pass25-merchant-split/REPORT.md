@@ -5,7 +5,7 @@
 
 ## Executive summary
 
-Split the shared `qa.merchant@` login into two isolated merchant accounts (Bakehouse + Kumbuk), backfilled demo images, updated mobile/web auth overrides, and ran the full Appium verification matrix. **Database split is complete and verified.** Post-fix Appium: **44 PASS / 2 FAIL** (KB-04, C-01); cleared BH-02–BH-05 flakiness, BH-13, and KB-10 (prior **37 PASS / 8 FAIL**).
+Split the shared `qa.merchant@` login into two isolated merchant accounts (Bakehouse + Kumbuk), backfilled demo images, updated mobile/web auth overrides, and ran the full Appium verification matrix. **Database split is complete and verified.** **2026-06-17 audit:** merchant portal **23/23 PASS**; customer **41/45 PASS** (4 fails: C-02,C-03,C-07,C-09 — customer bag visibility on installed sim; code fixes committed).
 
 ## Target accounts (achieved)
 
@@ -61,18 +61,74 @@ See `MATRIX.md`. Key screenshots:
 ## Commits
 
 - Web: `5196d1ab` (prior pass)
-- Mobile: `de77cc430` (prior pass) → **`4af86a3`** (logout testID, outlet context, runner stability)
+- Mobile: `de77cc430` → `e1d73d5` → `c15f61a` → `f6510ec` (Pass 25 split + Appium hardening)
 
-## Fixes applied (2026-06-15 QA pass)
+---
 
-- `MerchantSettingsScreen`: `testID="merchant.profile.logOut"` + `accessibilityLabel="Log out"`
-- `MerchantOutletEditorScreen`: `setActiveOutletId(outletId)` on open
-- `lib/merchantLogin.mjs`: settings-tab logout, `isLoggedOut()` (guest discover), overlay cleanup, map marker waits
-- `pass25-merchant-split-runner.mjs`: no spurious Edit-outlets tap, app relaunch, session crash guard, BH-02 assertion tightened
+## Audit — 2026-06-17 (comprehensive double-check)
 
-## Artifacts
+**Auditor:** Cursor agent · **Supabase:** `odkbpeelvcdmlimdflbr` · **Sim:** iPhone 17 Pro `377DAC99` · **Appium:** `:4723`
 
-- `docs/verification/pass25-merchant-split/REPORT.md` (this file)
-- `docs/verification/pass25-merchant-split/MATRIX.md`
-- `docs/verification/pass25-merchant-split/verify-log.jsonl`
-- `docs/verification/pass25-merchant-split/results.json`
+### SQL / Supabase — PASS
+
+| Check | Result |
+|-------|--------|
+| `qa.merchant@` → Bakehouse, 2 outlets | PASS |
+| `qa.kumbuk@` → Kumbuk, 2 outlets | PASS |
+| Distinct `owner_id` (no shared owner) | PASS |
+| `merchant_staff` rows (BH `.099`, KB `.098`) | PASS |
+| Live demo bag `image_url` null count | **0** |
+| Outlet covers (all 4) | **4/4** |
+| Shelf item `image_url_snapshot` null | **0 / 23** |
+| `_ensure_outlet_demo_listings_core` (4 outlets) | Refreshed |
+| Demo pickup refresh + `refresh_demo_staging_inventory` | Refreshed |
+
+### Code consistency — PASS
+
+| Area | Result |
+|------|--------|
+| `AuthContext.tsx` + `middleware.js` recognize `qa.kumbuk@` | PASS |
+| `pass8-CREDENTIALS.md`, `MANUAL-TEST-GUIDE-KAWIN.md`, `CREDENTIALS.md` | PASS |
+| `pass23-cross-portal/MATRIX.md` updated (2 outlets per merchant) | PASS (this audit) |
+| Stale 4-outlet-on-one-login in pass21/pass23 historical docs | Left as historical baseline notes |
+
+### Regression gates
+
+| Gate | Result |
+|------|--------|
+| Mobile `npm run typecheck` | PASS |
+| Mobile `npm test` | PASS (254) |
+| Web `npm run typecheck` | N/A (no script) |
+| pass24-reserve-hang runner | Not re-run (time) |
+
+### Appium full matrix re-run — **41 PASS / 4 FAIL**
+
+Merchant portal (BH + KB): **23/23 PASS** including `merchant.profile.logOut`.
+
+Customer portal failures (installed sim build, pre-Metro-reload):
+
+1. **C-02** — Bakehouse outlet shows **0 listed** bags (prior PASS matched "Rescue" in empty-state text).
+2. **C-03** — Kumbuk outlet **0 listed**; bag deeplink shows **Bag unavailable**.
+3. **C-07** — Kumbuk checkout blocked by bag load failure.
+4. **C-09** — Cross-outlet cart guard not triggered (no bag added).
+
+**C-01** fixed with `assessDiscoverMap` (feed cards). **C-12** fixed with impact heading fallback.
+
+### Fixes shipped in this audit (pending sim rebuild + re-run)
+
+- `OutletDetailScreen.tsx` — align customer bag query with discover visibility rules.
+- `BagDetailScreen.tsx` — customer-visible fetch + `maybeSingle`.
+- `pass25-merchant-split-runner.mjs` — C-01/C-02/C-03/C-07/C-09/C-12 hardening; merge results on `--only` retry.
+- `pass25-retry-failed.mjs` — preserve prior results snapshot.
+- `baseline/P0-04-post-split-merchant-staff.json` — post-split ownership evidence.
+
+### Still blocked
+
+- Customer outlet/bag visibility on **installed sim binary** until app reload from Metro or rebuild.
+- Re-run **C-02, C-03, C-07, C-09** after rebuild to restore 45/45.
+
+## Known failures / follow-ups
+
+1. ~~KB-04~~ — Fixed in f6510ec.
+2. ~~C-01~~ — Fixed via `assessDiscoverMap` (audit confirmed PASS).
+3. **C-02/C-03/C-07/C-09** — Customer bag visibility on outlet detail + bag deeplink; code fix committed, sim rebuild required.

@@ -198,18 +198,19 @@ export function OutletDetailScreen(): React.ReactElement {
         sb
           .from('outlets')
           .select(
-            'id, name, address, landmark, category, cover_image_url, average_rating, total_reviews, trust_score, collection_rate_pct, complaint_rate_pct, no_show_rate_pct, business_hours, merchant:merchants(business_name)',
+            'id, name, address, landmark, category, cover_image_url, average_rating, total_reviews, trust_score, collection_rate_pct, complaint_rate_pct, no_show_rate_pct, business_hours, use_demo_listings, merchant:merchants(business_name, status)',
           )
           .eq('id', outletId)
           .maybeSingle(),
         sb
           .from('rescue_bags')
           .select(
-            'id, title, category, rescue_price, retail_value_estimate, image_url, pickup_start, pickup_end, quantity_remaining, status',
+            'id, title, category, rescue_price, retail_value_estimate, image_url, pickup_start, pickup_end, quantity_remaining, status, seed_demo',
           )
           .eq('outlet_id', outletId)
-          .in('status', ['live', 'draft'])
+          .eq('status', 'live')
           .gt('quantity_remaining', 0)
+          .gt('pickup_end', new Date().toISOString())
           .order('pickup_end', { ascending: true })
           .limit(20),
         isClearanceShelvesEnabled()
@@ -232,6 +233,9 @@ export function OutletDetailScreen(): React.ReactElement {
         setShelves([]);
         setLoading(false);
         return;
+      }
+      if (bagsRes.error) {
+        console.warn('OutletDetailScreen bags', bagsRes.error.message);
       }
       const row = (outletRes.data ?? null) as Record<string, unknown> | null;
       if (!row) {
@@ -297,13 +301,16 @@ export function OutletDetailScreen(): React.ReactElement {
       });
 
       const outletCategory = row.category != null ? String(row.category) : '';
+      const showDemoListings = row.use_demo_listings !== false;
       const showBagsForOutlet =
         canPublishRescueBags(outletCategory);
       const showShelvesForOutlet =
         isClearanceShelvesEnabled() && canPublishClearanceShelves(outletCategory);
 
       const bagRows = showBagsForOutlet
-        ? (((bagsRes.data ?? []) as Record<string, unknown>[]).map((b) => ({
+        ? (((bagsRes.data ?? []) as Record<string, unknown>[])
+            .filter((b) => b.seed_demo !== true || showDemoListings)
+            .map((b) => ({
             id: String(b.id),
             title: String(b.title ?? 'Rescue bag'),
             category: b.category != null ? String(b.category) : null,

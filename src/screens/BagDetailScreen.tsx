@@ -116,8 +116,12 @@ export function BagDetailScreen() {
           `*, outlet:outlets ( id, name, address, landmark, location, is_halal_certified, average_rating, total_reviews, trust_score, collection_rate_pct, complaint_rate_pct, no_show_rate_pct, merchant:merchants(business_name) )`,
         )
         .eq('id', id)
-        .single();
+        .eq('status', 'live')
+        .gt('quantity_remaining', 0)
+        .gt('pickup_end', new Date().toISOString())
+        .maybeSingle();
       if (error) throw error;
+      if (!data) throw new Error('bag_not_found');
       setBag(data as Record<string, unknown>);
     } catch {
       setErr('Bag unavailable.');

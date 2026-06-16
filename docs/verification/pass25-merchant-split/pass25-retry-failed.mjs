@@ -14,6 +14,10 @@ if (!ids.length && fs.existsSync(RESULTS)) {
   ids.push(...Object.entries(results).filter(([, v]) => !v.pass).map(([k]) => k));
 }
 
+const priorResults = fs.existsSync(RESULTS)
+  ? JSON.parse(fs.readFileSync(RESULTS, 'utf8')).results || {}
+  : {};
+
 if (!ids.length) {
   console.log('No failed IDs to retry');
   process.exit(0);

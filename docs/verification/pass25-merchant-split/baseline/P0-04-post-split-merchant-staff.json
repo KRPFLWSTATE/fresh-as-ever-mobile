@@ -1,0 +1,11 @@
+{
+  "audited_at": "2026-06-17",
+  "merchants": [
+    {"id":"00000000-0000-0000-0000-000000000002","business_name":"Bakehouse Colombo","owner_id":"c749c703-1306-437f-afb8-2bf5841f0b66","owner_email":"qa.merchant@freshasever.test","outlet_count":2},
+    {"id":"00000000-0000-0000-0000-000000000012","business_name":"Kumbuk QA Cafe","owner_id":"92d71dfd-fc44-4003-825d-7a9cc2959926","owner_email":"qa.kumbuk@freshasever.test","outlet_count":2}
+  ],
+  "merchant_staff": [
+    {"id":"00000000-0000-0000-0000-000000000099","merchant_id":"00000000-0000-0000-0000-000000000002","user_id":"c749c703-1306-437f-afb8-2bf5841f0b66","role":"owner","status":"active","email":"qa.merchant@freshasever.test"},
+    {"id":"00000000-0000-0000-0000-000000000098","merchant_id":"00000000-0000-0000-0000-000000000012","user_id":"92d71dfd-fc44-4003-825d-7a9cc2959926","role":"owner","status":"active","email":"qa.kumbuk@freshasever.test"}
+  ]
+}
