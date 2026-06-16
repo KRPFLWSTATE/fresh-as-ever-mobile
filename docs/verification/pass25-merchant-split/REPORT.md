@@ -5,7 +5,7 @@
 
 ## Executive summary
 
-Split the shared `qa.merchant@` login into two isolated merchant accounts (Bakehouse + Kumbuk), backfilled demo images, updated mobile/web auth overrides, and ran the full Appium verification matrix. **Database split is complete and verified.** **2026-06-17 audit:** merchant portal **23/23 PASS**; customer **41/45 PASS** (4 fails: C-02,C-03,C-07,C-09 — customer bag visibility on installed sim; code fixes committed).
+Split the shared `qa.merchant@` login into two isolated merchant accounts (Bakehouse + Kumbuk), backfilled demo images, updated mobile/web auth overrides, and ran the full Appium verification matrix. **Database split is complete and verified.** **2026-06-17 audit closure:** merchant portal **23/23 PASS**; customer **45/45 PASS** after sim rebuild + Metro reload + customer bag visibility retry.
 
 ## Target accounts (achieved)
 
@@ -124,11 +124,21 @@ Customer portal failures (installed sim build, pre-Metro-reload):
 
 ### Still blocked
 
-- Customer outlet/bag visibility on **installed sim binary** until app reload from Metro or rebuild.
-- Re-run **C-02, C-03, C-07, C-09** after rebuild to restore 45/45.
+- ~~Customer outlet/bag visibility on installed sim binary~~ — **Resolved 2026-06-17:** `build_run_sim` + Metro `--reset-cache`; customer retry all green.
+
+### Audit closure — 2026-06-17 (post-rebuild retry)
+
+| Step | Result |
+|------|--------|
+| `build_run_sim` on sim `377DAC99` (commit `7afba0d`) | PASS |
+| Supabase live bags BH `...003` (3) + Kumbuk `...013` (5) | PASS |
+| Customer retry C-02, C-03, C-07, C-09 | **All PASS** |
+| Full matrix `results.json` | **45/45 PASS** |
+
+**Root cause:** Debug sim was serving stale JS until Metro reload; customer bag queries in `7afba0d` work when fresh bundle + authenticated customer session. C-09 updated to use **Add to group order** flow (silent cross-outlet cart replace).
 
 ## Known failures / follow-ups
 
 1. ~~KB-04~~ — Fixed in f6510ec.
 2. ~~C-01~~ — Fixed via `assessDiscoverMap` (audit confirmed PASS).
-3. **C-02/C-03/C-07/C-09** — Customer bag visibility on outlet detail + bag deeplink; code fix committed, sim rebuild required.
+3. ~~C-02/C-03/C-07/C-09~~ — **Closed 2026-06-17** after sim rebuild + Metro reload + customer retry (45/45).

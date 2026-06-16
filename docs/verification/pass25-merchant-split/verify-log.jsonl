@@ -435,3 +435,51 @@
 {"ts":"2026-06-16T19:28:31.297Z","wave":"pass25","id":"C-07","tool":"appium.journey","result":"FAIL","detail":"Kumbuk single bag checkout","evidence":"screenshots/customer/C-07-kumbuk-checkout.png","portal":"customer"}
 {"ts":"2026-06-16T19:29:09.747Z","wave":"pass25","id":"C-09","tool":"appium.journey","result":"FAIL","detail":"Cross-outlet cart guard","evidence":"screenshots/customer/C-09-cross-outlet-guard.png","portal":"customer"}
 {"ts":"2026-06-16T19:29:40.001Z","wave":"pass25","id":"C-12","tool":"appium.journey","result":"PASS","detail":"Impact/streak unaffected","evidence":"screenshots/customer/C-12-impact.png","portal":"customer"}
+{"ts":"2026-06-16T19:51:10.617Z","wave":"pass25","id":"C-02","tool":"appium.journey","result":"FAIL","detail":"Bakehouse bag cards","evidence":"screenshots/customer/C-02-bh-discover.png","portal":"customer"}
+{"ts":"2026-06-16T19:51:33.434Z","wave":"pass25","id":"C-03","tool":"appium.journey","result":"FAIL","detail":"Kumbuk bag cards","evidence":"screenshots/customer/C-03-kb-discover.png","portal":"customer"}
+{"ts":"2026-06-16T19:52:35.138Z","wave":"pass25","id":"C-07","tool":"appium.journey","result":"FAIL","detail":"Kumbuk single bag checkout","evidence":"screenshots/customer/C-07-kumbuk-checkout.png","portal":"customer"}
+{"ts":"2026-06-16T19:53:15.394Z","wave":"pass25","id":"C-09","tool":"appium.journey","result":"FAIL","detail":"Cross-outlet cart guard","evidence":"screenshots/customer/C-09-cross-outlet-guard.png","portal":"customer"}
+{"ts":"2026-06-16T19:55:37.869Z","wave":"pass25","tool":"runner.crash","result":"FAIL","detail":"invalid session id: WebDriverError: Session does not exist when running \"source\" with method \"GET\""}
+{"ts":"2026-06-16T20:01:57.396Z","wave":"pass25","tool":"runner.crash","result":"FAIL","detail":"invalid session id: WebDriverError: Session does not exist when running \"source\" with method \"GET\""}
+{"ts":"2026-06-16T20:04:37.171Z","wave":"pass25-customer","id":"C-00","result":"PASS","detail":"Customer login","evidence":"screenshots/customer/C-00-customer-login.png"}
+{"ts":"2026-06-16T20:05:30.262Z","wave":"pass25-retry-four","id":"C-02","tool":"appium.journey","result":"PASS","detail":"Bakehouse bag cards","evidence":"screenshots/customer/C-02-bh-discover.png","portal":"customer"}
+{"ts":"2026-06-16T20:05:33.078Z","wave":"pass25-customer","id":"C-01","result":"FAIL","detail":"0 markers gms=0 chip=n/a","evidence":"screenshots/customer/C-01-discover-map.png"}
+{"ts":"2026-06-16T20:05:49.495Z","wave":"pass25-customer","id":"C-02","result":"PASS","detail":"Bakehouse bag cards","evidence":"screenshots/customer/C-02-bh-discover.png"}
+{"ts":"2026-06-16T20:06:03.732Z","wave":"pass25-customer","id":"C-03","result":"PASS","detail":"Kumbuk bag cards","evidence":"screenshots/customer/C-03-kb-discover.png"}
+{"ts":"2026-06-16T20:06:08.794Z","wave":"pass25-retry-four","id":"C-03","tool":"appium.journey","result":"FAIL","detail":"Kumbuk bag cards","evidence":"screenshots/customer/C-03-kb-discover.png","portal":"customer"}
+{"ts":"2026-06-16T20:06:16.609Z","wave":"pass25-customer","id":"C-04","result":"FAIL","detail":"Pettah shelf-only discover","evidence":"screenshots/customer/C-04-pettah-d03.png"}
+{"ts":"2026-06-16T20:06:30.724Z","wave":"pass25-customer","id":"C-05","result":"PASS","detail":"Galle Face outlet visible","evidence":"screenshots/customer/C-05-galle-face.png"}
+{"ts":"2026-06-16T20:06:44.855Z","wave":"pass25-customer","id":"C-06","result":"PASS","detail":"Group checkout","evidence":"screenshots/customer/C-06-group-checkout.png"}
+{"ts":"2026-06-16T20:06:50.096Z","wave":"pass25-retry-four","id":"C-07","tool":"appium.journey","result":"FAIL","detail":"Kumbuk single bag checkout","evidence":"screenshots/customer/C-07-kumbuk-checkout.png","portal":"customer"}
+{"ts":"2026-06-16T20:07:02.630Z","wave":"pass25-customer","id":"C-07","result":"PASS","detail":"Kumbuk single bag checkout","evidence":"screenshots/customer/C-07-kumbuk-checkout.png"}
+{"ts":"2026-06-16T20:07:16.001Z","wave":"pass25-customer","id":"C-08","result":"PASS","detail":"Shelf checkout","evidence":"screenshots/customer/C-08-shelf-checkout.png"}
+{"ts":"2026-06-16T20:07:27.824Z","wave":"pass25-retry-four","id":"C-09","tool":"appium.journey","result":"FAIL","detail":"Cross-outlet cart guard","evidence":"screenshots/customer/C-09-cross-outlet-guard.png","portal":"customer"}
+{"ts":"2026-06-16T20:07:43.024Z","wave":"pass25-customer","id":"C-09","result":"FAIL","detail":"Cross-outlet cart guard","evidence":"screenshots/customer/C-09-cross-outlet-guard.png"}
+{"ts":"2026-06-16T20:07:52.108Z","wave":"pass25-customer","id":"C-11","result":"PASS","detail":"Orders tab","evidence":"screenshots/customer/C-11-orders-mixed.png"}
+{"ts":"2026-06-16T20:08:01.272Z","wave":"pass25-customer","id":"C-12","result":"PASS","detail":"Impact streak","evidence":"screenshots/customer/C-12-impact.png"}
+{"ts":"2026-06-16T20:11:34.648Z","wave":"pass25-retry-four","id":"C-09","tool":"appium.journey","result":"PASS","detail":"Cross-outlet cart guard","evidence":"screenshots/customer/C-09-cross-outlet-guard.png","portal":"customer"}
+{"ts":"2026-06-16T20:12:51.826Z","wave":"pass25-customer","id":"C-00","result":"PASS","detail":"Customer login","evidence":"screenshots/customer/C-00-customer-login.png"}
+{"ts":"2026-06-16T20:13:45.215Z","wave":"pass25-customer","id":"C-01","result":"FAIL","detail":"0 markers gms=0 chip=n/a","evidence":"screenshots/customer/C-01-discover-map.png"}
+{"ts":"2026-06-16T20:13:54.047Z","wave":"pass25-customer","id":"C-00","result":"FAIL","detail":"Customer login","evidence":"screenshots/customer/C-00-customer-login.png"}
+{"ts":"2026-06-16T20:13:57.092Z","wave":"pass25-customer","id":"C-02","result":"PASS","detail":"Bakehouse bag cards","evidence":"screenshots/customer/C-02-bh-discover.png"}
+{"ts":"2026-06-16T20:14:09.245Z","wave":"pass25-customer","id":"C-03","result":"PASS","detail":"Kumbuk bag cards","evidence":"screenshots/customer/C-03-kb-discover.png"}
+{"ts":"2026-06-16T20:14:18.846Z","wave":"pass25-customer","id":"C-04","result":"PASS","detail":"Pettah shelf-only discover","evidence":"screenshots/customer/C-04-pettah-d03.png"}
+{"ts":"2026-06-16T20:14:20.109Z","wave":"pass25-customer","id":"C-01","result":"FAIL","detail":"0 markers gms=0 chip=n/a","evidence":"screenshots/customer/C-01-discover-map.png"}
+{"ts":"2026-06-16T20:14:28.743Z","wave":"pass25-customer","id":"C-05","result":"PASS","detail":"Galle Face outlet visible","evidence":"screenshots/customer/C-05-galle-face.png"}
+{"ts":"2026-06-16T20:14:31.489Z","wave":"pass25-customer","id":"C-02","result":"PASS","detail":"Bakehouse bag cards","evidence":"screenshots/customer/C-02-bh-discover.png"}
+{"ts":"2026-06-16T20:14:39.958Z","wave":"pass25-customer","id":"C-06","result":"PASS","detail":"Group checkout","evidence":"screenshots/customer/C-06-group-checkout.png"}
+{"ts":"2026-06-16T20:14:52.960Z","wave":"pass25-customer","id":"C-03","result":"FAIL","detail":"Kumbuk bag cards","evidence":"screenshots/customer/C-03-kb-discover.png"}
+{"ts":"2026-06-16T20:14:56.147Z","wave":"pass25-customer","id":"C-07","result":"PASS","detail":"Kumbuk single bag checkout","evidence":"screenshots/customer/C-07-kumbuk-checkout.png"}
+{"ts":"2026-06-16T20:15:02.327Z","wave":"pass25-customer","id":"C-04","result":"FAIL","detail":"Pettah shelf-only discover","evidence":"screenshots/customer/C-04-pettah-d03.png"}
+{"ts":"2026-06-16T20:15:06.830Z","wave":"pass25-customer","id":"C-08","result":"PASS","detail":"Shelf checkout","evidence":"screenshots/customer/C-08-shelf-checkout.png"}
+{"ts":"2026-06-16T20:15:11.788Z","wave":"pass25-customer","id":"C-05","result":"FAIL","detail":"Galle Face outlet visible","evidence":"screenshots/customer/C-05-galle-face.png"}
+{"ts":"2026-06-16T20:15:22.190Z","wave":"pass25-customer","id":"C-06","result":"FAIL","detail":"Group checkout","evidence":"screenshots/customer/C-06-group-checkout.png"}
+{"ts":"2026-06-16T20:15:37.793Z","wave":"pass25-customer","id":"C-09","result":"PASS","detail":"Cross-outlet cart guard","evidence":"screenshots/customer/C-09-cross-outlet-guard.png"}
+{"ts":"2026-06-16T20:15:47.055Z","wave":"pass25-customer","id":"C-11","result":"PASS","detail":"Orders tab","evidence":"screenshots/customer/C-11-orders-mixed.png"}
+{"ts":"2026-06-16T20:15:53.254Z","wave":"pass25-customer","id":"C-07","result":"FAIL","detail":"Kumbuk single bag checkout","evidence":"screenshots/customer/C-07-kumbuk-checkout.png"}
+{"ts":"2026-06-16T20:15:54.865Z","wave":"pass25-customer","id":"C-12","result":"FAIL","detail":"Impact streak","evidence":"screenshots/customer/C-12-impact.png"}
+{"ts":"2026-06-16T20:16:03.703Z","wave":"pass25-customer","id":"C-08","result":"FAIL","detail":"Shelf checkout","evidence":"screenshots/customer/C-08-shelf-checkout.png"}
+{"ts":"2026-06-16T20:16:38.991Z","wave":"pass25-customer","id":"C-09","result":"FAIL","detail":"Cross-outlet cart guard","evidence":"screenshots/customer/C-09-cross-outlet-guard.png"}
+{"ts":"2026-06-16T20:16:48.396Z","wave":"pass25-customer","id":"C-11","result":"FAIL","detail":"Orders tab","evidence":"screenshots/customer/C-11-orders-mixed.png"}
+{"ts":"2026-06-16T20:16:56.488Z","wave":"pass25-customer","id":"C-12","result":"FAIL","detail":"Impact streak","evidence":"screenshots/customer/C-12-impact.png"}
+{"ts":"2026-06-16T20:18:32.526Z","wave":"pass25","tool":"runner.crash","result":"FAIL","detail":"invalid session id: WebDriverError: Session does not exist when running \"source\" with method \"GET\""}

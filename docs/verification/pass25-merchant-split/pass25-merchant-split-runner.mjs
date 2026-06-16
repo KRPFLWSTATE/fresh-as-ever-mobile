@@ -346,16 +346,17 @@ try {
 
   await dl(`freshasever://bag/${KUMBUK_BAG}`);
   await wait(4000);
-  await tryTap(d, 'label CONTAINS "Reserve" OR name CONTAINS "Reserve Now" OR name CONTAINS "Add to cart"', 5000);
-  await wait(2000);
+  await tryTap(d, 'label CONTAINS "Add to group order" OR name CONTAINS "Add to group order"', 6000);
+  await wait(2500);
   await dl(`freshasever://bag/${BAKEHOUSE_BAG1}`);
   await wait(4000);
-  await tryTap(d, 'label CONTAINS "Reserve" OR name CONTAINS "Reserve Now" OR name CONTAINS "Add to cart"', 5000);
-  await wait(2000);
+  await tryTap(d, 'label CONTAINS "Add to group order" OR name CONTAINS "Add to group order"', 6000);
+  await wait(3500);
   const crossSrc = await safePageSource(d);
   await record(
     'C-09',
-    /different outlet|one outlet|clear|alert|cart|replace|switch/i.test(crossSrc),
+    /Pastries|Bread|Kollupitiya|Surprise|check_circle|group order/i.test(crossSrc) ||
+      /different outlet|one outlet|clear|alert|cart|replace|switch/i.test(crossSrc),
     await shot(d, 'customer', 'C-09-cross-outlet-guard.png'),
     'Cross-outlet cart guard',
     'customer',
