@@ -6,3 +6,11 @@
 {"ts":"2026-06-16T20:20:46.755Z","wave":"pass24","id":"P24-02","result":"FAIL","evidence":"screenshots/P24-02-group-card-result.png"}
 {"ts":"2026-06-16T20:21:32.018Z","wave":"pass24","id":"P24-03","result":"FAIL","evidence":"screenshots/P24-03-cash-result.png"}
 {"ts":"2026-06-16T20:22:21.044Z","wave":"pass24","id":"P24-04","result":"FAIL","evidence":"screenshots/P24-04-shelf-card-result.png"}
+{"ts":"2026-06-17T17:01:22.201Z","wave":"pass24","id":"P24-01","result":"FAIL","evidence":"screenshots/P24-01-single-card-result.png"}
+{"ts":"2026-06-17T17:02:01.681Z","wave":"pass24","id":"P24-02","result":"PASS","evidence":"screenshots/P24-02-group-card-result.png"}
+{"ts":"2026-06-17T17:02:48.494Z","wave":"pass24","id":"P24-03","result":"FAIL","evidence":"screenshots/P24-03-cash-result.png"}
+{"ts":"2026-06-17T17:03:39.619Z","wave":"pass24","id":"P24-04","result":"PASS","evidence":"screenshots/P24-04-shelf-card-result.png"}
+{"ts":"2026-06-17T17:07:41.843Z","wave":"pass24","id":"P24-01","result":"PASS","evidence":"screenshots/P24-01-single-card-result.png"}
+{"ts":"2026-06-17T17:08:31.569Z","wave":"pass24","id":"P24-02","result":"FAIL","evidence":"screenshots/P24-02-group-card-result.png"}
+{"ts":"2026-06-17T17:09:28.382Z","wave":"pass24","id":"P24-03","result":"FAIL","evidence":"screenshots/P24-03-cash-result.png"}
+{"ts":"2026-06-17T17:10:30.693Z","wave":"pass24","id":"P24-04","result":"FAIL","evidence":"screenshots/P24-04-shelf-card-result.png"}

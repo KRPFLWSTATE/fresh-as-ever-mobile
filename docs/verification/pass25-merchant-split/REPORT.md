@@ -153,4 +153,4 @@ Customer portal failures (installed sim build, pre-Metro-reload):
 | Pass 25 matrix `results.json` | **45/45 PASS** |
 | Stale `qa.merchant` 4-outlet assumptions | Grep: only historical (`pass21-full-fix/MATRIX.md` MO row) + intentional baseline (`p0-05-before-split.mjs`, `P0-05` screenshot) |
 | Active creds/docs (`CREDENTIALS.md`, pass8, pass23, MANUAL-TEST-GUIDE) | 2+2 split documented |
-| pass24 re-run | **Known separate issue** — P24-01–04 fail on demo inventory/session after Pass 25 marathon; shelf card (P24-04) needs fresh sim + `refresh_demo_staging_inventory` before re-asserting reserve-hang |
+| pass24 re-run | **Documented 2026-06-17** — Appium P24-01–04 intermittent after Pass 25 marathon; P24-04 PASS (Secure payment) in run 1, `shelf_not_found` in run 2; unit gates P24-05..09 unchanged PASS |

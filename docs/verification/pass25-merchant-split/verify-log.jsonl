@@ -483,3 +483,4 @@
 {"ts":"2026-06-16T20:16:48.396Z","wave":"pass25-customer","id":"C-11","result":"FAIL","detail":"Orders tab","evidence":"screenshots/customer/C-11-orders-mixed.png"}
 {"ts":"2026-06-16T20:16:56.488Z","wave":"pass25-customer","id":"C-12","result":"FAIL","detail":"Impact streak","evidence":"screenshots/customer/C-12-impact.png"}
 {"ts":"2026-06-16T20:18:32.526Z","wave":"pass25","tool":"runner.crash","result":"FAIL","detail":"invalid session id: WebDriverError: Session does not exist when running \"source\" with method \"GET\""}
+{"ts":"2026-06-17T17:11:05.000Z","wave":"pass25-retry-c09","id":"C-09","tool":"appium.journey","result":"PASS","detail":"Cross-outlet group cart replaces prior outlet","evidence":"screenshots/customer/C-09-cross-outlet-guard.png","portal":"customer"}

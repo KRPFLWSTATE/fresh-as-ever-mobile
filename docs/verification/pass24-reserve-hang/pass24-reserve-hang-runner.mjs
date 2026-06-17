@@ -12,6 +12,12 @@ import {
   loginCustomer,
   recoverFromErrorBoundary,
   tryTap as sharedTryTap,
+  relaunchApp,
+  customerLogout,
+  dismissSavePassword,
+  dismissSystemPrompts,
+  dismissOverlays,
+  wait,
 } from '../pass25-merchant-split/lib/merchantLogin.mjs';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
@@ -28,7 +34,6 @@ const BAKEHOUSE_SHELF = '00000000-0000-0000-0000-000000000201';
 const SHELF_MILK = '00000000-0000-0000-0000-000000000211';
 
 const R = {};
-const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const dl = (u) => {
   execSync(`xcrun simctl openurl ${UDID} "${u}"`, { stdio: 'pipe' });
@@ -135,6 +140,27 @@ async function assertReserveSettled(d) {
   };
 }
 
+async function dismissSecurePayment(d) {
+  await tryTap(d, 'name == "Close" OR label == "Close"', 3000);
+  await dismissOverlays(d);
+  await wait(1000);
+}
+
+async function ensureCheckoutFromBag(d, bagId) {
+  await dl(`freshasever://bag/${bagId}`);
+  await wait(5000);
+  await recoverFromErrorBoundary(d);
+  const bagSrc = await d.getPageSource().catch(() => '');
+  if (/Bag unavailable/i.test(bagSrc)) {
+    await dl(`freshasever://checkout?bag=${bagId}`);
+    await wait(5000);
+    await recoverFromErrorBoundary(d);
+    return;
+  }
+  await sharedTryTap(d, 'label CONTAINS "Reserve" OR name CONTAINS "Reserve Now" OR name CONTAINS "Reserve bag"', 6000);
+  await wait(4000);
+}
+
 async function tapReserveNow(d) {
   if (await tapTestId(d, 'checkout.reserveNow', 5000)) return true;
   return tryTap(d, 'label CONTAINS "Reserve Now" OR label CONTAINS "Reserve 2 bags"');
@@ -156,16 +182,18 @@ async function main() {
   });
 
   try {
+    await relaunchApp(d);
+    await wait(3000);
+    await customerLogout(d).catch(() => {});
+    await dismissSystemPrompts(d);
     const loggedIn = await loginCustomer(d);
+    await dismissSavePassword(d);
+    await dismissSystemPrompts(d);
     R['P24-login'] = { pass: loggedIn };
     if (!loggedIn) throw new Error('Customer login failed');
 
     // P24-01 Single bag card (Kumbuk Mixed Meals)
-    await dl(`freshasever://bag/${KUMBUK_MIXED_BAG}`);
-    await wait(5000);
-    await recoverFromErrorBoundary(d);
-    await sharedTryTap(d, 'label CONTAINS "Reserve" OR name CONTAINS "Reserve Now" OR name CONTAINS "Reserve bag"', 6000);
-    await wait(4000);
+    await ensureCheckoutFromBag(d, KUMBUK_MIXED_BAG);
     await scrollDown(d, 1);
     const p01Start = await shot(d, 'P24-01-single-checkout-before-reserve.png');
     await tapReserveNow(d);
@@ -193,6 +221,7 @@ async function main() {
       detail: 'Group card reserve settles',
     };
     log({ id: 'P24-02', result: R['P24-02'].pass ? 'PASS' : 'FAIL', evidence: p02End });
+    await dismissSecurePayment(d);
 
     // P24-03 Cash when eligible (qa customer has prior pickups)
     await dl(`freshasever://checkout?draft=${BAKEHOUSE_BAG1}`);
@@ -213,6 +242,7 @@ async function main() {
       detail: 'Cash-at-pickup path completes or shows actionable UI',
     };
     log({ id: 'P24-03', result: R['P24-03'].pass ? 'PASS' : 'FAIL', evidence: p03End });
+    await dismissSecurePayment(d);
 
     // P24-04 Shelf checkout (review screen → card reserve hang regression)
     await dl(`freshasever://shelves/${BAKEHOUSE_SHELF}/review`);

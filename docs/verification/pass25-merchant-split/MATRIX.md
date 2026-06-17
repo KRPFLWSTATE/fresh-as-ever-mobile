@@ -30,7 +30,7 @@
 **Fixes applied (2026-06-17 audit + post-rebuild retry):**
 - `OutletDetailScreen` / `BagDetailScreen`: customer-visible bag query alignment.
 - `lib/merchantLogin.mjs`: `isCustomerLoggedIn` rejects guest discover (`discover.guestSignInCta`); Save Password dismissal unchanged.
-- Runners: stricter C-02/C-03; C-09 uses outlet `Add to group` toggles; merge-on-retry results.
+- Runners: stricter C-02/C-03; C-09 uses outlet `Add to group` toggles; `pass25-c09-only.mjs` hardened with `relaunchApp` + customer login; merge-on-retry results.
 - Sim rebuild: `npx react-native run-ios --udid 377DAC99… --no-packager` + Metro `:8081` reload.
 
 **Blocked / follow-up:** None — C-09 green via outlet `Add to group` toggles + dedicated retry runner.

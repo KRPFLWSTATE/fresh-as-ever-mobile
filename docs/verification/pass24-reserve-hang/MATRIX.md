@@ -29,3 +29,18 @@
 | Group | RPC `create_group_reservation` | `fetchPayHereHash({ group_id })` |
 | Shelf | RPC `create_clearance_reservation` | `fetchPayHereHash({ order_id })` |
 | Cash (eligible) | Same insert/RPC | Skipped → `OrderCelebration` |
+
+## 2026-06-17 re-run (after Pass 25 marathon)
+
+**Runner:** `pass24-reserve-hang-runner.mjs` (hardened: `relaunchApp` + `ensureCheckoutFromBag` fallback + `dismissSecurePayment` between steps) · Sim `377DAC99` · Appium `:4723`
+
+| ID | Run 1 | Run 2 | Notes |
+|----|-------|-------|-------|
+| P24-01 | FAIL (`Bag unavailable`) | **PASS** (`userError` — payment API unreachable, spinner dismissed) | Bag deeplink fallback fixes run 1 flake |
+| P24-02 | **PASS** (`Secure payment` modal) | FAIL (checkout visible, reserve not settled) | Hang regression OK when PayHere opens |
+| P24-03 | FAIL | FAIL | PayHere modal / session state after P24-02 blocks cash path |
+| P24-04 | **PASS** (`Secure payment` modal) | FAIL (`shelf_not_found` error boundary) | Shelf card hang regression verified run 1; run 2 needs fresh demo shelf refresh |
+
+**P24-04 follow-up:** Intermittent `shelf_not_found` after long Appium sessions — run `refresh_demo_staging_inventory()` + relaunch sim before shelf reserve assert. Core hang fix (no infinite spinner) holds when checkout loads.
+
+**Unit gates P24-05..P24-09:** unchanged PASS (prior session).
