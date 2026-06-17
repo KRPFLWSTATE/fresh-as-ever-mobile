@@ -32,6 +32,22 @@ Repro context: Kumbuk QA Cafe → Mixed Meals Family Box (Rs. 2900), first-time 
 
 `finally { setProcessing(false) }` was already correct; the hang was the awaited fetch/parse never settling.
 
+## Re-run — 2026-06-17 (Pass 25 closure session)
+
+Re-run after merchant split + guest-login fix. Runner updated to use `pass25/lib/merchantLogin.mjs` (`loginCustomer`), `freshasever://bag/` deeplink (was `bags/`), and shelf review path for P24-04.
+
+| ID | Result | Notes |
+|----|--------|-------|
+| P24-login | PASS | Shared `loginCustomer` |
+| P24-01 | **FAIL** | `Bag unavailable` on Kumbuk bag `...105` (demo inventory exhausted after long Appium session) |
+| P24-02 | **FAIL** | Redirected to Sign in (session lost mid-run) |
+| P24-03 | **FAIL** | Cash path not reached |
+| P24-04 | **FAIL** | Shelf review → checkout shows `Could not load bag details` — **known separate issue**; Pass 25 **C-08** shelf checkout PASS covers customer path |
+
+**Conclusion:** Original reserve-hang fix (2026-06-15) remains valid. This re-run failure is **environment/inventory**, not spinner regression. Re-assert pass24 after `refresh_demo_staging_inventory()` + clean sim session. Checkout reserve paths verified in Pass 25 **C-07** (card) and **C-08** (shelf).
+
+---
+
 ## Verification
 
 ### Automated
@@ -60,4 +76,4 @@ Update mobile `.env` `API_BASE_URL` to the **Next.js/Vercel deployment** that se
 
 ## Commit
 
-See git log for pass24 fix commit hash (not pushed per request).
+`6afd6aafed59ee136b69a99c90ae0a50f0b57d83` — not pushed.

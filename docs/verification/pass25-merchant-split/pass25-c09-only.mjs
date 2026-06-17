@@ -11,9 +11,12 @@ import {
   dl,
   tryTap,
   loginCustomer,
+  customerLogout,
+  relaunchApp,
+  dismissSavePassword,
+  dismissSystemPrompts,
   recoverFromErrorBoundary,
   safePageSource,
-  isCustomerLoggedIn,
 } from './lib/merchantLogin.mjs';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
@@ -36,10 +39,14 @@ const d = await remote({
 });
 
 try {
-  if (!(await isCustomerLoggedIn(d))) {
-    const loggedIn = await loginCustomer(d);
-    if (!loggedIn) throw new Error('customer login failed');
-  }
+  await relaunchApp(d);
+  await wait(3000);
+  await customerLogout(d).catch(() => {});
+  await dismissSystemPrompts(d);
+  const loggedIn = await loginCustomer(d);
+  await dismissSavePassword(d);
+  await dismissSystemPrompts(d);
+  if (!loggedIn) throw new Error('customer login failed');
 
   await dl(`freshasever://outlet/${KUMBUK_OUTLET}`);
   await wait(6000);

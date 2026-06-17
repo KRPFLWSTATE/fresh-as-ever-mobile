@@ -25,8 +25,13 @@ if (!ids.length) {
 
 console.log('Retry IDs:', ids.join(', '));
 const customerOnly = ids.every((id) => /^C-/.test(id));
-const runner = customerOnly
-  ? path.join(ROOT, 'pass25-retry-customer-four.mjs')
-  : path.join(ROOT, 'pass25-merchant-split-runner.mjs');
-const env = customerOnly ? process.env : { ...process.env, ONLY_IDS: ids.join(',') };
+const runner =
+  ids.length === 1 && ids[0] === 'C-09'
+    ? path.join(ROOT, 'pass25-c09-only.mjs')
+    : customerOnly
+      ? path.join(ROOT, 'pass25-retry-customer-four.mjs')
+      : path.join(ROOT, 'pass25-merchant-split-runner.mjs');
+const env = customerOnly && runner.endsWith('pass25-retry-customer-four.mjs')
+  ? { ...process.env, ONLY_IDS: ids.join(',') }
+  : process.env;
 execSync(`node ${runner}`, { stdio: 'inherit', env });

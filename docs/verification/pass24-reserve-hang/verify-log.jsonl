@@ -2,3 +2,7 @@
 {"ts":"2026-06-14T21:29:40.123Z","wave":"pass24","id":"P24-02","result":"PASS","evidence":"screenshots/P24-02-group-card-result.png"}
 {"ts":"2026-06-14T21:30:16.373Z","wave":"pass24","id":"P24-03","result":"PASS","evidence":"screenshots/P24-03-cash-result.png"}
 {"ts":"2026-06-14T21:31:04.037Z","wave":"pass24","id":"P24-04","result":"PASS","evidence":"screenshots/P24-04-shelf-card-result.png"}
+{"ts":"2026-06-16T20:19:56.551Z","wave":"pass24","id":"P24-01","result":"FAIL","evidence":"screenshots/P24-01-single-card-result.png"}
+{"ts":"2026-06-16T20:20:46.755Z","wave":"pass24","id":"P24-02","result":"FAIL","evidence":"screenshots/P24-02-group-card-result.png"}
+{"ts":"2026-06-16T20:21:32.018Z","wave":"pass24","id":"P24-03","result":"FAIL","evidence":"screenshots/P24-03-cash-result.png"}
+{"ts":"2026-06-16T20:22:21.044Z","wave":"pass24","id":"P24-04","result":"FAIL","evidence":"screenshots/P24-04-shelf-card-result.png"}

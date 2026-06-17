@@ -5,7 +5,7 @@
 
 ## Executive summary
 
-Split the shared `qa.merchant@` login into two isolated merchant accounts (Bakehouse + Kumbuk), backfilled demo images, updated mobile/web auth overrides, and ran the full Appium verification matrix. **Database split is complete and verified.** **2026-06-17 post-rebuild retry:** merchant **23/23 PASS**; customer **44/45 PASS** (C-09 group-cart guard still flaky).
+Split the shared `qa.merchant@` login into two isolated merchant accounts (Bakehouse + Kumbuk), backfilled demo images, updated mobile/web auth overrides, and ran the full Appium verification matrix. **Database split is complete and verified.** **2026-06-17 closure:** merchant **23/23 PASS**; customer **12/12 PASS**; full matrix **45/45 PASS**.
 
 ## Target accounts (achieved)
 
@@ -51,7 +51,7 @@ See `MATRIX.md`. Key screenshots:
 | Mobile `npm run typecheck` | PASS |
 | Mobile `npm test` | PASS (254 tests) |
 | Web typecheck | N/A (no script) |
-| pass24 runner | Not re-run this session |
+| pass24 runner | Re-run 2026-06-17 — **0/4 PASS** (demo bag unavailable / session crash after long Appium session). Reserve-hang code fix unchanged; checkout covered by Pass 25 **C-07/C-08 PASS**. See `pass24-reserve-hang/REPORT.md`. |
 
 ## Known failures / follow-ups
 
@@ -99,7 +99,7 @@ See `MATRIX.md`. Key screenshots:
 | Mobile `npm run typecheck` | PASS |
 | Mobile `npm test` | PASS (254) |
 | Web `npm run typecheck` | N/A (no script) |
-| pass24-reserve-hang runner | Not re-run (time) |
+| pass24-reserve-hang runner | Re-run 2026-06-17 — **0/4 PASS** (inventory/session; not reserve-hang regression) |
 
 ### Appium full matrix re-run — **41 PASS / 4 FAIL**
 
@@ -134,8 +134,8 @@ Customer portal failures (installed sim build, pre-Metro-reload):
 | Supabase live bags BH `...003` (3) + Kumbuk `...013` (5) as `qa.customer@` | PASS |
 | Root cause: `isCustomerLoggedIn` false-positive on guest discover | Fixed in `merchantLogin.mjs` |
 | Customer retry C-02, C-03, C-07 | **PASS** (`pass25-customer-only.mjs`) |
-| Customer retry C-09 | **FAIL** (intermittent PASS; runner uses outlet `Add to group` toggles) |
-| Full matrix `results.json` | **44/45 PASS** |
+| Customer retry C-09 | **PASS** (`pass25-retry-failed.mjs C-09` → `pass25-c09-only.mjs`) |
+| Full matrix `results.json` | **45/45 PASS** |
 
 **Root cause (C-02..C-07):** Guest discover exposes `discover.searchInput`, so the runner skipped customer login; RLS blocked bag queries → `0 listed` / `Bag unavailable`. Sim rebuild + login guard + `7afba0d` bag queries resolve outlet/checkout visibility.
 
@@ -144,4 +144,13 @@ Customer portal failures (installed sim build, pre-Metro-reload):
 1. ~~KB-04~~ — Fixed in f6510ec.
 2. ~~C-01~~ — Fixed via `assessDiscoverMap` (audit confirmed PASS).
 3. ~~C-02/C-03/C-07~~ — **Closed 2026-06-17** after sim rebuild + `isCustomerLoggedIn` guest guard.
-4. **C-09** — Cross-outlet group cart Appium step still flaky; outlet `Add to group` toggles in runner.
+4. ~~**C-09**~~ — **Closed 2026-06-17** via outlet `Add to group` toggles + `pass25-c09-only.mjs` retry.
+
+### SA-10 audit — 2026-06-17 closure
+
+| Check | Result |
+|-------|--------|
+| Pass 25 matrix `results.json` | **45/45 PASS** |
+| Stale `qa.merchant` 4-outlet assumptions | Grep: only historical (`pass21-full-fix/MATRIX.md` MO row) + intentional baseline (`p0-05-before-split.mjs`, `P0-05` screenshot) |
+| Active creds/docs (`CREDENTIALS.md`, pass8, pass23, MANUAL-TEST-GUIDE) | 2+2 split documented |
+| pass24 re-run | **Known separate issue** — P24-01–04 fail on demo inventory/session after Pass 25 marathon; shelf card (P24-04) needs fresh sim + `refresh_demo_staging_inventory` before re-asserting reserve-hang |

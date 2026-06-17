@@ -8,6 +8,11 @@ import path from 'node:path';
 import { execSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { remote } from './node_modules/webdriverio/build/index.js';
+import {
+  loginCustomer,
+  recoverFromErrorBoundary,
+  tryTap as sharedTryTap,
+} from '../pass25-merchant-split/lib/merchantLogin.mjs';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const SS = path.join(ROOT, 'screenshots');
@@ -27,6 +32,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const dl = (u) => {
   execSync(`xcrun simctl openurl ${UDID} "${u}"`, { stdio: 'pipe' });
+  execSync(`xcrun simctl location ${UDID} set 6.9147,79.8655`, { stdio: 'pipe' });
   return wait(3200);
 };
 
@@ -79,74 +85,29 @@ async function tapTestId(d, testId, timeout = 8000) {
 }
 
 async function scrollDown(d, times = 1) {
-  const { width, height } = await d.getWindowSize();
-  for (let i = 0; i < times; i++) {
-    await d.performActions([
-      {
-        type: 'pointer',
-        id: 's1',
-        parameters: { pointerType: 'touch' },
-        actions: [
-          { type: 'pointerMove', duration: 0, x: Math.floor(width / 2), y: Math.floor(height * 0.72) },
-          { type: 'pointerDown', button: 0 },
-          { type: 'pause', duration: 100 },
-          { type: 'pointerMove', duration: 500, x: Math.floor(width / 2), y: Math.floor(height * 0.25) },
-          { type: 'pointerUp', button: 0 },
-        ],
-      },
-    ]);
-    await d.releaseActions();
-    await wait(400);
+  try {
+    const { width, height } = await d.getWindowSize();
+    for (let i = 0; i < times; i++) {
+      await d.performActions([
+        {
+          type: 'pointer',
+          id: 's1',
+          parameters: { pointerType: 'touch' },
+          actions: [
+            { type: 'pointerMove', duration: 0, x: Math.floor(width / 2), y: Math.floor(height * 0.72) },
+            { type: 'pointerDown', button: 0 },
+            { type: 'pause', duration: 100 },
+            { type: 'pointerMove', duration: 500, x: Math.floor(width / 2), y: Math.floor(height * 0.25) },
+            { type: 'pointerUp', button: 0 },
+          ],
+        },
+      ]);
+      await d.releaseActions();
+      await wait(400);
+    }
+  } catch {
+    /* session may have ended */
   }
-}
-
-async function isCustomerLoggedIn(d) {
-  const src = await d.getPageSource().catch(() => '');
-  return (
-    src.includes('discover.searchInput') ||
-    (src.includes('Discover') && !src.includes('discover.guestSignInCta') && !src.includes('Sign in to see'))
-  );
-}
-
-async function emailLogin(d) {
-  execSync(`xcrun simctl location ${UDID} set 6.9147,79.8655`, { stdio: 'pipe' });
-  await dl('freshasever://login?portal=customer');
-  await wait(2500);
-  await tryTap(d, 'name CONTAINS "Use email" OR label CONTAINS "Use email"');
-  await wait(800);
-
-  const emailEl = await d.$('~login.email');
-  if (await emailEl.isDisplayed().catch(() => false)) {
-    await emailEl.click();
-    await emailEl.clearValue().catch(() => {});
-    await emailEl.setValue('qa.customer@freshasever.test');
-  }
-  await dismissKeyboard(d);
-
-  const passEl = await d.$('~login.password');
-  if (await passEl.isDisplayed().catch(() => false)) {
-    await passEl.click();
-    await passEl.clearValue().catch(() => {});
-    await passEl.setValue('TempCustomer#12345');
-  }
-  await dismissKeyboard(d);
-
-  const signIn = await d.$('~login.signIn');
-  if (await signIn.isDisplayed().catch(() => false)) await signIn.click();
-  else await tryTap(d, 'label CONTAINS "Sign in"');
-
-  for (let i = 0; i < 20; i++) {
-    await wait(1500);
-    if (await isCustomerLoggedIn(d)) return true;
-  }
-  return false;
-}
-
-async function customerLogin(d) {
-  await dl('freshasever://discover');
-  await wait(2500);
-  if (await isCustomerLoggedIn(d)) return true;
-  return emailLogin(d);
 }
 
 /** Reserve button should not stay spinner-only after payment API attempt. */
@@ -195,14 +156,15 @@ async function main() {
   });
 
   try {
-    const loggedIn = await customerLogin(d);
+    const loggedIn = await loginCustomer(d);
     R['P24-login'] = { pass: loggedIn };
     if (!loggedIn) throw new Error('Customer login failed');
 
     // P24-01 Single bag card (Kumbuk Mixed Meals)
-    await dl(`freshasever://bags/${KUMBUK_MIXED_BAG}`);
-    await wait(3500);
-    await tryTap(d, 'label CONTAINS "Reserve Now"');
+    await dl(`freshasever://bag/${KUMBUK_MIXED_BAG}`);
+    await wait(5000);
+    await recoverFromErrorBoundary(d);
+    await sharedTryTap(d, 'label CONTAINS "Reserve" OR name CONTAINS "Reserve Now" OR name CONTAINS "Reserve bag"', 6000);
     await wait(4000);
     await scrollDown(d, 1);
     const p01Start = await shot(d, 'P24-01-single-checkout-before-reserve.png');
@@ -252,12 +214,10 @@ async function main() {
     };
     log({ id: 'P24-03', result: R['P24-03'].pass ? 'PASS' : 'FAIL', evidence: p03End });
 
-    // P24-04 Shelf checkout
-    const shelfPayload = encodeURIComponent(
-      JSON.stringify([{ shelf_item_id: SHELF_MILK, quantity: 1 }]),
-    );
-    await dl(`freshasever://checkout?shelf=${BAKEHOUSE_SHELF}&shelfItems=${shelfPayload}`);
-    await wait(4500);
+    // P24-04 Shelf checkout (review screen → card reserve hang regression)
+    await dl(`freshasever://shelves/${BAKEHOUSE_SHELF}/review`);
+    await wait(5000);
+    await recoverFromErrorBoundary(d);
     await scrollDown(d, 2);
     await tapReserveNow(d);
     const p04Settle = await assertReserveSettled(d);

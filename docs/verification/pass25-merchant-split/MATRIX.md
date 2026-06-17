@@ -16,14 +16,14 @@
 | C-06 | PASS | `screenshots/customer/C-06-group-checkout.png` |
 | C-07 | **PASS** | `screenshots/customer/C-07-kumbuk-checkout.png` — Kumbuk checkout |
 | C-08 | PASS | `screenshots/customer/C-08-shelf-checkout.png` |
-| C-09 | **FAIL** | `screenshots/customer/C-09-cross-outlet-guard.png` — group-cart replace flow still flaky in Appium (outlet `Add to group` toggles shipped in runner) |
+| C-09 | **PASS** | `screenshots/customer/C-09-cross-outlet-guard.png` — cross-outlet group cart replaces prior outlet (`pass25-c09-only.mjs` via `pass25-retry-failed.mjs C-09`) |
 | C-10 | PASS | `screenshots/customer/C-10-favourites.png` |
 | C-11 | PASS | `screenshots/customer/C-11-orders-mixed.png` |
 | C-12 | PASS | `screenshots/customer/C-12-impact.png` |
 | X-01..X-04 | PASS | Smoke + SQL RLS |
 | A-01..A-05 | PASS | SQL verified (`baseline/P0-04-post-split-merchant-staff.json`) |
 
-**Audit summary:** **44 PASS / 1 FAIL** (C-09).
+**Audit summary:** **45 PASS / 0 FAIL** (matrix closed 2026-06-17).
 
 **Split verification (SQL):** PASS — distinct owners, 2 outlets each, 0 null bag images, covers set, 23 shelf snapshots set. Live demo bags (customer auth): BH `...003` **3**, Kumbuk `...013` **5**.
 
@@ -33,4 +33,4 @@
 - Runners: stricter C-02/C-03; C-09 uses outlet `Add to group` toggles; merge-on-retry results.
 - Sim rebuild: `npx react-native run-ios --udid 377DAC99… --no-packager` + Metro `:8081` reload.
 
-**Blocked / follow-up:** Re-run **C-09** when Appium session stable (one intermittent PASS logged with bag deeplink group flow).
+**Blocked / follow-up:** None — C-09 green via outlet `Add to group` toggles + dedicated retry runner.

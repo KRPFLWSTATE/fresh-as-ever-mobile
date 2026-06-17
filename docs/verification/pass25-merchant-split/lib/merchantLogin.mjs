@@ -224,6 +224,7 @@ export async function resetMerchantSurface(d) {
 }
 
 export async function recoverFromErrorBoundary(d) {
+  if (!(await isSessionAlive(d))) return false;
   const tryAgain = await d.$('-ios predicate string:label == "Try again"');
   if (await tryAgain.isDisplayed().catch(() => false)) {
     await tryAgain.click();
