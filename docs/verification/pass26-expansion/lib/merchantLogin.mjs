@@ -45,7 +45,7 @@ export const dl = (u) => {
   return wait(3200);
 };
 
-export async function fillLoginField(el, value) {
+export async function fillLoginField(el, value, { secure = false } = {}) {
   await el.click();
   await wait(300);
   try {
@@ -67,13 +67,15 @@ export async function fillLoginField(el, value) {
     }
   }
   await wait(250);
-  try {
-    const current = String((await el.getValue().catch(() => '')) || '');
-    if (current && current !== value && !current.includes(value)) {
-      await el.clearValue().catch(() => {});
-      await el.setValue(value).catch(() => el.addValue(value));
-    }
-  } catch {}
+  if (!secure) {
+    try {
+      const current = String((await el.getValue().catch(() => '')) || '');
+      if (current && current !== value && !current.includes(value)) {
+        await el.clearValue().catch(() => {});
+        await el.setValue(value).catch(() => el.addValue(value));
+      }
+    } catch {}
+  }
 }
 
 export async function dismissKeyboard(d) {
@@ -735,14 +737,14 @@ export async function emailLogin(d, { email, password, portal }) {
     passEl = await d.$('~login.password');
   }
   if (await passEl.isDisplayed().catch(() => false)) {
-    await fillLoginField(passEl, password);
+    await fillLoginField(passEl, password, { secure: true });
   } else {
     const secure = await d.$$('-ios predicate string:type == "XCUIElementTypeSecureTextField"');
     if (secure[0]) {
-      await fillLoginField(secure[0], password);
+      await fillLoginField(secure[0], password, { secure: true });
     } else {
       const fields = await d.$$('-ios predicate string:type == "XCUIElementTypeTextField"');
-      if (fields[1]) await fillLoginField(fields[1], password);
+      if (fields[1]) await fillLoginField(fields[1], password, { secure: true });
     }
   }
   await dismissKeyboard(d);

@@ -59,7 +59,9 @@ async function runCustomerCases(d) {
   await dl('freshasever://discover');
   await wait(3500);
   await dismissOverlays(d);
-  const chipTap = await tryTap(d, 'name BEGINSWITH "discover.occasionChip."', 5000);
+  const chipTap =
+    (await tryTap(d, 'name == "discover.occasionChip.avurudu"', 5000)) ||
+    (await tryTap(d, 'name BEGINSWITH "discover.occasionChip."', 5000));
   src = await safePageSource(d);
   const c02Pass = chipTap || /Avurudu|Occasion/i.test(src);
   results.push({
@@ -88,8 +90,8 @@ async function runCustomerCases(d) {
 async function runBakehouseMerchantCases(d) {
   const results = [];
 
-  await dl(`freshasever://merchant/bags/${BAKEHOUSE_BAG1}/edit`);
-  await wait(4000);
+  await dl('freshasever://merchant/bags/create');
+  await wait(5000);
   await scrollDown(d, 2);
   let src = await safePageSource(d);
   const pickerVisible =
@@ -115,8 +117,9 @@ async function runBakehouseMerchantCases(d) {
 }
 
 async function runKumbukMerchantCase(d) {
-  await dl('freshasever://merchant/tabs/bags');
-  await wait(4000);
+  await dl('freshasever://merchant/bags/create');
+  await wait(5000);
+  await scrollDown(d, 2);
   const src = await safePageSource(d);
   const pass = /Mixed Meals|occasion|Occasion|Bag|Create/i.test(src);
   return {
