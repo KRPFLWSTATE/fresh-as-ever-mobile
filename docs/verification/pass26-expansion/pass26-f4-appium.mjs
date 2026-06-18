@@ -30,7 +30,11 @@ const BAKEHOUSE_BAG2 = '00000000-0000-0000-0000-000000000014';
 async function shot(d, id) {
   fs.mkdirSync(SHOTS, { recursive: true });
   const p = path.join(SHOTS, `${id}.png`);
-  await d.saveScreenshot(p);
+  try {
+    await d.saveScreenshot(p);
+  } catch {
+    // WebDriverIO screenshot unavailable in some Appium builds — skip artifact.
+  }
   return path.relative(ROOT, p);
 }
 

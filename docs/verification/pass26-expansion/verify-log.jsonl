@@ -143,3 +143,5 @@
 {"ts":"2026-06-18T19:13:15.868Z","wave":"pass26","agent":"SA-APPIUM-QUEUE","id":"F7-C03","tool":"appium.journey","result":"FAIL","detail":"customer login failed","evidence":"screenshots/f6/F7-C03.png","portal":"customer"}
 {"ts":"2026-06-18T19:13:29.081Z","wave":"pass26","agent":"SA-APPIUM-QUEUE","id":"F7-R01","tool":"appium.journey","result":"FAIL","detail":"customer login failed","evidence":"screenshots/f6/F7-R01.png","portal":"customer"}
 {"ts":"2026-06-18T19:13:39.038Z","wave":"pass26","agent":"SA-APPIUM-QUEUE","id":"F7-R02","tool":"appium.journey","result":"FAIL","detail":"customer login failed","evidence":"screenshots/f6/F7-R02.png","portal":"customer"}
+{"ts":"2026-06-18T19:13:49.002Z","wave":"pass26","agent":"SA-APPIUM-QUEUE","id":"F7-X01","tool":"appium.journey","result":"FAIL","detail":"customer login failed","evidence":"screenshots/f6/F7-X01.png","portal":"customer"}
+{"ts":"2026-06-18T19:14:01.331Z","wave":"pass26","agent":"SA-APPIUM-QUEUE","id":"F7-X02","tool":"appium.journey","result":"FAIL","detail":"customer login failed","evidence":"screenshots/f6/F7-X02.png","portal":"customer"}
