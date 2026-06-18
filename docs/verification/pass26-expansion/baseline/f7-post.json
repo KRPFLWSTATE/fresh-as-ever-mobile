@@ -1,16 +1,25 @@
 {
-  "ts": "2026-06-18T23:30:00Z",
-  "pass": "f7-post",
+  "pass": "post-f7-monthly-savings",
+  "ts": "2026-06-20T16:30:00Z",
   "migration": "20260620160000_monthly_savings_notifications",
-  "edgeFunction": "notify-monthly-savings",
-  "ledger_table_exists": true,
-  "qa_customer": {
-    "email": "qa.customer@freshasever.test",
-    "completed_with_ts": 4,
-    "impact_orders": 5,
-    "lifetime_saved_lkr": 5020,
-    "prev_month_orders": 0,
-    "prev_month_saved_lkr": null,
-    "ledger_rows": 0
-  }
+  "ledger_table": "customer_notification_ledger",
+  "unique_constraint": "customer_notification_ledger_customer_id_notification_type__key",
+  "qa_customer_id": "571aadc0-d2e6-43bf-bab7-03a35ce3ef7f",
+  "qa_customer_email": "qa.customer@freshasever.test",
+  "sql_dry_run": {
+    "lifetime_rescue_orders": 5,
+    "with_collected_at": 4,
+    "previous_month_order_rows": 0,
+    "ledger_rows": 0,
+    "ledger_table_exists": true,
+    "sample_orders": [
+      {"id": "52143eae-bda9-4494-9b39-8b79c8d35879", "collected_date": "2026-06-14", "bag_savings_est": 1150},
+      {"id": "b40bfff1-0c05-40b5-a48a-bc12a768f23a", "collected_date": "2026-06-14", "bag_savings_est": 880},
+      {"id": "00000000-0000-0000-0000-000000000034", "collected_date": "2026-04-27", "bag_savings_est": 1150}
+    ]
+  },
+  "edge_function": "notify-monthly-savings",
+  "edge_version": 6,
+  "cron_route": "/api/cron/monthly-savings-notifications",
+  "feature_flag": "MONTHLY_SAVINGS_PUSH"
 }

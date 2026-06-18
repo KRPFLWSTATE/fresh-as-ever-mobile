@@ -40,6 +40,14 @@ import {
 const NOTIF_PREFS_PREFIX = 'fresh_as_ever.notification_prefs';
 const DEFAULT_NOTIF_PREFS = { push: true, email: true, sms: false, monthly_impact: true } as const;
 
+type InAppNotification = {
+  id: string;
+  title: string;
+  body: string;
+  type: string;
+  created_at: string;
+};
+
 function initialsFromUser(name: string | undefined, email: string | undefined) {
   const base = (name ?? email ?? '?').trim();
   const parts = base.split(/\s+/).filter(Boolean);
@@ -60,6 +68,7 @@ export function ProfileNotificationsScreen() {
   const [smsOn, setSmsOn] = useState<boolean>(DEFAULT_NOTIF_PREFS.sms);
   const [monthlyImpactOn, setMonthlyImpactOn] = useState<boolean>(DEFAULT_NOTIF_PREFS.monthly_impact);
   const [profilePhone, setProfilePhone] = useState('');
+  const [inAppNotifications, setInAppNotifications] = useState<InAppNotification[]>([]);
   const [hydrated, setHydrated] = useState(false);
   const prefsKey = useMemo(
     () => `${NOTIF_PREFS_PREFIX}:${user?.id ?? 'guest'}`,
@@ -114,6 +123,35 @@ export function ProfileNotificationsScreen() {
       cancelled = true;
     };
   }, [env, prefsKey, user?.id]);
+
+  useEffect(() => {
+    if (!user?.id) {
+      setInAppNotifications([]);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const { data, error } = await getSupabase(env)
+          .from('notifications')
+          .select('id, title, body, type, created_at')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(20);
+        if (cancelled) return;
+        if (error) {
+          logError(error, { context: 'ProfileNotificationsScreen.notificationsFeed' });
+          return;
+        }
+        setInAppNotifications((data ?? []) as InAppNotification[]);
+      } catch (err: unknown) {
+        logError(err, { context: 'ProfileNotificationsScreen.notificationsFeed' });
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [env, user?.id]);
 
   // Persist to profile jsonb + local cache after hydration.
   useEffect(() => {
@@ -354,30 +392,46 @@ export function ProfileNotificationsScreen() {
           paddingBottom: spacing.xxl + spacing.lg,
         }}
       >
-        <View style={styles.hero}>
-          <View style={styles.heroCircle}>
-            <View
-              style={[
-                StyleSheet.absoluteFill,
-                { backgroundColor: `${colors.accentHighlight}80` },
-              ]}
-            />
-            <Image
-              source={{
-                uri: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCOf6iEkVsvsITYI6Z_7B7-4WvwS7mjZL5aI9BpEK88JcjBL5-5s-exqIfKTdZ85UBEX0G3eRqBscLFC_k2APxQdEHlwhbA1p1rLhiTfSYeqPor6v0mESqcAJg3WcFDK84JVBJTrDL5nEZCm47BMUQ8Zp3H_15llmcbq5T-0V7XtKk-_7hbDIF1JiPmUlbFdRvA9yonEs4uYnRop-Q6UDlnxBGsatPrL5GcQE5eaeIsZV4kZu0hy4zhgUBEsqGNdQSkOR8VvGZqXgI',
-              }}
-              style={{ width: '90%', height: '90%' }}
-              resizeMode="contain"
-              accessible={false}
-            />
+        {inAppNotifications.length > 0 ? (
+          <View style={{ gap: spacing.md, marginTop: spacing.lg, marginBottom: spacing.xl }}>
+            <View style={styles.prefHeader}>
+              <StitchText variant="label-caps" colorKey="textMuted">
+                Recent alerts
+              </StitchText>
+            </View>
+            {inAppNotifications.map((item) => (
+              <StitchCard key={item.id} padding="md" style={{ gap: spacing.sm }}>
+                <StitchText variant="h3" colorKey="text">{item.title}</StitchText>
+                <StitchText variant="body-sm" colorKey="textMuted">{item.body}</StitchText>
+              </StitchCard>
+            ))}
           </View>
-          <StitchText variant="h2" colorKey="text" style={{ marginBottom: spacing.sm }}>
-            All caught up
-          </StitchText>
-          <StitchText variant="body-md" colorKey="textMuted" style={{ textAlign: 'center', maxWidth: 280 }}>
-            You have no new alerts at the moment. Manage how we reach you below.
-          </StitchText>
-        </View>
+        ) : (
+          <View style={styles.hero}>
+            <View style={styles.heroCircle}>
+              <View
+                style={[
+                  StyleSheet.absoluteFill,
+                  { backgroundColor: `${colors.accentHighlight}80` },
+                ]}
+              />
+              <Image
+                source={{
+                  uri: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCOf6iEkVsvsITYI6Z_7B7-4WvwS7mjZL5aI9BpEK88JcjBL5-5s-exqIfKTdZ85UBEX0G3eRqBscLFC_k2APxQdEHlwhbA1p1rLhiTfSYeqPor6v0mESqcAJg3WcFDK84JVBJTrDL5nEZCm47BMUQ8Zp3H_15llmcbq5T-0V7XtKk-_7hbDIF1JiPmUlbFdRvA9yonEs4uYnRop-Q6UDlnxBGsatPrL5GcQE5eaeIsZV4kZu0hy4zhgUBEsqGNdQSkOR8VvGZqXgI',
+                }}
+                style={{ width: '90%', height: '90%' }}
+                resizeMode="contain"
+                accessible={false}
+              />
+            </View>
+            <StitchText variant="h2" colorKey="text" style={{ marginBottom: spacing.sm }}>
+              All caught up
+            </StitchText>
+            <StitchText variant="body-md" colorKey="textMuted" style={{ textAlign: 'center', maxWidth: 280 }}>
+              You have no new alerts at the moment. Manage how we reach you below.
+            </StitchText>
+          </View>
+        )}
 
         <View style={{ marginTop: spacing.xl }}>
           <View style={styles.prefHeader}>

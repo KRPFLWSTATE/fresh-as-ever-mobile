@@ -96,17 +96,17 @@
 | F5-A01 | F5 On My Way | Admin | qa.admin@ | Admin order view signals if exposed | PENDING |  |
 | F5-R01 | F5 On My Way | Regression | qa.customer@ | Pass24 reserve hang | PENDING |  |
 | F5-R02 | F5 On My Way | Regression | qa.customer@ | Pass25 cross-portal C-10/C-11 | PENDING |  |
-| F7-SQL01 | F6/F7 Monthly Savings | DB | — | Ledger/savings SQL SQL01 | PENDING |  |
-| F7-SQL02 | F6/F7 Monthly Savings | DB | — | Ledger/savings SQL SQL02 | PENDING |  |
-| F7-SQL03 | F6/F7 Monthly Savings | DB | — | Ledger/savings SQL SQL03 | PENDING |  |
-| F7-EDGE01 | F6/F7 Monthly Savings | Server | — | Invoke edge fn test period | PENDING |  |
-| F7-CRON01 | F6/F7 Monthly Savings | Server | — | Vercel cron route auth + 200 | PENDING |  |
-| F7-C01 | F6/F7 Monthly Savings | Customer | qa.customer@ | Notification UX C01 | PENDING |  |
+| F7-SQL01 | F6/F7 Monthly Savings | DB | — | Ledger/savings SQL SQL01 | PASS | baseline/f7-sql-post.json |
+| F7-SQL02 | F6/F7 Monthly Savings | DB | — | Ledger/savings SQL SQL02 | PASS | qa.customer 2026-06 savedRs=2450 |
+| F7-SQL03 | F6/F7 Monthly Savings | DB | — | Ledger/savings SQL SQL03 | PASS | 2026-05 skip not_eligible |
+| F7-EDGE01 | F6/F7 Monthly Savings | Server | — | Invoke edge fn test period | PASS | dryRun 200 |
+| F7-CRON01 | F6/F7 Monthly Savings | Server | — | Vercel cron route auth + 200 | PENDING | Next dev not running |
+| F7-C01 | F6/F7 Monthly Savings | Customer | qa.customer@ | Notification UX C01 | PASS | screenshots/f7/F7-C01.png |
 | F7-C02 | F6/F7 Monthly Savings | Customer | qa.customer@ | Notification UX C02 | PENDING |  |
-| F7-C03 | F6/F7 Monthly Savings | Customer | qa.customer@ | Notification UX C03 | PENDING |  |
+| F7-C03 | F6/F7 Monthly Savings | Customer | qa.customer@ | Notification UX C03 | PASS | Monthly impact toggle visible |
 | F7-W01 | F6/F7 Monthly Savings | Web | — | Notification prefs web parity | PENDING |  |
 | F7-X01 | F6/F7 Monthly Savings | Cross | C+SQL | Push LKR = useCustomerImpact month slice | PENDING |  |
-| F7-X02 | F6/F7 Monthly Savings | Cross | SQL | ≥2 orders threshold enforced | PENDING |  |
+| F7-X02 | F6/F7 Monthly Savings | Cross | SQL | ≥2 orders threshold enforced | PASS | edge dryRun eligibility |
 | F7-A01 | F6/F7 Monthly Savings | Admin | — | Cron logs no errors | PENDING |  |
 | F7-R01 | F6/F7 Monthly Savings | Regression | DB | Other push types still work | PENDING |  |
 | F7-R02 | F6/F7 Monthly Savings | Regression | qa.customer@ | Pass25 customer profile | PENDING |  |

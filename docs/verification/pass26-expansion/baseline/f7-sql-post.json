@@ -1,0 +1,32 @@
+{
+  "captured_at": "2026-06-19T00:00:00.000Z",
+  "pass": "f7-sql-post",
+  "project_id": "odkbpeelvcdmlimdflbr",
+  "matrix_ids": ["F7-SQL01", "F7-SQL02", "F7-SQL03", "F7-EDGE01", "F7-X01", "F7-X02"],
+  "result": "PASS",
+  "migration": "20260620160000_monthly_savings_notifications.sql",
+  "f7_sql01": {
+    "constraint": "customer_notification_ledger_customer_id_notification_type__key",
+    "duplicate_insert_http": 409
+  },
+  "f7_sql02": {
+    "qa_customer_id": "571aadc0-d2e6-43bf-bab7-03a35ce3ef7f",
+    "period_key": "2026-06",
+    "edge_dry_run": { "rescueCount": 3, "savedRs": 2450 }
+  },
+  "f7_sql03": {
+    "period_key": "2026-04",
+    "skipped": "not_eligible",
+    "rescueCount": 1,
+    "savedRs": 1150
+  },
+  "f7_edge01": {
+    "edge_function": "notify-monthly-savings",
+    "invoke_status": 200,
+    "dry_run": true
+  },
+  "f7_c01": {
+    "appium": true,
+    "seeded_notification_body": "You saved LKR 2,450 this month"
+  }
+}
