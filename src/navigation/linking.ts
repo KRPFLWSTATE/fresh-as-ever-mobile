@@ -102,6 +102,11 @@ const config: NonNullable<LinkingOptions<RootStackParamList>['config']> = {
           }
           return undefined;
         },
+        merchant: (v: unknown) => {
+          const s = typeof v === 'string' ? v.trim().toLowerCase() : '';
+          if (s === 'bakehouse' || s === 'kumbuk') return s;
+          return undefined;
+        },
       },
     },
     MerchantBagCreate: 'merchant/bags/create',

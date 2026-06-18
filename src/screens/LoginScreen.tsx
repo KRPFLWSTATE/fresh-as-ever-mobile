@@ -52,6 +52,51 @@ export function LoginScreen() {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
+  const qaAutofillLogin = process.env.EXPO_PUBLIC_QA_AUTOFILL_LOGIN === 'true';
+
+  function qaMerchantCredentials(
+    merchantHint?: 'bakehouse' | 'kumbuk',
+  ): { email: string; password: string } {
+    const envEmail = process.env.EXPO_PUBLIC_QA_MERCHANT_EMAIL?.trim();
+    if (envEmail) {
+      return { email: envEmail, password: 'TempMerchant#12345' };
+    }
+    if (merchantHint === 'kumbuk') {
+      return {
+        email: 'qa.kumbuk@freshasever.test',
+        password: 'TempMerchant#12345',
+      };
+    }
+    return {
+      email: 'qa.merchant@freshasever.test',
+      password: 'TempMerchant#12345',
+    };
+  }
+
+  function applyQaAutofill(
+    hintedPortal: Portal,
+    merchantHint?: 'bakehouse' | 'kumbuk',
+  ) {
+    if (!qaAutofillLogin) return;
+    setUseEmailCustomer(true);
+    if (hintedPortal === 'customer') {
+      setEmail('qa.customer@freshasever.test');
+      setPassword('TempCustomer#12345');
+      return;
+    }
+    if (hintedPortal === 'merchant') {
+      const creds = qaMerchantCredentials(merchantHint);
+      setEmail(creds.email);
+      setPassword(creds.password);
+    }
+  }
+
+  useEffect(() => {
+    if (!qaAutofillLogin) return;
+    const hinted = route.params?.portal ?? portal;
+    applyQaAutofill(hinted, route.params?.merchant);
+  }, [route.params?.portal, route.params?.merchant, portal, qaAutofillLogin]);
+
   const inputStyle = {
     borderWidth: 1,
     borderColor: colors.outlineVariant,
@@ -313,6 +358,7 @@ export function LoginScreen() {
                 onPress={() => {
                   setPortal('customer');
                   setErr(null);
+                  applyQaAutofill('customer');
                 }}
                 style={{
                   flex: 1,
@@ -337,6 +383,7 @@ export function LoginScreen() {
                 onPress={() => {
                   setPortal('merchant');
                   setErr(null);
+                  applyQaAutofill('merchant', route.params?.merchant);
                 }}
                 style={{
                   flex: 1,

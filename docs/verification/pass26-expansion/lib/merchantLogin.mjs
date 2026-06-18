@@ -15,6 +15,20 @@ export const CREDS = {
   admin: { email: 'qa.admin@freshasever.test', password: 'TempAdmin#12345' },
 };
 
+function loginDeeplink(portal, { merchant } = {}) {
+  let url = `freshasever://login?portal=${portal}`;
+  if (merchant === 'bakehouse' || merchant === 'kumbuk') {
+    url += `&merchant=${merchant}`;
+  }
+  return url;
+}
+
+function merchantHintFromEmail(email) {
+  if (email === CREDS.kumbuk.email) return 'kumbuk';
+  if (email === CREDS.bakehouse.email) return 'bakehouse';
+  return undefined;
+}
+
 export const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
 export async function isSessionAlive(d) {
@@ -45,32 +59,61 @@ export const dl = (u) => {
   return wait(3200);
 };
 
-export async function fillLoginField(el, value, { secure = false } = {}) {
+export async function fillLoginField(el, value, { secure = false, skipClear = false } = {}) {
+  const target = String(value);
+  if (skipClear) {
+    try {
+      const current = String((await el.getValue().catch(() => '')) || '').trim();
+      if (current === target || (!secure && current && current.includes(target))) return;
+    } catch {}
+  }
   await el.click();
-  await wait(250);
+  await wait(200);
+  try {
+    await el.setValue(target);
+    await wait(secure ? 120 : 80);
+    if (!secure) {
+      const after = String((await el.getValue().catch(() => '')) || '').trim();
+      if (after === target || after.includes(target)) return;
+    } else {
+      return;
+    }
+  } catch {}
   try {
     await el.clearValue();
   } catch {}
   try {
     await el.setValue('');
   } catch {}
-  for (const ch of String(value)) {
+  const maxChars = secure ? 48 : 64;
+  let typed = 0;
+  for (const ch of target) {
+    if (typed >= maxChars) break;
     await el.addValue(ch);
-    await wait(secure ? 35 : 20);
+    typed += 1;
+    await wait(secure ? 25 : 15);
   }
-  await wait(200);
+  await wait(150);
   if (!secure) {
     try {
       const current = String((await el.getValue().catch(() => '')) || '');
-      if (current && current !== value && !current.includes(value)) {
+      if (current && current !== target && !current.includes(target)) {
         await el.clearValue().catch(() => {});
-        for (const ch of String(value)) {
-          await el.addValue(ch);
-          await wait(20);
-        }
+        await el.setValue(target).catch(() => {});
       }
     } catch {}
   }
+}
+
+
+export async function qaAutofillReady(d, email) {
+  const emailEl = await d.$('~login.email');
+  if (!(await emailEl.isDisplayed().catch(() => false))) return false;
+  const emailVal = String((await emailEl.getValue().catch(() => '')) || '').trim();
+  if (emailVal !== String(email).trim()) return false;
+  const signIn = await d.$('~login.signIn');
+  if (!(await signIn.isDisplayed().catch(() => false))) return false;
+  return await signIn.isEnabled().catch(() => false);
 }
 
 export async function dismissKeyboard(d) {
@@ -614,21 +657,68 @@ export async function screenshotLoginFail(d, tag = 'login-fail') {
   }
 }
 
+export async function waitForLoginScreen(d, { timeoutMs = 20000 } = {}) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (!(await isSessionAlive(d))) return false;
+    await dismissSystemPrompts(d);
+    if (
+      (await d.$('~login.title').isDisplayed().catch(() => false)) ||
+      (await d.$('~login.email').isDisplayed().catch(() => false)) ||
+      (await d.$('~login.portal.merchant').isDisplayed().catch(() => false)) ||
+      (await d.$('~login.portal.customer').isDisplayed().catch(() => false)) ||
+      (await d.$('~discover.guestSignInCta').isDisplayed().catch(() => false)) ||
+      (await d.$('~profile.guestHeading').isDisplayed().catch(() => false))
+    ) {
+      return true;
+    }
+    await wait(500);
+  }
+  return (
+    (await d.$('~login.email').isDisplayed().catch(() => false)) ||
+    (await d.$('~discover.guestSignInCta').isDisplayed().catch(() => false))
+  );
+}
+
+function merchantAccountFromEmail(email) {
+  if (/kumbuk@/i.test(String(email))) return 'kumbuk';
+  return 'bakehouse';
+}
+
+export async function ensureMerchantLoginPortal(d, account = 'bakehouse') {
+  await dismissSystemPrompts(d);
+  await dismissOverlays(d);
+  await dl(`freshasever://login?portal=merchant&merchant=${account}`);
+  await wait(3500);
+  await dismissSystemPrompts(d);
+  const merch = await d.$('~login.portal.merchant');
+  if (await merch.isDisplayed().catch(() => false)) {
+    await merch.click();
+    await wait(400);
+  } else {
+    await tryTap(d, 'label == "Merchant" OR name == "login.portal.merchant"', 2000);
+  }
+  await ensureEmailLoginForm(d, 'merchant');
+  return d.$('~login.email').isDisplayed().catch(() => false);
+}
+
 export async function ensureEmailLoginForm(d, portal) {
   if (portal === 'merchant') {
     const merchantTab = await d.$('~login.portal.merchant');
     if (await merchantTab.isDisplayed().catch(() => false)) {
       await merchantTab.click();
       await wait(400);
-    } else {
-      await tryTap(d, 'label == "Merchant" OR name == "Merchant"', 2500);
     }
+    if (await d.$('~login.email').isDisplayed().catch(() => false)) return true;
   }
   if (portal === 'customer') {
     const customerTab = await d.$('~login.portal.customer');
     if (await customerTab.isDisplayed().catch(() => false)) {
       await customerTab.click();
-      await wait(300);
+      await wait(900);
+    } else {
+      await tryTap(d, 'label == "Customer" OR name == "login.portal.customer"', 2000);
+      await wait(600);
     }
   }
   for (let attempt = 0; attempt < 8; attempt++) {
@@ -699,10 +789,16 @@ export async function ensureCustomerEmailForm(d) {
 
 export async function emailLogin(d, { email, password, portal }) {
   await dismissSystemPrompts(d);
-  await dl(`freshasever://login?portal=${portal}`);
+  const merchantAccount = portal === 'merchant' ? merchantAccountFromEmail(email) : null;
+  const loginUrl =
+    portal === 'merchant'
+      ? `freshasever://login?portal=merchant&merchant=${merchantAccount}`
+      : `freshasever://login?portal=${portal}`;
+  await dl(loginUrl);
   await wait(3500);
   await dismissSystemPrompts(d);
   await ensureEmailLoginForm(d, portal);
+  await wait(portal === 'customer' ? 1200 : 900);
 
   const emailEl = await d.$('~login.email');
   for (let i = 0; i < 6; i++) {
@@ -710,18 +806,87 @@ export async function emailLogin(d, { email, password, portal }) {
     await ensureEmailLoginForm(d, portal);
     await wait(500);
   }
-  if (await emailEl.isDisplayed().catch(() => false)) {
-    await fillLoginField(emailEl, email);
-  } else {
-    const fields = await d.$$('-ios predicate string:type == "XCUIElementTypeTextField"');
-    if (fields[0]) await fillLoginField(fields[0], email);
-  }
-  await dismissKeyboard(d);
-  await wait(500);
 
+  if (await qaAutofillReady(d, email)) {
+    await dismissKeyboard(d);
+    if (portal === 'merchant') {
+      const passEl = await d.$('~login.password');
+      if (await passEl.isExisting().catch(() => false)) {
+        try {
+          await passEl.scrollIntoView();
+          await wait(300);
+        } catch {
+          await scrollDown(d, 1);
+        }
+      }
+    }
+    await dismissSavePassword(d);
+    await tapSignIn(d);
+    for (let i = 0; i < 25; i++) {
+      await wait(1000);
+      await dismissSavePassword(d);
+      if (portal === 'customer' && (await d.$('~discover.searchInput').isDisplayed().catch(() => false))) {
+        break;
+      }
+      if (!(await d.$('~login.email').isDisplayed().catch(() => false))) break;
+      if (portal === 'customer' && (await isCustomerLoggedIn(d))) break;
+      if (portal === 'merchant' && (await isMerchantLoggedIn(d))) break;
+    }
+    await dismissSavePassword(d);
+    await dismissSystemPrompts(d);
+    const landed = await waitForPostLoginSurface(d, portal, { timeoutMs: 60000 });
+    if (!landed) return false;
+    if (portal === 'customer') {
+      await ensureCustomerDiscover(d);
+      return (
+        (await d.$('~discover.searchInput').isDisplayed().catch(() => false)) || (await isCustomerLoggedIn(d))
+      );
+    }
+    await dl('freshasever://merchant/dashboard');
+    await wait(2500);
+    return await waitForMerchantDashboard(d, { timeoutMs: 15000 });
+  }
+  const currentEmail = String((await emailEl.getValue().catch(() => '')) || '').trim();
+  if (portal === 'customer' && /merchant@/i.test(currentEmail)) {
+    await tryTap(d, 'label == "Customer" OR name == "login.portal.customer"', 2500);
+    await wait(700);
+  }
+  if (portal === 'merchant' && /customer@/i.test(currentEmail)) {
+    await tryTap(d, 'label == "Merchant" OR name == "login.portal.merchant"', 2500);
+    await wait(700);
+  }
+  if (
+    portal === 'merchant' &&
+    email === CREDS.kumbuk.email &&
+    /merchant@/i.test(currentEmail)
+  ) {
+    await dl(loginDeeplink('merchant', { merchant: 'kumbuk' }));
+    await wait(2500);
+    await ensureMerchantLoginPortal(d);
+    await wait(900);
+  }
+  const prefilled =
+    String((await emailEl.getValue().catch(() => '')) || '').trim() === email;
+  if (!prefilled) {
+    if (await emailEl.isDisplayed().catch(() => false)) {
+      await fillLoginField(emailEl, email, { skipClear: true });
+    } else {
+      const fields = await d.$$('-ios predicate string:type == "XCUIElementTypeTextField"');
+      if (fields[0]) await fillLoginField(fields[0], email, { skipClear: true });
+    }
+    await dismissKeyboard(d);
+    await wait(500);
+  } else {
+    await wait(400);
+  }
+
+  if (portal === 'customer') {
+    await ensureEmailLoginForm(d, portal);
+  }
   let passEl = await d.$('~login.password');
   for (let i = 0; i < 12; i++) {
     if (await passEl.isDisplayed().catch(() => false)) break;
+    if (portal === 'customer') await ensureEmailLoginForm(d, portal);
     await dismissKeyboard(d);
     await tryTap(
       d,
@@ -732,21 +897,39 @@ export async function emailLogin(d, { email, password, portal }) {
     passEl = await d.$('~login.password');
   }
   if (await passEl.isDisplayed().catch(() => false)) {
-    await fillLoginField(passEl, password, { secure: true });
+    try {
+      await passEl.scrollIntoView();
+      await wait(300);
+    } catch {}
+    await fillLoginField(passEl, password, { secure: true, skipClear: true });
   } else {
     const secure = await d.$$('-ios predicate string:type == "XCUIElementTypeSecureTextField"');
     if (secure[0]) {
-      await fillLoginField(secure[0], password, { secure: true });
+      await fillLoginField(secure[0], password, { secure: true, skipClear: true });
     } else {
       const fields = await d.$$('-ios predicate string:type == "XCUIElementTypeTextField"');
-      if (fields[1]) await fillLoginField(fields[1], password, { secure: true });
+      if (fields[1]) await fillLoginField(fields[1], password, { secure: true, skipClear: true });
     }
   }
   await dismissKeyboard(d);
+  if (portal === 'merchant') {
+    if (await passEl.isExisting().catch(() => false)) {
+      try {
+        await passEl.scrollIntoView();
+        await wait(300);
+      } catch {
+        await scrollDown(d, 1);
+      }
+    }
+  }
+  await dismissSavePassword(d);
   await tapSignIn(d);
   for (let i = 0; i < 25; i++) {
     await wait(1000);
     await dismissSavePassword(d);
+    if (portal === 'customer' && (await d.$('~discover.searchInput').isDisplayed().catch(() => false))) {
+      break;
+    }
     if (!(await d.$('~login.email').isDisplayed().catch(() => false))) break;
     if (portal === 'customer' && (await isCustomerLoggedIn(d))) break;
     if (portal === 'merchant' && (await isMerchantLoggedIn(d))) break;
@@ -793,17 +976,33 @@ export async function isKumbukMerchantSession(d) {
 export async function loginBakehouse(d) {
   await dismissSystemPrompts(d);
   await dl('freshasever://merchant/dashboard');
-  await wait(4000);
+  await wait(3000);
   if ((await isMerchantLoggedIn(d)) && (await isBakehouseMerchantSession(d))) {
     return await waitForMerchantDashboard(d, { timeoutMs: 15000 });
   }
-  await dl('freshasever://login?portal=merchant');
-  await wait(2500);
-  let ok = await emailLogin(d, { ...CREDS.bakehouse, portal: 'merchant' });
+
+  if (await isMerchantLoggedIn(d)) {
+    await merchantLogout(d);
+    await waitForLoginScreen(d);
+    await dismissOverlays(d);
+  }
+  if (await isCustomerLoggedIn(d)) {
+    await customerLogout(d);
+    await waitForLoginScreen(d);
+    await dismissOverlays(d);
+    await dismissSystemPrompts(d);
+  }
+
+  await ensureMerchantLoginPortal(d, 'bakehouse');
+  let ok = await merchantLoginTapPath(d, { email: CREDS.bakehouse.email, account: 'bakehouse' });
+  if (!ok) ok = await emailLogin(d, { ...CREDS.bakehouse, portal: 'merchant' });
   if (!ok) {
     await screenshotLoginFail(d, 'bakehouse-attempt1');
     await relaunchApp(d);
-    ok = await emailLogin(d, { ...CREDS.bakehouse, portal: 'merchant' });
+    await waitForLoginScreen(d);
+    await ensureMerchantLoginPortal(d, 'bakehouse');
+    ok = await merchantLoginTapPath(d, { email: CREDS.bakehouse.email, account: 'bakehouse' });
+    if (!ok) ok = await emailLogin(d, { ...CREDS.bakehouse, portal: 'merchant' });
   }
   if (!ok) {
     await screenshotLoginFail(d, 'bakehouse-final');
@@ -815,19 +1014,42 @@ export async function loginBakehouse(d) {
 
 export async function loginKumbuk(d) {
   await dismissSystemPrompts(d);
-  if (await isMerchantLoggedIn(d)) return true;
-  let ok = await emailLogin(d, { ...CREDS.kumbuk, portal: 'merchant' });
+  await dl('freshasever://merchant/dashboard');
+  await wait(3000);
+  if ((await isMerchantLoggedIn(d)) && (await isKumbukMerchantSession(d))) {
+    return await waitForMerchantDashboard(d, { timeoutMs: 15000 });
+  }
+
+  if (await isMerchantLoggedIn(d)) {
+    await merchantLogout(d);
+    await waitForLoginScreen(d);
+    await dismissOverlays(d);
+  }
+  if (await isCustomerLoggedIn(d)) {
+    await customerLogout(d);
+    await waitForLoginScreen(d);
+    await dismissOverlays(d);
+    await dismissSystemPrompts(d);
+  }
+
+  await ensureMerchantLoginPortal(d, 'kumbuk');
+  let ok = await loginKumbukTapPath(d);
+  if (!ok) ok = await emailLogin(d, { ...CREDS.kumbuk, portal: 'merchant' });
   await dismissSystemPrompts(d);
   if (!ok) {
     await screenshotLoginFail(d, 'kumbuk-attempt1');
     await relaunchApp(d);
-    ok = await emailLogin(d, { ...CREDS.kumbuk, portal: 'merchant' });
+    await waitForLoginScreen(d);
+    await ensureMerchantLoginPortal(d, 'kumbuk');
+    ok = await loginKumbukTapPath(d);
+    if (!ok) ok = await emailLogin(d, { ...CREDS.kumbuk, portal: 'merchant' });
   }
   if (!ok) {
     await screenshotLoginFail(d, 'kumbuk-final');
     return false;
   }
-  return await waitForMerchantDashboard(d, { timeoutMs: 60000 });
+  if (!(await waitForMerchantDashboard(d, { timeoutMs: 60000 }))) return false;
+  return (await isKumbukMerchantSession(d)) || (await isMerchantLoggedIn(d));
 }
 
 
@@ -867,6 +1089,106 @@ export async function ensureCustomerLoginSurface(d) {
   );
 }
 
+
+async function merchantLoginTapPath(d, { email, account = 'bakehouse' } = {}) {
+  await dl(`freshasever://login?portal=merchant&merchant=${account}`);
+  await wait(5000);
+  await dismissSavePassword(d);
+  await dismissSystemPrompts(d);
+  const merch = await d.$('~login.portal.merchant');
+  if (await merch.isDisplayed().catch(() => false)) await merch.click();
+  await wait(2000);
+  await ensureEmailLoginForm(d, 'merchant');
+  await wait(1200);
+  const autofillEmail = email || CREDS.bakehouse.email;
+  if (await qaAutofillReady(d, autofillEmail)) {
+    const passEl = await d.$('~login.password');
+    if (await passEl.isExisting().catch(() => false)) {
+      try {
+        await passEl.scrollIntoView();
+        await wait(300);
+      } catch {
+        await scrollDown(d, 1);
+      }
+    }
+    await dismissSavePassword(d);
+    await tapSignIn(d);
+  } else {
+    const emailEl = await d.$('~login.email');
+    if (await emailEl.isDisplayed().catch(() => false)) {
+      await fillLoginField(emailEl, autofillEmail, { skipClear: true });
+    }
+    const passEl = await d.$('~login.password');
+    if (await passEl.isDisplayed().catch(() => false)) {
+      await fillLoginField(passEl, CREDS.bakehouse.password, { secure: true, skipClear: true });
+    }
+    await dismissKeyboard(d);
+    await tapSignIn(d);
+  }
+  for (let i = 0; i < 25; i++) {
+    await wait(2000);
+    await dismissSavePassword(d);
+    if (await isMerchantLoggedIn(d)) return true;
+  }
+  return await waitForMerchantDashboard(d, { timeoutMs: 15000 });
+}
+
+async function loginKumbukTapPath(d) {
+  await dl('freshasever://login?portal=merchant&merchant=kumbuk');
+  await wait(5000);
+  await dismissSavePassword(d);
+  await dismissSystemPrompts(d);
+  const merch = await d.$('~login.portal.merchant');
+  if (await merch.isDisplayed().catch(() => false)) await merch.click();
+  await wait(2000);
+  await ensureEmailLoginForm(d, 'merchant');
+  await wait(1200);
+
+  const emailEl = await d.$('~login.email');
+  const currentEmail = String((await emailEl.getValue().catch(() => '')) || '').trim();
+  if (currentEmail !== CREDS.kumbuk.email) {
+    if (await emailEl.isDisplayed().catch(() => false)) {
+      await fillLoginField(emailEl, CREDS.kumbuk.email, { skipClear: true });
+    }
+  }
+  const passEl = await d.$('~login.password');
+  if (await passEl.isDisplayed().catch(() => false)) {
+    await fillLoginField(passEl, CREDS.kumbuk.password, { secure: true, skipClear: true });
+  }
+  await dismissKeyboard(d);
+  await dismissSavePassword(d);
+  await tapSignIn(d);
+  for (let i = 0; i < 25; i++) {
+    await wait(2000);
+    await dismissSavePassword(d);
+    if (await isMerchantLoggedIn(d)) return true;
+  }
+  return await waitForMerchantDashboard(d, { timeoutMs: 15000 });
+}
+
+async function customerLoginTapPath(d) {
+  await dl('freshasever://login?portal=customer');
+  await wait(5000);
+  await dismissSavePassword(d);
+  await dismissSystemPrompts(d);
+  const cust = await d.$('~login.portal.customer');
+  if (await cust.isDisplayed().catch(() => false)) await cust.click();
+  await wait(2000);
+  await ensureEmailLoginForm(d, 'customer');
+  await tapSignIn(d);
+  for (let i = 0; i < 25; i++) {
+    await wait(2000);
+    await dismissSavePassword(d);
+    if (await d.$('~discover.searchInput').isDisplayed().catch(() => false)) return true;
+    if (await isCustomerLoggedIn(d)) return true;
+    const tabDiscover = await d.$('~tab.discover');
+    if (await tabDiscover.isDisplayed().catch(() => false)) await tabDiscover.click().catch(() => {});
+  }
+  return (
+    (await d.$('~discover.searchInput').isDisplayed().catch(() => false)) || (await isCustomerLoggedIn(d))
+  );
+}
+
 export async function loginCustomer(d) {
   execSync(`xcrun simctl location ${UDID} set ${COLOMBO_GEO.latitude},${COLOMBO_GEO.longitude}`, { stdio: 'pipe' });
   if (await isMerchantLoggedIn(d)) {
@@ -881,8 +1203,14 @@ export async function loginCustomer(d) {
     return true;
   }
 
+  let ok = await customerLoginTapPath(d);
+  if (ok) {
+    await ensureCustomerDiscover(d);
+    return true;
+  }
+
   await ensureCustomerLoginSurface(d);
-  let ok = await emailLogin(d, { ...CREDS.customer, portal: 'customer' });
+  ok = await emailLogin(d, { ...CREDS.customer, portal: 'customer' });
   await dismissSystemPrompts(d);
   await dismissSavePassword(d);
   if (ok && (await isCustomerLoggedIn(d))) {
@@ -957,15 +1285,25 @@ export async function merchantLogout(d) {
 }
 
 export async function customerLogout(d) {
+  await dismissOverlays(d);
   await dl('freshasever://profile');
   await wait(2500);
-  if (await d.$('~profile.guestHeading').isDisplayed().catch(() => false)) return true;
+  if (await d.$('~profile.guestHeading').isDisplayed().catch(() => false)) {
+    return await waitForLoginScreen(d);
+  }
   await scrollDown(d, 3);
   const logOut = await d.$('~profile.logOut');
   if (await logOut.isDisplayed().catch(() => false)) {
     await logOut.click();
     await wait(3000);
-    return true;
+    await dismissSystemPrompts(d);
+    return await waitForLoginScreen(d);
   }
-  return quickTap(d, 'label == "Log Out"');
+  const tapped = await quickTap(d, 'label == "Log Out" OR label == "Log out"');
+  if (tapped) {
+    await wait(3000);
+    await dismissSystemPrompts(d);
+    return await waitForLoginScreen(d);
+  }
+  return false;
 }
