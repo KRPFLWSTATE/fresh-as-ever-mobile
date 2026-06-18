@@ -48,6 +48,11 @@ import {
   countPickupWindowHandovers,
   countVerificationHandovers,
 } from '@/lib/merchantHandoverCounts';
+import { isOnMyWayEnabled } from '@/config/featureFlags';
+import {
+  customerPickupSignal,
+  customerPickupSignalLabel,
+} from '@/domain/customerPickupSignals';
 import { useStitchTheme } from '@/theme/StitchThemeContext';
 import {
   StitchCard,
@@ -466,6 +471,7 @@ export function MerchantOrdersScreen() {
     markNoShow,
   } = useMerchantOrders(env, view);
 
+  const onMyWayEnabled = isOnMyWayEnabled();
   const styles = useMemo(() => createStyles({ spacing, radii }), [spacing, radii]);
 
   const [actionSheet, setActionSheet] = useState<MerchantOrderRow | null>(null);
@@ -513,6 +519,13 @@ export function MerchantOrdersScreen() {
         item.pickup_start,
         item.pickup_end,
       );
+      const pickupSignal = onMyWayEnabled
+        ? customerPickupSignal({
+            customer_arrived_at: item.customer_arrived_at,
+            customer_on_the_way_at: item.customer_on_the_way_at,
+          })
+        : null;
+      const pickupSignalLabel = customerPickupSignalLabel(pickupSignal);
       const scheduleColorKey = overdue ? 'error' : 'textMuted';
       const scheduleWeight: '400' | '600' | '700' = overdue ? '600' : '400';
       let overdueLine = pickupLine;
@@ -791,6 +804,28 @@ export function MerchantOrdersScreen() {
               <StitchText variant="body-sm" colorKey="textMuted">
                 Customer: {item.customer_name}
               </StitchText>
+              {pickupSignalLabel ? (
+                <View
+                  style={{
+                    alignSelf: 'flex-start',
+                    marginTop: spacing.xs,
+                    paddingHorizontal: spacing.sm,
+                    paddingVertical: 4,
+                    borderRadius: radii.full,
+                    backgroundColor:
+                      pickupSignal?.kind === 'at_outlet'
+                        ? `${colors.secondary}22`
+                        : `${colors.primaryContainer}18`,
+                  }}
+                >
+                  <StitchText
+                    variant="label-caps"
+                    colorKey={pickupSignal?.kind === 'at_outlet' ? 'secondary' : 'primaryContainer'}
+                  >
+                    {pickupSignalLabel}
+                  </StitchText>
+                </View>
+              ) : null}
               {item.no_show_available ? (
                 <StitchText variant="body-sm" colorKey="secondary">
                   No-show eligible
@@ -844,14 +879,17 @@ export function MerchantOrdersScreen() {
       colors.outlineVariant,
       colors.primaryHighlight,
       colors.primaryContainer,
+      colors.secondary,
       colors.secondaryContainer,
       colors.surfaceBright,
       colors.surfaceContainer,
       colors.surface,
       colors.surface2,
       navigation,
+      onMyWayEnabled,
       openOrderActions,
       radii.default,
+      radii.full,
       radii.lg,
       markNoShow,
       spacing.md,

@@ -13,6 +13,9 @@ export function parsePickupMs(iso: string | null | undefined): number | null {
 /** Matches `customer_signal_arrival` RPC — 15 minutes before pickup_start. */
 export const CUSTOMER_ARRIVAL_EARLY_MS = 15 * 60 * 1000;
 
+/** Matches `customer_signal_on_the_way` RPC — 2 hours before pickup_start. */
+export const CUSTOMER_ON_MY_WAY_EARLY_MS = 2 * 60 * 60 * 1000;
+
 export function isPickupWindowOpen(
   nowMs: number,
   pickupStartIso: string | null | undefined,
@@ -35,6 +38,19 @@ export function isCustomerArrivalEligible(
   if (end == null || nowMs > end) return false;
   const start = parsePickupMs(pickupStartIso);
   if (start != null && nowMs < start - CUSTOMER_ARRIVAL_EARLY_MS) return false;
+  return true;
+}
+
+/** Customer "On my way" — same window as `customer_signal_on_the_way`. */
+export function isCustomerOnMyWayEligible(
+  nowMs: number,
+  pickupStartIso: string | null | undefined,
+  pickupEndIso: string | null | undefined,
+): boolean {
+  const end = parsePickupMs(pickupEndIso);
+  if (end == null || nowMs > end) return false;
+  const start = parsePickupMs(pickupStartIso);
+  if (start != null && nowMs < start - CUSTOMER_ON_MY_WAY_EARLY_MS) return false;
   return true;
 }
 

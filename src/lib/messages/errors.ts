@@ -39,6 +39,19 @@ export const ERROR = {
     windowClosed: 'Pickup window has ended for this order.',
     failed: 'Could not notify the outlet. Try again when you are on site.',
   },
+  onMyWay: {
+    notEligible:
+      'You can tap "On my way" from 2 hours before pickup opens until the window ends.',
+    paymentFirst: 'Complete payment first, then you can let the outlet know you are en route.',
+    windowClosed: 'Pickup window has ended for this order.',
+    failed: 'Could not send your on-the-way signal. Try again shortly.',
+  },
+  onMyWay: {
+    notEligible:
+      'You can tap "On my way" from 2 hours before pickup opens until the window ends.',
+    paymentFirst: 'Complete payment first, then you can let the outlet know you are en route.',
+    failed: 'Could not send your signal. Try again shortly.',
+  },
   auth: {
     invalidCredentials: 'That email or password did not match. Try again?',
     loginFailed: 'Login failed. Check your details and try again.',

@@ -26,8 +26,8 @@ import {
   isOrderIdUuidShape,
   normalizeOrderStatus,
 } from '@/lib/orderStatus';
-import { isCustomerArrivalEligible } from '@/domain/pickupWindow';
-import { mapArrivalError } from '@/lib/messages/rpc';
+import { isCustomerArrivalEligible, isCustomerOnMyWayEligible } from '@/domain/pickupWindow';
+import { mapArrivalError, mapOnMyWayError } from '@/lib/messages/rpc';
 import { ERROR } from '@/lib/messages/errors';
 import { getSupabase } from '@/lib/supabase';
 import { mapSupabaseError } from '@/lib/supabaseError';
@@ -44,6 +44,7 @@ import {
   type ExistingOrderComplaint,
 } from '@/lib/complaints/submitCustomerComplaint';
 import { isOpenComplaintStatus } from '@/lib/adminComplaints';
+import { isOnMyWayEnabled } from '@/config/featureFlags';
 import {
   StitchButton,
   StitchCard,
@@ -93,6 +94,7 @@ type OrderRow = {
   payment_status: string | null;
   reservation_code: string | null;
   customer_arrived_at: string | null;
+  customer_on_the_way_at: string | null;
   shelf_id: string | null;
   order_items: OrderItemRow[] | null;
   bag: BagJoin;
@@ -247,6 +249,7 @@ export function OrderDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState(false);
   const [signalingArrival, setSignalingArrival] = useState(false);
+  const [signalingOnMyWay, setSignalingOnMyWay] = useState(false);
   const [qrEnlarged, setQrEnlarged] = useState(false);
   const [existingComplaint, setExistingComplaint] =
     useState<ExistingOrderComplaint | null>(null);
@@ -303,6 +306,7 @@ export function OrderDetailScreen() {
           payment_status,
           reservation_code,
           customer_arrived_at,
+          customer_on_the_way_at,
           shelf_id,
           order_items(name_snapshot, quantity, line_total),
           shelf:clearance_shelves(pickup_start, pickup_end),
@@ -517,12 +521,28 @@ export function OrderDetailScreen() {
   const pickupStart = pickupTimes.start;
   const pickupEnd = pickupTimes.end;
   const arrivalWindowOpen = isCustomerArrivalEligible(nowMs, pickupStart, pickupEnd);
+  const onMyWayEnabled = isOnMyWayEnabled();
+  const onMyWayWindowOpen = isCustomerOnMyWayEligible(nowMs, pickupStart, pickupEnd);
   const isCollectibleForArrival =
     ['reserved', 'paid', 'ready_for_pickup'].includes(normalized) &&
     (normalized !== 'reserved' || paymentStatus === 'paid');
+  const canSignalOnMyWay =
+    onMyWayEnabled &&
+    isCollectibleForArrival &&
+    onMyWayWindowOpen &&
+    !row.customer_on_the_way_at;
+  const showOnMyWayCta =
+    onMyWayEnabled && isCollectibleForArrival && !row.customer_on_the_way_at;
   const canSignalArrival =
     isCollectibleForArrival && arrivalWindowOpen && !row.customer_arrived_at;
   const showArrivalCta = isCollectibleForArrival && !row.customer_arrived_at;
+  const onMyWayDisabledReason = !onMyWayEnabled || !isCollectibleForArrival
+    ? null
+    : paymentStatus !== 'paid' && normalized === 'reserved'
+      ? 'Complete payment first'
+      : !onMyWayWindowOpen
+        ? 'Available 2 hours before pickup opens'
+        : null;
   const arrivalDisabledReason = !isCollectibleForArrival
     ? null
     : paymentStatus !== 'paid' && normalized === 'reserved'
@@ -530,6 +550,35 @@ export function OrderDetailScreen() {
       : !arrivalWindowOpen
         ? 'Available when pickup opens'
         : null;
+
+  const onSignalOnMyWay = () => {
+    if (!row?.id || !session?.user.id) return;
+    setSignalingOnMyWay(true);
+    void (async () => {
+      try {
+        const sb = getSupabase(env);
+        const { error } = await sb.rpc('customer_signal_on_the_way', {
+          p_order_id: row.id,
+        });
+        if (error) throw error;
+        await load();
+        Alert.alert(
+          'Outlet notified',
+          'Staff can see that you are on your way. No GPS is shared — this is a one-way heads-up.',
+        );
+      } catch (e) {
+        Alert.alert(
+          'Could not send signal',
+          mapOnMyWayError(
+            e instanceof Error ? e.message : null,
+            ERROR.onMyWay.failed,
+          ),
+        );
+      } finally {
+        setSignalingOnMyWay(false);
+      }
+    })();
+  };
 
   const onSignalArrival = () => {
     if (!row?.id || !session?.user.id) return;
@@ -905,10 +954,36 @@ export function OrderDetailScreen() {
           </View>
         </StitchCard>
 
+        {row.customer_on_the_way_at && onMyWayEnabled ? (
+          <StitchText variant="body-sm" colorKey="primaryContainer" style={{ textAlign: 'center' }}>
+            The outlet knows you are on your way. Tap &quot;I&apos;m at the outlet&quot; when you arrive.
+          </StitchText>
+        ) : null}
+
         {row.customer_arrived_at ? (
           <StitchText variant="body-sm" colorKey="secondary" style={{ textAlign: 'center' }}>
             You let the outlet know you are here. Show your code or QR at the counter.
           </StitchText>
+        ) : null}
+
+        {showOnMyWayCta ? (
+          <>
+            <StitchButton
+              title={signalingOnMyWay ? 'Sending…' : 'On my way'}
+              variant="secondary"
+              disabled={signalingOnMyWay || !canSignalOnMyWay}
+              onPress={onSignalOnMyWay}
+            />
+            {onMyWayDisabledReason && !canSignalOnMyWay ? (
+              <StitchText
+                variant="body-sm"
+                colorKey="textFaint"
+                style={{ textAlign: 'center', marginTop: -spacing.sm }}
+              >
+                {onMyWayDisabledReason}
+              </StitchText>
+            ) : null}
+          </>
         ) : null}
 
         {showArrivalCta ? (

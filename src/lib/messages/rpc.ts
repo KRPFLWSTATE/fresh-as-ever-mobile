@@ -30,6 +30,31 @@ export function mapArrivalError(
   return fallback;
 }
 
+export function mapOnMyWayError(
+  message: unknown,
+  fallback: string = ERROR.onMyWay.failed,
+): string {
+  const m = lower(message);
+  if (m.includes('on_my_way_window_not_open') || m.includes('2 hour') || m.includes('window')) {
+    return ERROR.onMyWay.notEligible;
+  }
+  if (m.includes('payment')) return ERROR.onMyWay.paymentFirst;
+  if (m.includes('pickup_window_closed')) return ERROR.onMyWay.windowClosed;
+  return fallback;
+}
+
+export function mapOnMyWayError(
+  message: unknown,
+  fallback: string = ERROR.onMyWay.failed,
+): string {
+  const m = lower(message);
+  if (m.includes('not_eligible') || m.includes('window') || m.includes('2 hour')) {
+    return ERROR.onMyWay.notEligible;
+  }
+  if (m.includes('payment')) return ERROR.onMyWay.paymentFirst;
+  return fallback;
+}
+
 export function mapCheckoutError(
   message: unknown,
   fallback: string = ERROR.checkout.reserveFailed,

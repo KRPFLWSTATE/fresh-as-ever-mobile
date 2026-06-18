@@ -14,6 +14,12 @@ import { useMerchantContext } from '@/hooks/useMerchantContext';
 import { useMerchantDashboard } from '@/hooks/useMerchantDashboard';
 import { useMerchantOrders } from '@/hooks/useMerchantOrders';
 import { isApproachingWithin2h } from '@/domain/pickupWindow';
+import {
+  customerPickupSignal,
+  customerPickupSignalHeroLabel,
+  customerPickupSignalHeroSubcopy,
+} from '@/domain/customerPickupSignals';
+import { isOnMyWayEnabled } from '@/config/featureFlags';
 import { isOrderCollectible } from '@/domain/merchantOrderFilters';
 import { normalizeOrderStatus } from '@/lib/orderStatus';
 import { getSupabase } from '@/lib/supabase';
@@ -50,7 +56,10 @@ export function MerchantLiveMonitorScreen() {
   const [queueLoading, setQueueLoading] = useState(true);
   const [queueError, setQueueError] = useState<string | null>(null);
   const [arrivalHero, setArrivalHero] = useState<ApproachingPickupRow | null>(null);
-  const [arrivalHeroIsAtOutlet, setArrivalHeroIsAtOutlet] = useState(false);
+  const [arrivalHeroSignal, setArrivalHeroSignal] = useState<
+    ReturnType<typeof customerPickupSignal>
+  >(null);
+  const onMyWayEnabled = isOnMyWayEnabled();
 
   // Live ETA ticker: re-render every 30s so minutesUntilPickup drifts down without
   // refetching. We only display `Math.max(0, original - elapsedMin)`.
@@ -84,6 +93,7 @@ export function MerchantLiveMonitorScreen() {
         order_status,
         payment_status,
         customer_arrived_at,
+        customer_on_the_way_at,
         customer:profiles(full_name),
         bag:rescue_bags!inner(title, pickup_start, pickup_end)
       `,
@@ -99,7 +109,7 @@ export function MerchantLiveMonitorScreen() {
       setQueueError(qErr.message);
       setQueueRows([]);
       setArrivalHero(null);
-      setArrivalHeroIsAtOutlet(false);
+      setArrivalHeroSignal(null);
       setQueueLoading(false);
       return;
     }
@@ -128,6 +138,21 @@ export function MerchantLiveMonitorScreen() {
           new Date(String(a.customer_arrived_at)).getTime(),
       );
 
+    const enRoute = onMyWayEnabled
+      ? eligible
+          .filter(
+            (o) =>
+              !(typeof o.customer_arrived_at === 'string' && o.customer_arrived_at) &&
+              typeof o.customer_on_the_way_at === 'string' &&
+              o.customer_on_the_way_at,
+          )
+          .sort(
+            (a, b) =>
+              new Date(String(b.customer_on_the_way_at)).getTime() -
+              new Date(String(a.customer_on_the_way_at)).getTime(),
+          )
+      : [];
+
     const rows: ApproachingPickupRow[] = eligible.map((o) => {
       const bag = o.bag as Record<string, unknown> | undefined;
       const customer = o.customer as Record<string, unknown> | undefined;
@@ -155,13 +180,32 @@ export function MerchantLiveMonitorScreen() {
     });
 
     const arrivedIds = new Set(arrived.map((o) => String(o.id ?? '')));
-    const heroRow = rows.find((r) => arrivedIds.has(r.id)) ?? rows[0] ?? null;
+    const enRouteIds = new Set(enRoute.map((o) => String(o.id ?? '')));
+    const signalSource = arrived[0] ?? enRoute[0] ?? null;
+    const heroRow =
+      rows.find((r) => arrivedIds.has(r.id)) ??
+      rows.find((r) => enRouteIds.has(r.id)) ??
+      rows[0] ??
+      null;
     setArrivalHero(heroRow);
-    setArrivalHeroIsAtOutlet(arrived.length > 0);
+    setArrivalHeroSignal(
+      signalSource
+        ? customerPickupSignal({
+            customer_arrived_at:
+              typeof signalSource.customer_arrived_at === 'string'
+                ? signalSource.customer_arrived_at
+                : null,
+            customer_on_the_way_at:
+              typeof signalSource.customer_on_the_way_at === 'string'
+                ? signalSource.customer_on_the_way_at
+                : null,
+          })
+        : null,
+    );
     setQueueRows(rows);
     setQueueLoadedAt(Date.now());
     setQueueLoading(false);
-  }, [env, outletScopeIds]);
+  }, [env, onMyWayEnabled, outletScopeIds]);
 
   useEffect(() => {
     if (ctxLoading) return;
@@ -384,7 +428,7 @@ export function MerchantLiveMonitorScreen() {
                   }}
                 />
                 <StitchText variant="label-caps" colorKey="secondary">
-                  {arrivalHeroIsAtOutlet ? 'Customer arrived' : 'Next pickup'}
+                  {customerPickupSignalHeroLabel(arrivalHeroSignal) ?? 'Next pickup'}
                 </StitchText>
               </View>
               <StitchText variant="label" colorKey="textMuted">
@@ -394,7 +438,7 @@ export function MerchantLiveMonitorScreen() {
             <View style={{ padding: spacing.lg, gap: spacing.md }}>
               <View>
                 <StitchText variant="body-sm" colorKey="textMuted">
-                  {arrivalHeroIsAtOutlet ? 'At your outlet' : 'Collecting'}
+                  {customerPickupSignalHeroSubcopy(arrivalHeroSignal) ?? 'Collecting'}
                 </StitchText>
                 <StitchText variant="display" colorKey="text" style={{ marginTop: 4 }}>
                   {arrivalHero.customer}

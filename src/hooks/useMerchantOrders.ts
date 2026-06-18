@@ -42,6 +42,7 @@ export type MerchantOrderRow = {
   total: number | null;
   created_at: string;
   customer_arrived_at: string | null;
+  customer_on_the_way_at: string | null;
 };
 
 export const MERCHANT_ORDERS_VIEW_LABELS: Record<
@@ -138,6 +139,7 @@ export function useMerchantOrders(
           total,
           reservation_code,
           customer_arrived_at,
+          customer_on_the_way_at,
           outlet_id,
           shelf_id,
           customer:profiles(full_name, phone),
@@ -237,6 +239,10 @@ export function useMerchantOrders(
           customer_arrived_at:
             typeof o.customer_arrived_at === 'string'
               ? o.customer_arrived_at
+              : null,
+          customer_on_the_way_at:
+            typeof o.customer_on_the_way_at === 'string'
+              ? o.customer_on_the_way_at
               : null,
         };
         return row;
