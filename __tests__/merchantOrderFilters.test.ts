@@ -19,6 +19,7 @@ function row(partial: Partial<MerchantOrderRow> & { id: string }): MerchantOrder
     created_at: '2026-05-20T09:00:00.000Z',
     payment_status: 'paid',
     customer_arrived_at: null,
+    customer_on_the_way_at: null,
     ...partial,
   };
 }
