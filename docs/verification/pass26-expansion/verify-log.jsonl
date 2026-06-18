@@ -1,0 +1,53 @@
+{"ts":"2026-06-18T18:46:39.749Z","wave":"pass26","agent":"SA-APPIUM-QUEUE","id":"F1-C01","tool":"appium.retry","attempt":1,"detail":"no pickup pills on discover"}
+{"ts":"2026-06-18T18:46:55.490Z","wave":"pass26","agent":"SA-APPIUM-QUEUE","id":"F1-C01","tool":"appium.retry","attempt":2,"detail":"no pickup pills on discover"}
+{"ts":"2026-06-18T18:47:09.761Z","wave":"pass26","id":"pass26.bootstrap","tool":"runner","result":"START"}
+{"ts":"2026-06-18T18:47:11.667Z","wave":"pass26","agent":"SA-APPIUM-QUEUE","id":"F1-C01","tool":"appium.journey","result":"FAIL","detail":"no pickup pills on discover","evidence":"screenshots/f1/F1-C01.png","portal":"customer"}
+{"ts":"2026-06-18T18:47:21.127Z","wave":"pass26","id":"pass26.smoke","tool":"appium.session","result":"PASS","detail":"session + page source"}
+{"ts":"2026-06-18T18:47:24.595Z","wave":"pass26","agent":"SA-APPIUM-QUEUE","id":"F1-C02","tool":"appium.retry","attempt":1,"detail":"Morning bake on bag detail"}
+{"ts":"2026-06-18T18:47:40.673Z","wave":"pass26","agent":"SA-APPIUM-QUEUE","id":"F1-C02","tool":"appium.retry","attempt":2,"detail":"Morning bake on bag detail"}
+{"ts":"2026-06-18T18:48:00.947Z","wave":"pass26","agent":"SA-APPIUM-QUEUE","id":"F1-C02","tool":"appium.journey","result":"FAIL","detail":"Morning bake on bag detail","evidence":"screenshots/f1/F1-C02.png","portal":"customer"}
+{"ts":"2026-06-18T18:48:15.480Z","wave":"pass26","agent":"SA-APPIUM-QUEUE","id":"F1-C03","tool":"appium.retry","attempt":1,"detail":"Evening on bag detail"}
+{"ts":"2026-06-18T18:48:33.898Z","wave":"pass26","agent":"SA-APPIUM-QUEUE","id":"F1-C03","tool":"appium.retry","attempt":2,"detail":"Evening on bag detail"}
+{"ts":"2026-06-18T18:48:49.958Z","wave":"pass26","agent":"SA-APPIUM-QUEUE","id":"F1-C03","tool":"appium.journey","result":"FAIL","detail":"Evening on bag detail","evidence":"screenshots/f1/F1-C03.png","portal":"customer"}
+{"ts":"2026-06-18T18:49:02.238Z","wave":"pass26","agent":"SA-APPIUM-QUEUE","id":"F1-C04","tool":"appium.retry","attempt":1,"detail":"Lunch on bag detail"}
+{"ts":"2026-06-18T18:49:18.047Z","wave":"pass26","agent":"SA-APPIUM-QUEUE","id":"F1-C04","tool":"appium.retry","attempt":2,"detail":"Lunch on bag detail"}
+{"ts":"2026-06-18T18:49:34.799Z","wave":"pass26","agent":"SA-APPIUM-QUEUE","id":"F1-C04","tool":"appium.journey","result":"FAIL","detail":"Lunch on bag detail","evidence":"screenshots/f1/F1-C04.png","portal":"customer"}
+{"ts":"2026-06-18T18:49:48.108Z","wave":"pass26","agent":"SA-APPIUM-QUEUE","id":"F1-C05","tool":"appium.retry","attempt":1,"detail":"Open now on bag detail"}
+{"ts":"2026-06-18T18:50:04.148Z","wave":"pass26","agent":"SA-APPIUM-QUEUE","id":"F1-C05","tool":"appium.retry","attempt":2,"detail":"Open now on bag detail"}
+{"ts":"2026-06-18T18:50:21.634Z","wave":"pass26","agent":"SA-APPIUM-QUEUE","id":"F1-C05","tool":"appium.journey","result":"FAIL","detail":"Open now on bag detail","evidence":"screenshots/f1/F1-C05.png","portal":"customer"}
+{"ts":"2026-06-18T18:50:35.066Z","wave":"pass26","agent":"SA-APPIUM-QUEUE","id":"F2-C01","tool":"appium.retry","attempt":1,"detail":"WhatsApp share affordance"}
+{"ts":"2026-06-18T18:50:53.420Z","wave":"pass26","agent":"SA-APPIUM-QUEUE","id":"F2-C01","tool":"appium.retry","attempt":2,"detail":"WhatsApp share affordance"}
+{"ts":"2026-06-18T18:51:12.333Z","wave":"pass26","agent":"SA-APPIUM-QUEUE","id":"F2-C01","tool":"appium.journey","result":"FAIL","detail":"WhatsApp share affordance","evidence":"screenshots/f2/F2-C01.png","portal":"customer"}
+{"ts":"2026-06-18T18:51:30.580Z","wave":"pass26","agent":"SA-APPIUM-QUEUE","id":"F2-C02","tool":"appium.retry","attempt":1,"detail":"WhatsApp share affordance"}
+{"ts":"2026-06-18T18:51:49.484Z","wave":"pass26","agent":"SA-APPIUM-QUEUE","id":"F2-C02","tool":"appium.retry","attempt":2,"detail":"WhatsApp share affordance"}
+{"ts":"2026-06-18T18:52:11.918Z","wave":"pass26","agent":"SA-APPIUM-QUEUE","id":"F2-C02","tool":"appium.journey","result":"FAIL","detail":"WhatsApp share affordance","evidence":"screenshots/f2/F2-C02.png","portal":"customer"}
+{"ts":"2026-06-18T18:52:25.456Z","wave":"pass26","agent":"SA-APPIUM-QUEUE","id":"F2-C03","tool":"appium.retry","attempt":1,"detail":"WhatsApp share affordance"}
+{"ts":"2026-06-18T18:52:47.054Z","wave":"pass26","agent":"SA-APPIUM-QUEUE","id":"F2-C03","tool":"appium.retry","attempt":2,"detail":"WhatsApp share affordance"}
+{"ts":"2026-06-18T18:53:08.275Z","wave":"pass26","agent":"SA-APPIUM-QUEUE","id":"F2-C03","tool":"appium.journey","result":"FAIL","detail":"WhatsApp share affordance","evidence":"screenshots/f2/F2-C03.png","portal":"customer"}
+{"ts":"2026-06-18T18:53:24.233Z","wave":"pass26","agent":"SA-APPIUM-QUEUE","id":"F2-C04","tool":"appium.retry","attempt":1,"detail":"WhatsApp share affordance"}
+{"ts":"2026-06-18T18:53:45.385Z","wave":"pass26","agent":"SA-APPIUM-QUEUE","id":"F2-C04","tool":"appium.retry","attempt":2,"detail":"WhatsApp share affordance"}
+{"ts":"2026-06-18T18:54:06.649Z","wave":"pass26","agent":"SA-APPIUM-QUEUE","id":"F2-C04","tool":"appium.journey","result":"FAIL","detail":"WhatsApp share affordance","evidence":"screenshots/f2/F2-C04.png","portal":"customer"}
+{"ts":"2026-06-18T18:54:23.555Z","wave":"pass26","agent":"SA-APPIUM-QUEUE","tool":"runner.crash","result":"FAIL","detail":"invalid session id: WebDriverError: Session does not exist when running \"element/49000000-0000-0000-F3C4-000000000000/value\" with method \"POST\""}
+{"ts":"2026-06-18T18:54:25.901Z","wave":"pass26","agent":"SA-APPIUM-QUEUE","id":"F2-C05","tool":"appium.retry","attempt":1,"detail":"WhatsApp share affordance"}
+{"ts":"2026-06-18T18:54:46.445Z","wave":"pass26","agent":"SA-APPIUM-QUEUE","id":"F2-C05","tool":"appium.retry","attempt":2,"detail":"WhatsApp share affordance"}
+{"ts":"2026-06-18T18:55:08.651Z","wave":"pass26","agent":"SA-APPIUM-QUEUE","id":"F2-C05","tool":"appium.journey","result":"FAIL","detail":"WhatsApp share affordance","evidence":"screenshots/f2/F2-C05.png","portal":"customer"}
+{"ts":"2026-06-18T18:55:30.186Z","wave":"pass26","agent":"SA-APPIUM-QUEUE","id":"F3-C01","tool":"appium.retry","attempt":1,"detail":"neighbourhood subtitle Kollupitiya"}
+{"ts":"2026-06-18T18:55:51.663Z","wave":"pass26","agent":"SA-APPIUM-QUEUE","id":"F3-C01","tool":"appium.retry","attempt":2,"detail":"neighbourhood subtitle Kollupitiya"}
+{"ts":"2026-06-18T18:56:03.486Z","wave":"pass26","agent":"SA-APPIUM-QUEUE","id":"F2-C01","tool":"appium.journey","result":"FAIL","detail":"customer login failed","evidence":"screenshots/f2/F2-C01-login-fail.png","portal":"customer"}
+{"ts":"2026-06-18T18:56:04.159Z","wave":"pass26","agent":"SA-APPIUM-QUEUE","id":"F2-C02","tool":"appium.journey","result":"FAIL","detail":"customer login failed","evidence":"screenshots/f2/F2-C02-login-fail.png","portal":"customer"}
+{"ts":"2026-06-18T18:56:06.212Z","wave":"pass26","agent":"SA-APPIUM-QUEUE","id":"F2-C03","tool":"appium.journey","result":"FAIL","detail":"customer login failed","evidence":"screenshots/f2/F2-C03-login-fail.png","portal":"customer"}
+{"ts":"2026-06-18T18:56:07.203Z","wave":"pass26","agent":"SA-APPIUM-QUEUE","id":"F2-C04","tool":"appium.journey","result":"FAIL","detail":"customer login failed","evidence":"screenshots/f2/F2-C04-login-fail.png","portal":"customer"}
+{"ts":"2026-06-18T18:56:07.798Z","wave":"pass26","agent":"SA-APPIUM-QUEUE","id":"F2-C05","tool":"appium.journey","result":"FAIL","detail":"customer login failed","evidence":"screenshots/f2/F2-C05-login-fail.png","portal":"customer"}
+{"ts":"2026-06-18T18:56:12.431Z","wave":"pass26","agent":"SA-APPIUM-QUEUE","id":"F3-C01","tool":"appium.journey","result":"FAIL","detail":"neighbourhood subtitle Kollupitiya","evidence":"screenshots/f3/F3-C01.png","portal":"customer"}
+{"ts":"2026-06-18T18:56:27.607Z","wave":"pass26","agent":"SA-APPIUM-QUEUE","id":"F3-C02","tool":"appium.retry","attempt":1,"detail":"neighbourhood subtitle Colombo 07"}
+{"ts":"2026-06-18T18:56:45.986Z","wave":"pass26","agent":"SA-APPIUM-QUEUE","id":"F3-C02","tool":"appium.retry","attempt":2,"detail":"neighbourhood subtitle Colombo 07"}
+{"ts":"2026-06-18T18:57:06.721Z","wave":"pass26","agent":"SA-APPIUM-QUEUE","id":"F3-C02","tool":"appium.journey","result":"FAIL","detail":"neighbourhood subtitle Colombo 07","evidence":"screenshots/f3/F3-C02.png","portal":"customer"}
+{"ts":"2026-06-18T18:57:23.122Z","wave":"pass26","agent":"SA-APPIUM-QUEUE","id":"F3-C03","tool":"appium.retry","attempt":1,"detail":"neighbourhood subtitle Pettah"}
+{"ts":"2026-06-18T18:57:23.277Z","wave":"pass26","agent":"SA-APPIUM-QUEUE","tool":"runner.crash","result":"FAIL","detail":"invalid session id: WebDriverError: A session is either terminated or not started when running \"element\" with method \"POST\""}
+{"ts":"2026-06-18T18:57:25.394Z","wave":"pass26","agent":"SA-APPIUM-QUEUE","tool":"runner.crash","result":"FAIL","detail":"invalid session id: WebDriverError: A session is either terminated or not started when running \"element\" with method \"POST\""}
+{"ts":"2026-06-18T18:57:27.793Z","wave":"pass26","agent":"SA-APPIUM-QUEUE","tool":"runner.crash","result":"FAIL","detail":"invalid session id: WebDriverError: A session is either terminated or not started when running \"element\" with method \"POST\""}
+{"ts":"2026-06-18T18:57:27.943Z","wave":"pass26","agent":"SA-APPIUM-QUEUE","tool":"runner.crash","result":"FAIL","detail":"invalid session id: WebDriverError: A session is either terminated or not started when running \"element\" with method \"POST\""}
+{"ts":"2026-06-18T18:57:41.453Z","wave":"pass26","agent":"SA-APPIUM-QUEUE","id":"F3-C03","tool":"appium.retry","attempt":2,"detail":"neighbourhood subtitle Pettah"}
+{"ts":"2026-06-18T18:58:01.749Z","wave":"pass26","agent":"SA-APPIUM-QUEUE","tool":"runner.crash","result":"FAIL","detail":"invalid session id: WebDriverError: A session is either terminated or not started when running \"screenshot\" with method \"GET\""}
+{"ts":"2026-06-18T18:59:04.000Z","id":"F7-C01","tool":"appium","result":"PASS","evidence":"screenshots/f7/F7-C01.png","detail":"monthly_savings notification row + Monthly impact toggle"}
+{"ts":"2026-06-18T18:59:04.000Z","id":"F7-SQL01","tool":"supabase.rest","result":"PASS"}
