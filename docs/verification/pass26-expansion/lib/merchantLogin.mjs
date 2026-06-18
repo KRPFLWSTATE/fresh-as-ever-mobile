@@ -47,32 +47,27 @@ export const dl = (u) => {
 
 export async function fillLoginField(el, value, { secure = false } = {}) {
   await el.click();
-  await wait(300);
+  await wait(250);
   try {
     await el.clearValue();
   } catch {}
   try {
     await el.setValue('');
   } catch {}
-  try {
-    await el.setValue(value);
-  } catch {
-    try {
-      await el.addValue(value);
-    } catch {
-      for (const ch of value) {
-        await el.addValue(ch);
-        await wait(20);
-      }
-    }
+  for (const ch of String(value)) {
+    await el.addValue(ch);
+    await wait(secure ? 35 : 20);
   }
-  await wait(250);
+  await wait(200);
   if (!secure) {
     try {
       const current = String((await el.getValue().catch(() => '')) || '');
       if (current && current !== value && !current.includes(value)) {
         await el.clearValue().catch(() => {});
-        await el.setValue(value).catch(() => el.addValue(value));
+        for (const ch of String(value)) {
+          await el.addValue(ch);
+          await wait(20);
+        }
       }
     } catch {}
   }
