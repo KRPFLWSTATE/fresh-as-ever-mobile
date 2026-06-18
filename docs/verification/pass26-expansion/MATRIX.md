@@ -23,15 +23,15 @@
 | F1-R01 | F1 Pickup Windows | Regression | qa.customer@ | Reserve Now checkout still completes (Pass 24) | FAIL | screenshots/f1/F1-R01-login-fail.png
 | F1-R02 | F1 Pickup Windows | Regression | — | Pass25 C-06 group overlap still enforced | FAIL | screenshots/f1/F1-R02-login-fail.png
 | F2-P0 | F2 WhatsApp Share | Setup | — | LISTING_WHATSAPP_SHARE flag ON; sim ready | PASS | local env
-| F2-SQL01 | F2 WhatsApp Share | DB | — | N/A client-only baseline | PENDING |  |
+| F2-SQL01 | F2 WhatsApp Share | DB | — | N/A client-only baseline | PASS | listingShare.test.ts + wa.me 302 |
 | F2-C01 | F2 WhatsApp Share | Customer | qa.customer@ | Bag/shelf WhatsApp share C01 | FAIL | screenshots/f2/F2-C01-login-fail.png
 | F2-C02 | F2 WhatsApp Share | Customer | qa.customer@ | Bag/shelf WhatsApp share C02 | FAIL | screenshots/f2/F2-C02-login-fail.png
 | F2-C03 | F2 WhatsApp Share | Customer | qa.customer@ | Bag/shelf WhatsApp share C03 | FAIL | screenshots/f2/F2-C03-login-fail.png
 | F2-C04 | F2 WhatsApp Share | Customer | qa.customer@ | Bag/shelf WhatsApp share C04 | FAIL | screenshots/f2/F2-C04-login-fail.png
 | F2-C05 | F2 WhatsApp Share | Customer | qa.customer@ | Bag/shelf WhatsApp share C05 | FAIL | screenshots/f2/F2-C05-login-fail.png
-| F2-W01 | F2 WhatsApp Share | Web | — | Web share/deeplink W01 | PENDING |  |
-| F2-W02 | F2 WhatsApp Share | Web | — | Web share/deeplink W02 | PENDING |  |
-| F2-W03 | F2 WhatsApp Share | Web | — | Web share/deeplink W03 | PENDING |  |
+| F2-W01 | F2 WhatsApp Share | Web | — | Web bag ShareNetwork → wa.me | PASS | screenshots/web/F2-W01-bag-whatsapp-share.png |
+| F2-W02 | F2 WhatsApp Share | Web | — | Web shelf share button | PASS | screenshots/web/F2-W02-shelf-whatsapp-share.png |
+| F2-W03 | F2 WhatsApp Share | Web | — | Deeplink page `/bags/{id}` loads | PASS | screenshots/web/F2-W03-bag-deeplink-alias.png |
 | F2-M01 | F2 WhatsApp Share | Merchant | qa.merchant@ | Share message outlet name Bakehouse | FAIL | screenshots/f2/F2-M01-login-fail.png
 | F2-M02 | F2 WhatsApp Share | Merchant | qa.kumbuk@ | Pettah shelf share cross-check | FAIL | screenshots/f2/F2-M02-login-fail.png
 | F2-X01 | F2 WhatsApp Share | Cross | C+M+W | Share triangulation X01 | FAIL | screenshots/f2/F2-X01.png

@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useLayoutEffect, useMemo, useState } fro
 import {
   FlatList,
   Image,
-  Linking,
   Modal,
   Pressable,
   ScrollView,
@@ -19,6 +18,7 @@ import { useAuthContext } from '@/context/AuthContext';
 import { useFavourites } from '@/hooks/useFavourites';
 import { CLEARANCE_FOOD_SAFETY_NOTICE } from '@/lib/foodSafetyCopy';
 import { isClearanceShelvesEnabled } from '@/config/clearanceShelves';
+import { isListingWhatsAppShareEnabled } from '@/config/featureFlags';
 import { OutletTrustBadge } from '@/components/OutletTrustBadge';
 import {
   filterShelfItems,
@@ -29,8 +29,8 @@ import {
 } from '@/lib/shelfBrowse';
 import {
   buildShelfWhatsAppMessage,
-  buildWhatsAppShareUrl,
-} from '@/lib/shelfShare';
+  openWhatsAppShare,
+} from '@/lib/listingShare';
 import {
   formatBestBefore,
   formatItemSavings,
@@ -72,6 +72,7 @@ export function ClearanceShelfScreen({ navigation, route }: Props) {
   const previewRequested = parsePreviewQueryParam(route.params.preview);
   const basketExpiredQa = parsePreviewQueryParam(route.params.basketExpired);
   const { env, user, resolvedRole } = useAuthContext();
+  const listingWhatsAppShareEnabled = isListingWhatsAppShareEnabled();
   const shelfId = route.params.id;
   const { isMerchantPreview, isBrowseOnly } = resolveShelfPreviewMode(
     previewRequested,
@@ -194,16 +195,25 @@ export function ClearanceShelfScreen({ navigation, route }: Props) {
   }, [displayItems, groupedItems]);
 
   const onShareWhatsApp = async () => {
-    if (!shelf) return;
+    if (!shelf || !listingWhatsAppShareEnabled) return;
     const outlet = shelf.outlet as Record<string, unknown> | undefined;
     const outletName = String(outlet?.name ?? 'Outlet');
+    const rescuePriceFrom = displayItems.reduce<number | null>((min, item) => {
+      const price = Number(item.rescue_price ?? 0);
+      if (price <= 0) return min;
+      return min == null || price < min ? price : min;
+    }, null);
     const message = buildShelfWhatsAppMessage({
       shelfId,
       outletName,
       itemCount: displayItems.length,
+      rescuePriceFrom,
+      pickupStart:
+        typeof shelf.pickup_start === 'string' ? shelf.pickup_start : null,
+      pickupEnd: typeof shelf.pickup_end === 'string' ? shelf.pickup_end : null,
+      webBaseUrl: env.apiBaseUrl || undefined,
     });
-    const url = buildWhatsAppShareUrl(message);
-    await Linking.openURL(url).catch(() => undefined);
+    await openWhatsAppShare(message, { title: 'Share on WhatsApp' });
   };
 
   if (!isClearanceShelvesEnabled() && !isMerchantPreview) {
@@ -461,10 +471,11 @@ export function ClearanceShelfScreen({ navigation, route }: Props) {
                 />
               </Pressable>
             ) : null}
-            {!isMerchantPreview ? (
+            {!isMerchantPreview && listingWhatsAppShareEnabled ? (
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel="Share shelf"
+                accessibilityLabel="Share on WhatsApp"
+                testID="shelfDetail.whatsappShare"
                 onPress={() => void onShareWhatsApp()}
               >
                 <StitchIcon name="share" size={22} colorKey="primaryContainer" />
