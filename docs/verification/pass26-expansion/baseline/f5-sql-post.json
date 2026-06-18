@@ -1,0 +1,13 @@
+{
+  "captured_at": "2026-06-18T19:45:00.000Z",
+  "pass": "f5-sql-post",
+  "project_id": "odkbpeelvcdmlimdflbr",
+  "matrix_id": "F5-SQL01",
+  "result": "PASS",
+  "migration": "20260620150000_customer_on_the_way.sql",
+  "rpc": {
+    "name": "customer_signal_on_the_way",
+    "args": "p_order_id uuid"
+  },
+  "column": "customer_on_the_way_at"
+}

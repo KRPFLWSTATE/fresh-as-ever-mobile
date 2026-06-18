@@ -955,7 +955,12 @@ export function OrderDetailScreen() {
         </StitchCard>
 
         {row.customer_on_the_way_at && onMyWayEnabled ? (
-          <StitchText variant="body-sm" colorKey="primaryContainer" style={{ textAlign: 'center' }}>
+          <StitchText
+            testID="order.onMyWayStatus"
+            variant="body-sm"
+            colorKey="primaryContainer"
+            style={{ textAlign: 'center' }}
+          >
             The outlet knows you are on your way. Tap &quot;I&apos;m at the outlet&quot; when you arrive.
           </StitchText>
         ) : null}
@@ -969,6 +974,7 @@ export function OrderDetailScreen() {
         {showOnMyWayCta ? (
           <>
             <StitchButton
+              testID="order.onMyWay"
               title={signalingOnMyWay ? 'Sending…' : 'On my way'}
               variant="secondary"
               disabled={signalingOnMyWay || !canSignalOnMyWay}
@@ -976,6 +982,7 @@ export function OrderDetailScreen() {
             />
             {onMyWayDisabledReason && !canSignalOnMyWay ? (
               <StitchText
+                testID="order.onMyWayHint"
                 variant="body-sm"
                 colorKey="textFaint"
                 style={{ textAlign: 'center', marginTop: -spacing.sm }}
@@ -989,6 +996,7 @@ export function OrderDetailScreen() {
         {showArrivalCta ? (
           <>
             <StitchButton
+              testID="order.arrival"
               title={signalingArrival ? 'Notifying…' : "I'm at the outlet"}
               disabled={signalingArrival || !canSignalArrival}
               onPress={onSignalArrival}

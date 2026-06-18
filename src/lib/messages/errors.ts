@@ -42,14 +42,8 @@ export const ERROR = {
   onMyWay: {
     notEligible:
       'You can tap "On my way" from 2 hours before pickup opens until the window ends.',
-    paymentFirst: 'Complete payment first, then you can let the outlet know you are en route.',
+    paymentFirst: 'Complete payment first, then you can let the outlet know you are on your way.',
     windowClosed: 'Pickup window has ended for this order.',
-    failed: 'Could not send your on-the-way signal. Try again shortly.',
-  },
-  onMyWay: {
-    notEligible:
-      'You can tap "On my way" from 2 hours before pickup opens until the window ends.',
-    paymentFirst: 'Complete payment first, then you can let the outlet know you are en route.',
     failed: 'Could not send your signal. Try again shortly.',
   },
   auth: {

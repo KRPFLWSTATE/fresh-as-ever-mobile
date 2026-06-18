@@ -77,18 +77,18 @@
 | F4-X03 | F4 Seasonal Badges | Cross | C+M+A | Seasonal triangulation X03 | PENDING |  |
 | F4-R01 | F4 Seasonal Badges | Regression | qa.customer@ | Untagged bags show without badge | PENDING |  |
 | F4-R02 | F4 Seasonal Badges | Regression | qa.merchant@ | Pass25 merchant publish flow | PENDING |  |
-| F5-SQL01 | F5 On My Way | DB | — | RPC customer_signal_on_the_way exists | PENDING |  |
-| F5-C01 | F5 On My Way | Customer | qa.customer@ | On my way / arrived CTA C01 | PENDING |  |
-| F5-C02 | F5 On My Way | Customer | qa.customer@ | On my way / arrived CTA C02 | PENDING |  |
-| F5-C03 | F5 On My Way | Customer | qa.customer@ | On my way / arrived CTA C03 | PENDING |  |
-| F5-C04 | F5 On My Way | Customer | qa.customer@ | On my way / arrived CTA C04 | PENDING |  |
-| F5-C05 | F5 On My Way | Customer | qa.customer@ | On my way / arrived CTA C05 | PENDING |  |
-| F5-M01 | F5 On My Way | Merchant | qa.merchant@ | Live monitor / orders badge M01 | PENDING |  |
-| F5-M02 | F5 On My Way | Merchant | qa.merchant@ | Live monitor / orders badge M02 | PENDING |  |
-| F5-M03 | F5 On My Way | Merchant | qa.merchant@ | Live monitor / orders badge M03 | PENDING |  |
-| F5-M04 | F5 On My Way | Merchant | qa.kumbuk@ | Live monitor / orders badge M04 | PENDING |  |
-| F5-M05 | F5 On My Way | Merchant | qa.merchant@ | Live monitor / orders badge M05 | PENDING |  |
-| F5-W01 | F5 On My Way | Web | — | Web merchant orders chips | PENDING |  |
+| F5-SQL01 | F5 On My Way | DB | — | RPC customer_signal_on_the_way exists | PASS | baseline/f5-sql-post.json |
+| F5-C01 | F5 On My Way | Customer | qa.customer@ | On my way / arrived CTA C01 | PENDING | Appium — needs fresh sim build with ON_MY_WAY |
+| F5-C02 | F5 On My Way | Customer | qa.customer@ | On my way / arrived CTA C02 | PENDING | Appium |
+| F5-C03 | F5 On My Way | Customer | qa.customer@ | On my way / arrived CTA C03 | PENDING | Appium |
+| F5-C04 | F5 On My Way | Customer | qa.customer@ | On my way / arrived CTA C04 | PENDING | Appium |
+| F5-C05 | F5 On My Way | Customer | qa.customer@ | On my way / arrived CTA C05 | PENDING | Web CDP parity |
+| F5-M01 | F5 On My Way | Merchant | qa.merchant@ | Live monitor / orders badge M01 | PENDING | Appium — On the way hero tier |
+| F5-M02 | F5 On My Way | Merchant | qa.merchant@ | Live monitor / orders badge M02 | PENDING | Appium — Customer arrived tier |
+| F5-M03 | F5 On My Way | Merchant | qa.merchant@ | Live monitor / orders badge M03 | PENDING | Appium — en-route badge |
+| F5-M04 | F5 On My Way | Merchant | qa.kumbuk@ | Live monitor / orders badge M04 | PENDING | Appium Kumbuk |
+| F5-M05 | F5 On My Way | Merchant | qa.merchant@ | Live monitor / orders badge M05 | PENDING | Appium — collect clears signals |
+| F5-W01 | F5 On My Way | Web | — | Web merchant orders chips | PENDING | CDP — en-route + at-outlet chips |
 | F5-X01 | F5 On My Way | Cross | C+M+SQL | Realtime signal triangulation X01 | PENDING |  |
 | F5-X02 | F5 On My Way | Cross | C+M+SQL | Realtime signal triangulation X02 | PENDING |  |
 | F5-X03 | F5 On My Way | Cross | C+M+SQL | Realtime signal triangulation X03 | PENDING |  |
