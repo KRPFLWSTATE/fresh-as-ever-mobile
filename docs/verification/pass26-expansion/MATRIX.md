@@ -105,7 +105,7 @@
 | F7-C02 | F6/F7 Monthly Savings | Customer | qa.customer@ | Notification UX C02 | PENDING |  |
 | F7-C03 | F6/F7 Monthly Savings | Customer | qa.customer@ | Notification UX C03 | PASS | Monthly impact toggle visible |
 | F7-W01 | F6/F7 Monthly Savings | Web | — | Notification prefs web parity | PENDING |  |
-| F7-X01 | F6/F7 Monthly Savings | Cross | C+SQL | Push LKR = useCustomerImpact month slice | PENDING |  |
+| F7-X01 | F6/F7 Monthly Savings | Cross | C+SQL | Push LKR = useCustomerImpact month slice | PASS | Edge dryRun savedRs=2450 June 2026 |
 | F7-X02 | F6/F7 Monthly Savings | Cross | SQL | ≥2 orders threshold enforced | PASS | edge dryRun eligibility |
 | F7-A01 | F6/F7 Monthly Savings | Admin | — | Cron logs no errors | PENDING |  |
 | F7-R01 | F6/F7 Monthly Savings | Regression | DB | Other push types still work | PENDING |  |
