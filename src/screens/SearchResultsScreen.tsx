@@ -252,9 +252,6 @@ function mapDiscoverBagToRow(bag: {
     occasion_kind: bag.occasion_kind ?? null,
   };
 }
-    occasion_kind: bag.occasion_kind ?? null,
-  };
-}
 
 function mapRow(raw: Record<string, unknown>): Row {
   const outlet = raw.outlet as Record<string, unknown> | undefined;
@@ -276,6 +273,8 @@ function mapRow(raw: Record<string, unknown>): Row {
       typeof raw.pickup_start === 'string' ? raw.pickup_start : null,
     pickup_end:
       typeof raw.pickup_end === 'string' ? raw.pickup_end : null,
+    pickup_window_kind:
+      raw.pickup_window_kind != null ? String(raw.pickup_window_kind) : null,
     outlet_name: outlet?.name != null ? String(outlet.name) : null,
     outlet_id: outlet?.id != null ? String(outlet.id) : null,
     outlet_category: outlet?.category != null ? String(outlet.category) : null,
@@ -371,11 +370,12 @@ export function SearchResultsScreen(): React.ReactElement {
           retail_value_estimate,
           pickup_start,
           pickup_end,
+          pickup_window_kind,
           image_url,
           quantity_remaining,
           occasion_kind,
           status,
-          outlet:outlets ( id, name, category, landmark )
+          outlet:outlets ( id, name, category, landmark, location )
         `,
           { count: 'exact' },
         )

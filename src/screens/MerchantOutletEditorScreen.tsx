@@ -37,6 +37,7 @@ import { parseOutletCoords } from '@/lib/parseOutletCoords';
 import { useMerchantContext } from '@/hooks/useMerchantContext';
 import { ensureOutletDemoListings } from '@/lib/ensureOutletDemoListings';
 import { MERCHANT_OUTLET_CATEGORIES } from '@/lib/outletListingMode';
+import { suggestLandmarkFromAddress } from '@/lib/suggestLandmarkFromAddress';
 import { outletCategoryWarnings } from '@/lib/outletCategoryWarning';
 import { getSupabase } from '@/lib/supabase';
 import { useStitchTheme, type StitchTheme } from '@/theme/StitchThemeContext';
@@ -125,6 +126,8 @@ export function MerchantOutletEditorScreen(): React.ReactElement {
 
   const [name, setName] = useState('');
   const [address, setAddress] = useState('');
+  const [landmark, setLandmark] = useState('');
+  const [landmarkTouched, setLandmarkTouched] = useState(false);
   const [phone, setPhone] = useState('');
   const [category, setCategory] = useState<CategoryKey>('other');
   const [isActive, setIsActive] = useState(false);
@@ -159,7 +162,7 @@ export function MerchantOutletEditorScreen(): React.ReactElement {
       const { data, error } = await sb
         .from('outlets')
         .select(
-          'id, name, address, pickup_instructions, business_hours, category, is_active, is_halal_certified, location',
+          'id, name, address, landmark, pickup_instructions, business_hours, category, is_active, is_halal_certified, location',
         )
         .eq('id', outletId)
         .maybeSingle();
@@ -177,6 +180,9 @@ export function MerchantOutletEditorScreen(): React.ReactElement {
       const row = data as Record<string, unknown>;
       setName(String(row.name ?? ''));
       setAddress(String(row.address ?? ''));
+      const loadedLandmark = String(row.landmark ?? '').trim();
+      setLandmark(loadedLandmark);
+      setLandmarkTouched(Boolean(loadedLandmark));
       // `pickup_instructions` is a free-text column already; we keep the contact phone
       // alongside it as a short structured prefix `Phone: NN…\n…` so we don't need a new
       // column. Read back any leading `Phone:` line into the phone field.
@@ -208,6 +214,17 @@ export function MerchantOutletEditorScreen(): React.ReactElement {
       alive = false;
     };
   }, [env, outletId]);
+
+  const onAddressChange = useCallback(
+    (next: string) => {
+      setAddress(next);
+      if (!landmarkTouched) {
+        const suggested = suggestLandmarkFromAddress(next);
+        if (suggested) setLandmark(suggested);
+      }
+    },
+    [landmarkTouched],
+  );
 
   const hasLatLng =
     outletLat != null &&
@@ -250,6 +267,7 @@ export function MerchantOutletEditorScreen(): React.ReactElement {
     const payload: Record<string, unknown> = {
       name: name.trim(),
       address: address.trim(),
+      landmark: landmark.trim() || null,
       category,
       is_active: isActive,
       is_halal_certified: isHalalCertified,
@@ -311,6 +329,7 @@ export function MerchantOutletEditorScreen(): React.ReactElement {
     hours,
     isActive,
     isHalalCertified,
+    landmark,
     name,
     navigation,
     outletId,
@@ -405,6 +424,28 @@ export function MerchantOutletEditorScreen(): React.ReactElement {
               Saved into `outlets.pickup_instructions` as a `Phone:` line for pickup ops.
             </StitchText>
           </View>
+        </View>
+      </StitchSurface>
+
+      <StitchSurface elevated padding="md" style={styles.cardBorder}>
+        <StitchText variant="h3" colorKey="text">
+          Neighbourhood / landmark
+        </StitchText>
+        <StitchText variant="body-sm" colorKey="textMuted" style={{ marginTop: 4 }}>
+          Shown on Discover cards after the outlet name (e.g. Bakehouse · Kollupitiya).
+        </StitchText>
+        <View style={{ marginTop: spacing.md }}>
+          <TextInput
+            testID="outlet.landmark"
+            value={landmark}
+            onChangeText={(text) => {
+              setLandmarkTouched(true);
+              setLandmark(text);
+            }}
+            style={styles.input}
+            placeholder="Neighbourhood or landmark…"
+            placeholderTextColor={colors.textFaint}
+          />
         </View>
       </StitchSurface>
 
@@ -563,19 +604,38 @@ export function MerchantOutletEditorScreen(): React.ReactElement {
           Search for your outlet address, use GPS, or drag the map pin. Saved as PostGIS
           geography (SRID 4326).
         </StitchText>
-        <View style={{ marginTop: spacing.md }}>
+        <View style={{ marginTop: spacing.md, gap: spacing.md }}>
           <OutletLocationPicker
             env={env}
             address={address}
             lat={outletLat}
             lng={outletLng}
-            onAddressChange={setAddress}
+            onAddressChange={onAddressChange}
             onCoordsChange={(nextLat, nextLng) => {
               setOutletLat(nextLat);
               setOutletLng(nextLng);
             }}
             variant="stacked"
           />
+          <View style={styles.fieldCol}>
+            <StitchText variant="label-caps" colorKey="textMuted">
+              Neighbourhood / landmark
+            </StitchText>
+            <TextInput
+              testID="outlet.landmark"
+              value={landmark}
+              onChangeText={(t) => {
+                setLandmarkTouched(true);
+                setLandmark(t);
+              }}
+              style={styles.input}
+              placeholder="Neighbourhood or landmark…"
+              placeholderTextColor={colors.textFaint}
+            />
+            <StitchText variant="body-sm" colorKey="textFaint" style={{ marginTop: 4 }}>
+              Shown on Discover cards after the outlet name (e.g. Bakehouse · Kollupitiya).
+            </StitchText>
+          </View>
         </View>
       </StitchSurface>
 

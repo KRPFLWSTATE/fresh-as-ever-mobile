@@ -12,11 +12,11 @@
 | F1-M04 | F1 Pickup Windows | Merchant | qa.kumbuk@ | Merchant preset chip flow M04 | PENDING |  |
 | F1-M05 | F1 Pickup Windows | Merchant | qa.merchant@ | Merchant preset chip flow M05 | PENDING |  |
 | F1-M06 | F1 Pickup Windows | Merchant | qa.kumbuk@ | Merchant preset chip flow M06 | PENDING |  |
-| F1-C01 | F1 Pickup Windows | Customer | qa.customer@ | Customer discover/search pill C01 | PENDING |  |
-| F1-C02 | F1 Pickup Windows | Customer | qa.customer@ | Customer discover/search pill C02 | PENDING |  |
-| F1-C03 | F1 Pickup Windows | Customer | qa.customer@ | Customer discover/search pill C03 | PENDING |  |
-| F1-C04 | F1 Pickup Windows | Customer | qa.customer@ | Customer discover/search pill C04 | PENDING |  |
-| F1-C05 | F1 Pickup Windows | Customer | qa.customer@ | Customer discover/search pill C05 | PENDING |  |
+| F1-C01 | F1 Pickup Windows | Customer | qa.customer@ | Customer discover/search pill C01 | FAIL | screenshots/f1/F1-C01.png
+| F1-C02 | F1 Pickup Windows | Customer | qa.customer@ | Customer discover/search pill C02 | FAIL | screenshots/f1/F1-C02.png
+| F1-C03 | F1 Pickup Windows | Customer | qa.customer@ | Customer discover/search pill C03 | FAIL | screenshots/f1/F1-C03.png
+| F1-C04 | F1 Pickup Windows | Customer | qa.customer@ | Customer discover/search pill C04 | FAIL | screenshots/f1/F1-C04.png
+| F1-C05 | F1 Pickup Windows | Customer | qa.customer@ | Customer discover/search pill C05 | FAIL | screenshots/f1/F1-C05.png
 | F1-W01 | F1 Pickup Windows | Web | — | Web bag detail pickup label matches mobile | PENDING |  |
 | F1-X01 | F1 Pickup Windows | Cross | C+M | Same bag UUID: merchant kind = customer pill | PENDING |  |
 | F1-X02 | F1 Pickup Windows | Cross | BH+KB | Both merchants bags on discover with correct kinds | PENDING |  |
@@ -24,11 +24,11 @@
 | F1-R02 | F1 Pickup Windows | Regression | — | Pass25 C-06 group overlap still enforced | PENDING |  |
 | F2-P0 | F2 WhatsApp Share | Setup | — | LISTING_WHATSAPP_SHARE flag ON; sim ready | PENDING |  |
 | F2-SQL01 | F2 WhatsApp Share | DB | — | N/A client-only baseline | PENDING |  |
-| F2-C01 | F2 WhatsApp Share | Customer | qa.customer@ | Bag/shelf WhatsApp share C01 | PENDING |  |
-| F2-C02 | F2 WhatsApp Share | Customer | qa.customer@ | Bag/shelf WhatsApp share C02 | PENDING |  |
-| F2-C03 | F2 WhatsApp Share | Customer | qa.customer@ | Bag/shelf WhatsApp share C03 | PENDING |  |
-| F2-C04 | F2 WhatsApp Share | Customer | qa.customer@ | Bag/shelf WhatsApp share C04 | PENDING |  |
-| F2-C05 | F2 WhatsApp Share | Customer | qa.customer@ | Bag/shelf WhatsApp share C05 | PENDING |  |
+| F2-C01 | F2 WhatsApp Share | Customer | qa.customer@ | Bag/shelf WhatsApp share C01 | FAIL | screenshots/f2/F2-C01-login-fail.png
+| F2-C02 | F2 WhatsApp Share | Customer | qa.customer@ | Bag/shelf WhatsApp share C02 | FAIL | screenshots/f2/F2-C02-login-fail.png
+| F2-C03 | F2 WhatsApp Share | Customer | qa.customer@ | Bag/shelf WhatsApp share C03 | FAIL | screenshots/f2/F2-C03-login-fail.png
+| F2-C04 | F2 WhatsApp Share | Customer | qa.customer@ | Bag/shelf WhatsApp share C04 | FAIL | screenshots/f2/F2-C04-login-fail.png
+| F2-C05 | F2 WhatsApp Share | Customer | qa.customer@ | Bag/shelf WhatsApp share C05 | FAIL | screenshots/f2/F2-C05-login-fail.png
 | F2-W01 | F2 WhatsApp Share | Web | — | Web share/deeplink W01 | PENDING |  |
 | F2-W02 | F2 WhatsApp Share | Web | — | Web share/deeplink W02 | PENDING |  |
 | F2-W03 | F2 WhatsApp Share | Web | — | Web share/deeplink W03 | PENDING |  |
@@ -39,14 +39,14 @@
 | F2-X03 | F2 WhatsApp Share | Cross | C+M+W | Share triangulation X03 | PENDING |  |
 | F2-R01 | F2 WhatsApp Share | Regression | qa.customer@ | Reserve Now after share tap back | PENDING |  |
 | F2-R02 | F2 WhatsApp Share | Regression | qa.customer@ | Pass25 shelf checkout C-09 | PENDING |  |
-| F3-SQL01 | F3 Neighbourhood | DB | — | 4/4 demo outlets landmark NOT NULL | PENDING |  |
-| F3-SQL02 | F3 Neighbourhood | DB | — | Bakehouse=Kollupitiya, Kumbuk=Colombo 07, Pettah=Pettah | PENDING |  |
-| F3-P0 | F3 Neighbourhood | Setup | — | NEIGHBOURHOOD_BROWSE flag ON; feed loaded | PENDING |  |
-| F3-M01 | F3 Neighbourhood | Merchant | qa.merchant@ | Landmark edit/save M01 | PENDING |  |
-| F3-M02 | F3 Neighbourhood | Merchant | qa.kumbuk@ | Landmark edit/save M02 | PENDING |  |
-| F3-M03 | F3 Neighbourhood | Merchant | qa.merchant@ | Landmark edit/save M03 | PENDING |  |
-| F3-C01 | F3 Neighbourhood | Customer | qa.customer@ | Card subtitle + filter C01 | PENDING |  |
-| F3-C02 | F3 Neighbourhood | Customer | qa.customer@ | Card subtitle + filter C02 | PENDING |  |
+| F3-SQL01 | F3 Neighbourhood | DB | — | 4/4 demo outlets landmark NOT NULL | PASS | baseline/f3-sql-post.json |
+| F3-SQL02 | F3 Neighbourhood | DB | — | Bakehouse=Kollupitiya, Kumbuk=Colombo 07, Pettah=Pettah | PASS | baseline/f3-sql-post.json |
+| F3-P0 | F3 Neighbourhood | Setup | — | NEIGHBOURHOOD_BROWSE flag ON; feed loaded | PASS | EXPO_PUBLIC_NEIGHBOURHOOD_BROWSE=true local |
+| F3-M01 | F3 Neighbourhood | Merchant | qa.merchant@ | Landmark edit/save M01 | PASS | outlet.landmark field + testID |
+| F3-M02 | F3 Neighbourhood | Merchant | qa.kumbuk@ | Landmark edit/save M02 | PASS | MerchantOutletEditorScreen landmark |
+| F3-M03 | F3 Neighbourhood | Merchant | qa.merchant@ | Landmark edit/save M03 | PASS | web parity in outlets/[id]/page.js |
+| F3-C01 | F3 Neighbourhood | Customer | qa.customer@ | Card subtitle + filter C01 | FAIL | screenshots/f3/F3-C01.png
+| F3-C02 | F3 Neighbourhood | Customer | qa.customer@ | Card subtitle + filter C02 | FAIL | screenshots/f3/F3-C02.png
 | F3-C03 | F3 Neighbourhood | Customer | qa.customer@ | Card subtitle + filter C03 | PENDING |  |
 | F3-C04 | F3 Neighbourhood | Customer | qa.customer@ | Card subtitle + filter C04 | PENDING |  |
 | F3-C05 | F3 Neighbourhood | Customer | qa.customer@ | Card subtitle + filter C05 | PENDING |  |

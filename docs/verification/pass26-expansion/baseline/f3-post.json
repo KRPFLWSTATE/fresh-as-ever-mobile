@@ -1,0 +1,33 @@
+{
+  "captured_at": "2026-06-18T18:30:00.000Z",
+  "pass": "f3-post",
+  "project_id": "odkbpeelvcdmlimdflbr",
+  "migration": "20260620130000_outlet_landmark_backfill.sql",
+  "f3_sql01": "4/4 demo landmarks NOT NULL",
+  "f3_sql02": [
+    {
+      "id": "00000000-0000-0000-0000-000000000003",
+      "name": "Bakehouse Kollupitiya",
+      "landmark": "Kollupitiya"
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000013",
+      "name": "Kumbuk Colombo 07",
+      "landmark": "Colombo 07"
+    },
+    {
+      "id": "8fbdd459-d8b1-4c84-a6c4-fd00ccf57ac4",
+      "name": "[Demo] Pettah Green Grocer",
+      "landmark": "Pettah"
+    },
+    {
+      "id": "b4884c9f-5a7c-41b0-af19-321c66f24dea",
+      "name": "[Demo] Galle Face Bites",
+      "landmark": "Galle Face"
+    }
+  ],
+  "unit_tests": {
+    "landmarkDisplay.test.ts": "PASS",
+    "neighbourhoodFilter.test.ts": "PASS"
+  }
+}

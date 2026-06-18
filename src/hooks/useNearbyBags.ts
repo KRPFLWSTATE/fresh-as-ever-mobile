@@ -94,6 +94,34 @@ async function enrichBagsWithOutletCoords(
   });
 }
 
+async function enrichBagsWithPickupKinds(
+  supabase: ReturnType<typeof getSupabase>,
+  bags: DiscoverBag[],
+): Promise<DiscoverBag[]> {
+  const missing = bags.filter((b) => !b.pickup_window_kind);
+  if (!missing.length) return bags;
+
+  const { data, error } = await supabase
+    .from('rescue_bags')
+    .select('id, pickup_window_kind')
+    .in('id', missing.map((b) => b.id));
+
+  if (error || !data?.length) return bags;
+
+  const kindById = new Map(
+    (data as Record<string, unknown>[]).map((row) => [
+      String(row.id),
+      row.pickup_window_kind != null ? String(row.pickup_window_kind) : null,
+    ]),
+  );
+
+  return bags.map((bag) =>
+    bag.pickup_window_kind
+      ? bag
+      : { ...bag, pickup_window_kind: kindById.get(bag.id) ?? null },
+  );
+}
+
 async function enrichBagsWithOutletTrust(
   supabase: ReturnType<typeof getSupabase>,
   bags: DiscoverBag[],
@@ -504,7 +532,10 @@ export async function fetchScopedNearbyBags(
 
   return enrichBagsWithOutletTrust(
     supabase,
-    await enrichBagsWithOutletCoords(supabase, next),
+    await enrichBagsWithPickupKinds(
+      supabase,
+      await enrichBagsWithOutletCoords(supabase, next),
+    ),
   );
 }
 
