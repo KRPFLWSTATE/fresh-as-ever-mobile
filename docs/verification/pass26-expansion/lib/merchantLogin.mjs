@@ -23,10 +23,9 @@ function loginDeeplink(portal, { merchant } = {}) {
   return url;
 }
 
-function merchantHintFromEmail(email) {
-  if (email === CREDS.kumbuk.email) return 'kumbuk';
-  if (email === CREDS.bakehouse.email) return 'bakehouse';
-  return undefined;
+function merchantAccountFromEmail(email) {
+  if (/kumbuk@/i.test(String(email))) return 'kumbuk';
+  return 'bakehouse';
 }
 
 export const wait = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -680,15 +679,10 @@ export async function waitForLoginScreen(d, { timeoutMs = 20000 } = {}) {
   );
 }
 
-function merchantAccountFromEmail(email) {
-  if (/kumbuk@/i.test(String(email))) return 'kumbuk';
-  return 'bakehouse';
-}
-
 export async function ensureMerchantLoginPortal(d, account = 'bakehouse') {
   await dismissSystemPrompts(d);
   await dismissOverlays(d);
-  await dl(`freshasever://login?portal=merchant&merchant=${account}`);
+  await dl(loginDeeplink('merchant', { merchant: account }));
   await wait(3500);
   await dismissSystemPrompts(d);
   const merch = await d.$('~login.portal.merchant');
@@ -790,11 +784,7 @@ export async function ensureCustomerEmailForm(d) {
 export async function emailLogin(d, { email, password, portal }) {
   await dismissSystemPrompts(d);
   const merchantAccount = portal === 'merchant' ? merchantAccountFromEmail(email) : null;
-  const loginUrl =
-    portal === 'merchant'
-      ? `freshasever://login?portal=merchant&merchant=${merchantAccount}`
-      : `freshasever://login?portal=${portal}`;
-  await dl(loginUrl);
+  await dl(loginDeeplink(portal, { merchant: merchantAccount }));
   await wait(3500);
   await dismissSystemPrompts(d);
   await ensureEmailLoginForm(d, portal);
@@ -862,7 +852,7 @@ export async function emailLogin(d, { email, password, portal }) {
   ) {
     await dl(loginDeeplink('merchant', { merchant: 'kumbuk' }));
     await wait(2500);
-    await ensureMerchantLoginPortal(d);
+    await ensureMerchantLoginPortal(d, 'kumbuk');
     await wait(900);
   }
   const prefilled =
@@ -1091,7 +1081,7 @@ export async function ensureCustomerLoginSurface(d) {
 
 
 async function merchantLoginTapPath(d, { email, account = 'bakehouse' } = {}) {
-  await dl(`freshasever://login?portal=merchant&merchant=${account}`);
+  await dl(loginDeeplink('merchant', { merchant: account }));
   await wait(5000);
   await dismissSavePassword(d);
   await dismissSystemPrompts(d);
@@ -1134,7 +1124,7 @@ async function merchantLoginTapPath(d, { email, account = 'bakehouse' } = {}) {
 }
 
 async function loginKumbukTapPath(d) {
-  await dl('freshasever://login?portal=merchant&merchant=kumbuk');
+  await dl(loginDeeplink('merchant', { merchant: 'kumbuk' }));
   await wait(5000);
   await dismissSavePassword(d);
   await dismissSystemPrompts(d);
