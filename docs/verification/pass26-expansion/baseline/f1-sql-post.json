@@ -1,0 +1,14 @@
+{
+  "captured_at": "2026-06-18T19:00:00.000Z",
+  "pass": "f1-sql-post",
+  "matrix_id": "F1-SQL01",
+  "project_id": "odkbpeelvcdmlimdflbr",
+  "migration": "20260620120000_pickup_window_kind.sql",
+  "result": "PASS",
+  "demo_bags_total": 11,
+  "demo_bags_with_kind": 11,
+  "demo_shelves_total": 3,
+  "demo_shelves_with_kind": 3,
+  "null_kind_bags": 0,
+  "null_kind_shelves": 0
+}
