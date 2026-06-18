@@ -29,6 +29,8 @@ export type DiscoverFeedItem =
       pickup_end?: string | null;
       outlet_id?: string;
       outlet_name?: string;
+      outlet_landmark?: string | null;
+      landmark?: string | null;
       outlet_lat?: number | null;
       outlet_lng?: number | null;
       category?: string | null;
@@ -92,6 +94,9 @@ export function mapShelfToFeedItem(shelf: Record<string, unknown>): DiscoverFeed
     pickup_end: shelf.pickup_end as string | undefined,
     outlet_id: shelf.outlet_id as string | undefined,
     outlet_name: (outlet.name ?? outlet.business_name) as string | undefined,
+    outlet_landmark:
+      outlet.landmark != null ? String(outlet.landmark) : null,
+    landmark: outlet.landmark != null ? String(outlet.landmark) : null,
     outlet_lat: coords?.lat ?? null,
     outlet_lng: coords?.lng ?? null,
     category: outlet.category as string | undefined,
@@ -101,6 +106,10 @@ export function mapShelfToFeedItem(shelf: Record<string, unknown>): DiscoverFeed
     shelfCategories,
     savingsPercentMin,
     savingsPercentMax,
+    occasion_kind:
+      shelf.occasion_kind != null ? String(shelf.occasion_kind) : 'none',
+    pickup_window_kind:
+      shelf.pickup_window_kind != null ? String(shelf.pickup_window_kind) : 'custom',
     payload: shelf,
   };
 }
@@ -133,6 +142,8 @@ export async function fetchPublishedShelves(
       outlet_id,
       pickup_start,
       pickup_end,
+      pickup_window_kind,
+      occasion_kind,
       status,
       seed_demo,
       items:clearance_shelf_items (
@@ -142,7 +153,7 @@ export async function fetchPublishedShelves(
         product:product_catalog (category)
       ),
       outlet:outlets (
-        id, name, category, location, is_active, use_demo_listings,
+        id, name, category, landmark, location, is_active, use_demo_listings,
         trust_score, average_rating, total_reviews,
         merchant:merchants (business_name, status)
       )

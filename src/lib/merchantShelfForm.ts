@@ -1,4 +1,5 @@
 import { isoLocalRounded, toLocalDateTime } from '@/lib/merchantBagForm';
+import { parseSeasonalOccasionKind, type SeasonalOccasionKind } from '@/domain/seasonalOccasion';
 
 export type ShelfItemDraft = {
   id?: string;
@@ -26,10 +27,12 @@ export type ShelfItemDraft = {
 export type ShelfEditorForm = {
   pickup_start: string;
   pickup_end: string;
+  pickup_window_kind: string;
   notes: string;
   title: string;
   description: string;
   cover_image_url: string;
+  occasion_kind: SeasonalOccasionKind;
   items: ShelfItemDraft[];
 };
 
@@ -60,10 +63,12 @@ export function defaultShelfEditorForm(): ShelfEditorForm {
   return {
     pickup_start: isoLocalRounded(now),
     pickup_end: isoLocalRounded(end),
+    pickup_window_kind: 'now_4h',
     notes: '',
     title: '',
     description: '',
     cover_image_url: '',
+    occasion_kind: 'none',
     items: [],
   };
 }
@@ -150,10 +155,15 @@ export function shelfFormFromRow(
   return {
     pickup_start: ps || base.pickup_start,
     pickup_end: pe || base.pickup_end,
+    pickup_window_kind:
+      typeof shelf.pickup_window_kind === 'string'
+        ? shelf.pickup_window_kind
+        : base.pickup_window_kind,
     notes,
     title,
     description,
     cover_image_url,
+    occasion_kind: parseSeasonalOccasionKind(shelf.occasion_kind),
     items,
   };
 }

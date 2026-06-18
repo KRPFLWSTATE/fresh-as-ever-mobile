@@ -59,20 +59,24 @@ export function useMerchantShelves(env: AppEnv, outletId: string | null) {
     async ({
       pickupStart,
       pickupEnd,
+      pickupWindowKind,
       notes,
       title,
       description,
       coverImageUrl,
+      occasionKind,
       status,
       items,
       removedItemIds,
     }: {
       pickupStart: string;
       pickupEnd: string;
+      pickupWindowKind?: string;
       notes?: string | null;
       title?: string | null;
       description?: string | null;
       coverImageUrl?: string | null;
+      occasionKind?: string;
       status: 'draft' | 'published';
       items: ShelfItemDraft[];
       removedItemIds?: string[];
@@ -91,10 +95,12 @@ export function useMerchantShelves(env: AppEnv, outletId: string | null) {
             status,
             pickup_start: pickupStart,
             pickup_end: pickupEnd,
+            pickup_window_kind: pickupWindowKind ?? 'custom',
             notes: notes ?? null,
             title: title ?? null,
             description: description ?? null,
             cover_image_url: coverImageUrl ?? null,
+            occasion_kind: occasionKind ?? 'none',
             published_at: status === 'published' ? new Date().toISOString() : null,
           })
           .select()
@@ -107,10 +113,12 @@ export function useMerchantShelves(env: AppEnv, outletId: string | null) {
           .update({
             pickup_start: pickupStart,
             pickup_end: pickupEnd,
+            pickup_window_kind: pickupWindowKind ?? 'custom',
             notes: notes ?? null,
             title: title ?? null,
             description: description ?? null,
             cover_image_url: coverImageUrl ?? null,
+            occasion_kind: occasionKind ?? 'none',
             status,
             published_at:
               status === 'published' && todayShelf?.status !== 'published'

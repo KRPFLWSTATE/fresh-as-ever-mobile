@@ -14,6 +14,9 @@ export type DiscoverBag = {
   outlet_lat?: number | null;
   outlet_lng?: number | null;
   outlet_name?: string | null;
+  /** Neighbourhood / landmark label from `outlets.landmark` (F3). */
+  landmark?: string | null;
+  outlet_landmark?: string | null;
   /**
    * Distance from the user's current location to the outlet, in kilometres. Returned by
    * the `nearby_bags` RPC. Null on the fallback path (no client geolocation yet).
@@ -26,12 +29,14 @@ export type DiscoverBag = {
   retail_value_estimate?: number | null;
   pickup_start?: string | null;
   pickup_end?: string | null;
+  pickup_window_kind?: string | null;
   trust_score?: number | null;
   average_rating?: number | null;
   total_reviews?: number | null;
   collection_rate_pct?: number | null;
   complaint_rate_pct?: number | null;
   no_show_rate_pct?: number | null;
+  occasion_kind?: string | null;
 };
 
 async function enrichBagsWithOutletCoords(
@@ -216,6 +221,20 @@ function mapRow(row: Record<string, unknown>): DiscoverBag {
         : outlet?.name != null
           ? String(outlet.name)
           : null,
+    landmark:
+      row.outlet_landmark != null
+        ? String(row.outlet_landmark)
+        : row.landmark != null
+          ? String(row.landmark)
+          : outlet?.landmark != null
+            ? String(outlet.landmark)
+            : null,
+    outlet_landmark:
+      row.outlet_landmark != null
+        ? String(row.outlet_landmark)
+        : outlet?.landmark != null
+          ? String(outlet.landmark)
+          : null,
     distance_km: Number.isFinite(distance) ? distance : null,
     quantity_remaining:
       typeof row.quantity_remaining === 'number'
@@ -231,6 +250,10 @@ function mapRow(row: Record<string, unknown>): DiscoverBag {
     pickup_start:
       typeof row.pickup_start === 'string' ? row.pickup_start : null,
     pickup_end: typeof row.pickup_end === 'string' ? row.pickup_end : null,
+    pickup_window_kind:
+      row.pickup_window_kind != null ? String(row.pickup_window_kind) : null,
+    occasion_kind:
+      row.occasion_kind != null ? String(row.occasion_kind) : null,
   };
 }
 
@@ -253,6 +276,7 @@ async function fetchBagsForOutlets(
           retail_value_estimate,
           pickup_start,
           pickup_end,
+          pickup_window_kind,
           image_url,
           quantity_remaining,
           outlet_id,
@@ -260,6 +284,7 @@ async function fetchBagsForOutlets(
             id,
             name,
             category,
+            landmark,
             location,
             trust_score,
             average_rating,
@@ -364,12 +389,15 @@ export async function fetchScopedNearbyBags(
           retail_value_estimate,
           pickup_start,
           pickup_end,
+          pickup_window_kind,
           image_url,
           quantity_remaining,
+          occasion_kind,
           outlet:outlets (
             id,
             name,
             category,
+            landmark,
             location,
             trust_score,
             average_rating,

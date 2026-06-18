@@ -61,6 +61,14 @@ import {
   type DiscoverCategoryChipId,
 } from '@/lib/discoverCategoryChip';
 import { isClearanceShelvesEnabled } from '@/config/clearanceShelves';
+import { featureFlags, isNeighbourhoodBrowseEnabled, isPickupWindowPresetsEnabled } from '@/config/featureFlags';
+import {
+  getActiveSeasonalWindows,
+  listingMatchesOccasionFilter,
+  type SeasonalOccasionKind,
+} from '@/domain/seasonalOccasion';
+import { useSeasonalOccasionWindows } from '@/hooks/useSeasonalOccasionWindows';
+import { SeasonalOccasionBadge } from '@/components/SeasonalOccasionBadge';
 import { isGroupReservationsEnabled } from '@/config/groupReservations';
 import { useReservationCart } from '@/hooks/useReservationCart';
 import { GroupReservationCartBar } from '@/components/group/GroupReservationCartBar';
@@ -104,8 +112,10 @@ import type { StitchTheme } from '@/theme/StitchThemeContext';
 import { useStitchTheme } from '@/theme/StitchThemeContext';
 import { stitchAmbientShadow, stitchFonts } from '@/theme/stitchTokens';
 import { formatDistance } from '@/lib/formatDistance';
+import { formatDiscoverCardSubtitle } from '@/lib/landmarkDisplay';
 import { logError } from '@/observability/logError';
 import { OutletTrustBadge } from '@/components/OutletTrustBadge';
+import { PickupBrowsePill } from '@/components/PickupBrowsePill';
 import { StitchIcon, StitchSurface, StitchText } from '@/ui/stitch';
 import type { StitchIconName } from '@/ui/stitch/iconMap';
 
@@ -489,11 +499,26 @@ function DiscoverBagCard(props: {
   bag: DiscoverBag;
   onOpen: (id: string) => void;
   onOpenOutlet: (outletId: string) => void;
+  neighbourhoodBrowseEnabled: boolean;
+  pickupPresetsEnabled: boolean;
+  seasonalBadgesEnabled: boolean;
+  seasonalWindows: import('@/domain/seasonalOccasion').SeasonalOccasionWindow[];
   colors: StitchTheme['colors'];
   spacing: StitchTheme['spacing'];
   radii: StitchTheme['radii'];
 }): React.ReactElement {
-  const { bag, onOpen, onOpenOutlet, colors, spacing, radii } = props;
+  const {
+    bag,
+    onOpen,
+    onOpenOutlet,
+    neighbourhoodBrowseEnabled,
+    pickupPresetsEnabled,
+    seasonalBadgesEnabled,
+    seasonalWindows,
+    colors,
+    spacing,
+    radii,
+  } = props;
   const { mode } = useStitchTheme();
   const qty = bag.quantity_remaining;
   const soldOut = typeof qty === 'number' && qty <= 0;
@@ -512,6 +537,12 @@ function DiscoverBagCard(props: {
           ? `${qty} bags left`
           : 'Sold out'
       : null;
+
+  const outletSubtitle = formatDiscoverCardSubtitle(
+    bag.outlet_name,
+    bag.landmark ?? bag.outlet_landmark,
+    neighbourhoodBrowseEnabled,
+  );
 
   return (
     <Pressable
@@ -665,17 +696,17 @@ function DiscoverBagCard(props: {
             {bag.outlet_id ? (
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={`View ${bag.outlet_name ?? 'outlet'} profile`}
+                accessibilityLabel={`View ${outletSubtitle} profile`}
                 onPress={() => onOpenOutlet(bag.outlet_id as string)}
                 hitSlop={6}
               >
                 <StitchText variant="body-sm" colorKey="textMuted">
-                  {bag.outlet_name ?? 'Local partner'}
+                  {outletSubtitle}
                 </StitchText>
               </Pressable>
             ) : (
               <StitchText variant="body-sm" colorKey="textMuted">
-                {bag.outlet_name ?? 'Local partner'}
+                {outletSubtitle}
               </StitchText>
             )}
             <View style={{ marginTop: 6, alignSelf: 'flex-start' }}>
@@ -697,9 +728,26 @@ function DiscoverBagCard(props: {
             >
               {bag.title}
             </StitchText>
+            {seasonalBadgesEnabled ? (
+              <View style={{ marginTop: spacing.xs }}>
+                <SeasonalOccasionBadge
+                  occasionKind={bag.occasion_kind}
+                  windows={seasonalWindows}
+                  featureEnabled={seasonalBadgesEnabled}
+                  compact
+                />
+              </View>
+            ) : null}
           </View>
 
-          {pickupLine ? (
+          {pickupPresetsEnabled ? (
+            <PickupBrowsePill
+              pickupStart={bag.pickup_start}
+              pickupEnd={bag.pickup_end}
+              pickupWindowKind={bag.pickup_window_kind}
+              soldOut={soldOut}
+            />
+          ) : pickupLine ? (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
               <StitchIcon
                 name="schedule"
@@ -783,13 +831,36 @@ function DiscoverShelfCard(props: {
   item: Extract<DiscoverFeedItem, { kind: 'shelf' }>;
   onOpen: (id: string) => void;
   onOpenOutlet: (outletId: string) => void;
+  neighbourhoodBrowseEnabled: boolean;
+  pickupPresetsEnabled: boolean;
+  seasonalBadgesEnabled: boolean;
+  seasonalWindows: import('@/domain/seasonalOccasion').SeasonalOccasionWindow[];
   colors: StitchTheme['colors'];
   spacing: StitchTheme['spacing'];
   radii: StitchTheme['radii'];
 }): React.ReactElement {
-  const { item, onOpen, onOpenOutlet, colors, spacing, radii } = props;
+  const {
+    item,
+    onOpen,
+    onOpenOutlet,
+    neighbourhoodBrowseEnabled,
+    pickupPresetsEnabled,
+    seasonalBadgesEnabled,
+    seasonalWindows,
+    colors,
+    spacing,
+    radii,
+  } = props;
+  const payload = item.payload as Record<string, unknown>;
+  const pickupWindowKind =
+    typeof payload.pickup_window_kind === 'string' ? payload.pickup_window_kind : null;
   const pickupLine = formatPickupLine(item.pickup_start ?? null, item.pickup_end ?? null);
   const thumb = item.thumbnails?.[0];
+  const outletSubtitle = formatDiscoverCardSubtitle(
+    item.outlet_name,
+    item.landmark ?? item.outlet_landmark,
+    neighbourhoodBrowseEnabled,
+  );
 
   return (
     <Pressable
@@ -831,7 +902,7 @@ function DiscoverShelfCard(props: {
           {item.outlet_id ? (
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={`View shop — ${item.outlet_name ?? 'outlet'}`}
+              accessibilityLabel={`View shop — ${outletSubtitle}`}
               onPress={(e) => {
                 e.stopPropagation?.();
                 onOpenOutlet(item.outlet_id!);
@@ -846,18 +917,26 @@ function DiscoverShelfCard(props: {
               })}
             >
               <StitchText variant="label" colorKey="primaryContainer">
-                View shop · {item.outlet_name ?? 'Supermarket'}
+                View shop · {outletSubtitle}
               </StitchText>
               <StitchIcon name="chevron_right" size={18} colorKey="primaryContainer" />
             </Pressable>
           ) : (
             <StitchText variant="body-sm" colorKey="textMuted">
-              {item.outlet_name ?? 'Supermarket'}
+              {outletSubtitle}
             </StitchText>
           )}
           <StitchText variant="h3" colorKey="text">
             Today&apos;s clearance shelf
           </StitchText>
+          {seasonalBadgesEnabled ? (
+            <SeasonalOccasionBadge
+              occasionKind={payload.occasion_kind}
+              windows={seasonalWindows}
+              featureEnabled={seasonalBadgesEnabled}
+              compact
+            />
+          ) : null}
           {item.previewItemNames && item.previewItemNames.length > 0 ? (
             <StitchText variant="body-sm" colorKey="textMuted" numberOfLines={2}>
               {item.previewItemNames.join(' · ')}
@@ -870,7 +949,13 @@ function DiscoverShelfCard(props: {
                 : `Save ${item.savingsPercentMin}–${item.savingsPercentMax}%`}
             </StitchText>
           ) : null}
-          {pickupLine ? (
+          {pickupPresetsEnabled ? (
+            <PickupBrowsePill
+              pickupStart={item.pickup_start}
+              pickupEnd={item.pickup_end}
+              pickupWindowKind={pickupWindowKind}
+            />
+          ) : pickupLine ? (
             <StitchText variant="body-sm" colorKey="textMuted">
               Pickup {pickupLine}
             </StitchText>
@@ -900,6 +985,8 @@ export function DiscoverScreen() {
   const isFocused = useIsFocused();
   const reservationCart = useReservationCart();
   const groupReservationsEnabled = isGroupReservationsEnabled();
+  const neighbourhoodBrowseEnabled = isNeighbourhoodBrowseEnabled();
+  const pickupPresetsEnabled = isPickupWindowPresetsEnabled();
   /**
    * Taller than the old 34% block — the map is now a direct pan/zoom surface
    * (map-first touch zone), so it earns more room while the feed stays the
@@ -945,6 +1032,13 @@ export function DiscoverScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const placeSearchRef = useRef<TextInput>(null);
   const [selectedChip, setSelectedChip] = useState<CategoryChipId>('all');
+  const [selectedOccasion, setSelectedOccasion] = useState<SeasonalOccasionKind | 'all'>('all');
+  const { windows: seasonalWindows } = useSeasonalOccasionWindows(env);
+  const seasonalBadgesEnabled = featureFlags.SEASONAL_BADGES;
+  const activeSeasonalWindows = useMemo(
+    () => (seasonalBadgesEnabled ? getActiveSeasonalWindows(seasonalWindows) : []),
+    [seasonalBadgesEnabled, seasonalWindows],
+  );
   /**
    * Stitch `discover_sold_out_transition` — opt-in "Include sold out" pill that flips
    * `useNearbyBags` between `.gt('quantity_remaining', 0)` and no filter. When ON the
@@ -1022,8 +1116,13 @@ export function DiscoverScreen() {
     forcedFromLink != null ? DISCOVER_EMPTY_COPY[forcedFromLink] : null;
 
   const filteredBags = useMemo(
-    () => displayBags.filter((b) => bagMatchesChip(b, selectedChip)),
-    [displayBags, selectedChip],
+    () =>
+      displayBags
+        .filter((b) => bagMatchesChip(b, selectedChip))
+        .filter((b) =>
+          listingMatchesOccasionFilter(b.occasion_kind, selectedOccasion),
+        ),
+    [displayBags, selectedChip, selectedOccasion],
   );
 
   const listBags = useMemo(() => {
@@ -1048,12 +1147,20 @@ export function DiscoverScreen() {
 
   const filteredFeed = useMemo(
     () =>
-      displayFeed.filter((item) =>
-        item.kind === 'shelf'
-          ? shelfMatchesChip(item, selectedChip)
-          : bagMatchesChip(item as unknown as DiscoverBag, selectedChip),
-      ),
-    [displayFeed, selectedChip],
+      displayFeed
+        .filter((item) =>
+          item.kind === 'shelf'
+            ? shelfMatchesChip(item, selectedChip)
+            : bagMatchesChip(item as unknown as DiscoverBag, selectedChip),
+        )
+        .filter((item) => {
+          const kind =
+            item.kind === 'shelf'
+              ? (item as { occasion_kind?: string | null }).occasion_kind
+              : (item as DiscoverBag).occasion_kind;
+          return listingMatchesOccasionFilter(kind, selectedOccasion);
+        }),
+    [displayFeed, selectedChip, selectedOccasion],
   );
 
   const listFeed = useMemo(() => {
@@ -2229,6 +2336,38 @@ export function DiscoverScreen() {
             </Pressable>
           );
         })}
+        {seasonalBadgesEnabled
+          ? activeSeasonalWindows.map((window) => {
+              const active = selectedOccasion === window.occasion;
+              return (
+                <Pressable
+                  key={window.occasion}
+                  testID={`discover.occasionChip.${window.occasion}`}
+                  onPress={() =>
+                    setSelectedOccasion((prev) =>
+                      prev === window.occasion ? 'all' : window.occasion,
+                    )
+                  }
+                  style={[
+                    styles.catChip,
+                    active ? styles.catChipActive : styles.catChipIdle,
+                  ]}
+                >
+                  <StitchIcon
+                    name="celebration"
+                    size={18}
+                    colorKey={active ? 'onPrimary' : 'onSurface'}
+                  />
+                  <StitchText
+                    variant="label"
+                    colorKey={active ? 'onPrimary' : 'text'}
+                  >
+                    {window.label}
+                  </StitchText>
+                </Pressable>
+              );
+            })
+          : null}
         <Pressable
           accessibilityRole="switch"
           accessibilityState={{ checked: includeSoldOut }}
@@ -2573,6 +2712,10 @@ export function DiscoverScreen() {
                   item={item}
                   onOpen={openShelf}
                   onOpenOutlet={openOutlet}
+                  neighbourhoodBrowseEnabled={neighbourhoodBrowseEnabled}
+                  pickupPresetsEnabled={pickupPresetsEnabled}
+                  seasonalBadgesEnabled={seasonalBadgesEnabled}
+                  seasonalWindows={seasonalWindows}
                   colors={colors}
                   spacing={spacing}
                   radii={radii}
@@ -2582,6 +2725,10 @@ export function DiscoverScreen() {
                   bag={item as unknown as DiscoverBag}
                   onOpen={openBag}
                   onOpenOutlet={openOutlet}
+                  neighbourhoodBrowseEnabled={neighbourhoodBrowseEnabled}
+                  pickupPresetsEnabled={pickupPresetsEnabled}
+                  seasonalBadgesEnabled={seasonalBadgesEnabled}
+                  seasonalWindows={seasonalWindows}
                   colors={colors}
                   spacing={spacing}
                   radii={radii}

@@ -36,6 +36,12 @@ import { BAG_WEIGHT_PRESETS_KG } from '@/lib/co2Impact';
 import { ERROR } from '@/lib/messages/errors';
 import { mapSupabaseError } from '@/lib/supabaseError';
 import { PickupDateTimeField } from '@/components/PickupDateTimeField';
+import { PickupWindowPresetChips } from '@/components/merchant/PickupWindowPresetChips';
+import { SeasonalOccasionPicker } from '@/components/merchant/SeasonalOccasionPicker';
+import { featureFlags } from '@/config/featureFlags';
+import { parseSeasonalOccasionKind } from '@/domain/seasonalOccasion';
+import { useSeasonalOccasionWindows } from '@/hooks/useSeasonalOccasionWindows';
+import type { PickupWindowKind } from '@/lib/pickupWindowPresets';
 import { useStitchTheme } from '@/theme/StitchThemeContext';
 import {
   StitchButton,
@@ -126,6 +132,8 @@ export function MerchantBagEditScreen() {
     activeOutlet,
     loading: ctxBusy,
   } = useMerchantBags(env);
+  const { windows: seasonalWindows, loading: seasonalWindowsLoading } =
+    useSeasonalOccasionWindows(env);
   const { colors, spacing, radii } = useStitchTheme();
 
   useFocusEffect(
@@ -286,6 +294,11 @@ export function MerchantBagEditScreen() {
           pickup_end: toLocalDateTime(
             typeof row.pickup_end === 'string' ? row.pickup_end : '',
           ),
+          pickup_window_kind:
+            typeof row.pickup_window_kind === 'string'
+              ? row.pickup_window_kind
+              : 'custom',
+          occasion_kind: parseSeasonalOccasionKind(row.occasion_kind),
           image_url:
             typeof row.image_url === 'string' ? row.image_url : '',
           selectedAllergens: Array.isArray(row.allergens)
@@ -385,10 +398,12 @@ export function MerchantBagEditScreen() {
         quantity_remaining: qtyN,
         pickup_start: ps.toISOString(),
         pickup_end: pe.toISOString(),
+        pickup_window_kind: form.pickup_window_kind || 'custom',
         image_url: form.image_url.trim() || null,
         allergens:
           form.selectedAllergens.length > 0 ? form.selectedAllergens : null,
         is_halal: form.isHalal ? true : null,
+        occasion_kind: form.occasion_kind,
       });
       navigation.goBack();
     } catch (e) {
@@ -802,6 +817,15 @@ export function MerchantBagEditScreen() {
         </View>
       </StitchSurface>
 
+      {featureFlags.SEASONAL_BADGES ? (
+        <SeasonalOccasionPicker
+          value={form.occasion_kind}
+          onChange={(occasion_kind) => setForm((f) => ({ ...f, occasion_kind }))}
+          windows={seasonalWindows}
+          loading={seasonalWindowsLoading}
+        />
+      ) : null}
+
       <StitchSurface elevated padding="md">
         <View style={layout.sectionHeader}>
           <StitchIcon name="schedule" size={22} colorKey="textMuted" />
@@ -809,19 +833,52 @@ export function MerchantBagEditScreen() {
             Pickup window
           </StitchText>
         </View>
+        {featureFlags.PICKUP_WINDOW_PRESETS ? (
+          <PickupWindowPresetChips
+            selectedKind={(form.pickup_window_kind || 'custom') as PickupWindowKind}
+            listingMode="bag"
+            onSelectKind={(kind, pickup_start, pickup_end) =>
+              setForm((f) => ({
+                ...f,
+                pickup_window_kind: kind,
+                pickup_start,
+                pickup_end,
+              }))
+            }
+            onCustomOverride={() =>
+              setForm((f) => ({ ...f, pickup_window_kind: 'custom' }))
+            }
+          />
+        ) : null}
         <View style={layout.pickupRow}>
           <View style={layout.pickupCol}>
             <PickupDateTimeField
               label="Starts *"
               value={form.pickup_start}
-              onChange={(pickup_start) => setForm((f) => ({ ...f, pickup_start }))}
+              onChange={(pickup_start) =>
+                setForm((f) => ({
+                  ...f,
+                  pickup_start,
+                  pickup_window_kind: featureFlags.PICKUP_WINDOW_PRESETS
+                    ? 'custom'
+                    : f.pickup_window_kind,
+                }))
+              }
             />
           </View>
           <View style={layout.pickupCol}>
             <PickupDateTimeField
               label="Ends *"
               value={form.pickup_end}
-              onChange={(pickup_end) => setForm((f) => ({ ...f, pickup_end }))}
+              onChange={(pickup_end) =>
+                setForm((f) => ({
+                  ...f,
+                  pickup_end,
+                  pickup_window_kind: featureFlags.PICKUP_WINDOW_PRESETS
+                    ? 'custom'
+                    : f.pickup_window_kind,
+                }))
+              }
             />
           </View>
         </View>

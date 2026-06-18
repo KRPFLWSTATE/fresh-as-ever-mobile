@@ -29,12 +29,30 @@ import type { RootStackParamList } from '@/navigation/types';
 import { useAuthContext } from '@/context/AuthContext';
 import { getSupabase } from '@/lib/supabase';
 import { fetchScopedNearbyBags } from '@/hooks/useNearbyBags';
+import { haversineKm } from '@/lib/haversine';
+import { featureFlags } from '@/config/featureFlags';
+import { pickupBrowseState } from '@/lib/pickupWindowPresets';
+import { PickupBrowsePill } from '@/components/PickupBrowsePill';
 import { canPublishRescueBags } from '@/lib/outletListingMode';
 import {
   discoverCategoryMatchesChip,
   type DiscoverCategoryChipId,
 } from '@/lib/discoverCategoryChip';
-import { isClearanceShelvesEnabled } from '@/config/clearanceShelves';
+import { isNeighbourhoodBrowseEnabled } from '@/config/featureFlags';
+import {
+  distinctLandmarks,
+  filterByLandmarks,
+  matchesDistanceFilter,
+  type DistanceFilterKey,
+} from '@/lib/neighbourhoodFilter';
+import { formatDiscoverCardSubtitle } from '@/lib/landmarkDisplay';
+import {
+  getActiveSeasonalWindows,
+  listingMatchesOccasionFilter,
+  type SeasonalOccasionKind,
+} from '@/domain/seasonalOccasion';
+import { useSeasonalOccasionWindows } from '@/hooks/useSeasonalOccasionWindows';
+import { SeasonalOccasionBadge } from '@/components/SeasonalOccasionBadge';
 import { ERROR } from '@/lib/messages/errors';
 import { mapSupabaseError } from '@/lib/supabaseError';
 import { useStitchTheme, type StitchTheme } from '@/theme/StitchThemeContext';
@@ -81,7 +99,7 @@ const PICKUP_CHIPS = [
 ] as const;
 
 type CategoryChipKey = DiscoverCategoryChipId;
-type DistanceChipKey = (typeof DISTANCE_CHIPS)[number]['key'];
+type DistanceChipKey = DistanceFilterKey;
 type PriceChipKey = (typeof PRICE_CHIPS)[number]['key'];
 type PickupChipKey = (typeof PICKUP_CHIPS)[number]['key'];
 
@@ -94,9 +112,15 @@ type Row = {
   image_url: string | null;
   pickup_start: string | null;
   pickup_end: string | null;
+  pickup_window_kind?: string | null;
+  outlet_lat?: number | null;
+  outlet_lng?: number | null;
   outlet_name: string | null;
   outlet_id: string | null;
   outlet_category: string | null;
+  landmark: string | null;
+  distance_km?: number | null;
+  occasion_kind?: string | null;
 };
 
 function formatLkr(n: number): string {
@@ -145,19 +169,47 @@ function pickupMatches(row: Row, chip: PickupChipKey): boolean {
   const start = new Date(row.pickup_start);
   const end = new Date(row.pickup_end);
   if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return false;
-  const now = new Date();
+  const nowMs = Date.now();
+  const now = new Date(nowMs);
   const todayKey = now.toDateString();
   const tomorrow = new Date(now);
   tomorrow.setDate(now.getDate() + 1);
   const tomorrowKey = tomorrow.toDateString();
   switch (chip) {
     case 'now':
-      return start.getTime() <= now.getTime() && end.getTime() >= now.getTime();
+      if (featureFlags.PICKUP_WINDOW_PRESETS) {
+        const state = pickupBrowseState(nowMs, row.pickup_start, row.pickup_end);
+        return state === 'open_now' || state === 'opening_soon';
+      }
+      return start.getTime() <= nowMs && end.getTime() >= nowMs;
     case 'tonight':
       return start.toDateString() === todayKey && start.getHours() >= 17;
     case 'tomorrow':
       return start.toDateString() === tomorrowKey;
   }
+}
+
+function distanceMatches(
+  row: Row,
+  chip: DistanceChipKey,
+  originLat?: number,
+  originLng?: number,
+): boolean {
+  if (chip === 'any') return true;
+  const maxKm = chip === 'near' ? 3 : 10;
+  if (typeof row.distance_km === 'number' && Number.isFinite(row.distance_km)) {
+    return row.distance_km <= maxKm;
+  }
+  if (
+    originLat != null &&
+    originLng != null &&
+    row.outlet_lat != null &&
+    row.outlet_lng != null
+  ) {
+    const km = haversineKm(originLat, originLng, row.outlet_lat, row.outlet_lng);
+    return Number.isFinite(km) && km <= maxKm;
+  }
+  return true;
 }
 
 function mapDiscoverBagToRow(bag: {
@@ -169,9 +221,16 @@ function mapDiscoverBagToRow(bag: {
   image_url?: string | null;
   pickup_start?: string | null;
   pickup_end?: string | null;
+  pickup_window_kind?: string | null;
+  outlet_lat?: number | null;
+  outlet_lng?: number | null;
   outlet_name?: string | null;
   outlet_id?: string | null;
   outlet_category?: string | null;
+  landmark?: string | null;
+  outlet_landmark?: string | null;
+  distance_km?: number | null;
+  occasion_kind?: string | null;
 }): Row {
   return {
     id: bag.id,
@@ -182,9 +241,18 @@ function mapDiscoverBagToRow(bag: {
     image_url: bag.image_url ?? null,
     pickup_start: bag.pickup_start ?? null,
     pickup_end: bag.pickup_end ?? null,
+    pickup_window_kind: bag.pickup_window_kind ?? null,
+    outlet_lat: bag.outlet_lat ?? null,
+    outlet_lng: bag.outlet_lng ?? null,
     outlet_name: bag.outlet_name ?? null,
     outlet_id: bag.outlet_id ?? null,
     outlet_category: bag.outlet_category ?? null,
+    landmark: bag.landmark ?? bag.outlet_landmark ?? null,
+    distance_km: bag.distance_km ?? null,
+    occasion_kind: bag.occasion_kind ?? null,
+  };
+}
+    occasion_kind: bag.occasion_kind ?? null,
   };
 }
 
@@ -211,6 +279,12 @@ function mapRow(raw: Record<string, unknown>): Row {
     outlet_name: outlet?.name != null ? String(outlet.name) : null,
     outlet_id: outlet?.id != null ? String(outlet.id) : null,
     outlet_category: outlet?.category != null ? String(outlet.category) : null,
+    landmark: outlet?.landmark != null ? String(outlet.landmark) : null,
+    outlet_lat: null,
+    outlet_lng: null,
+    distance_km: null,
+    occasion_kind:
+      raw.occasion_kind != null ? String(raw.occasion_kind) : null,
   };
 }
 
@@ -231,9 +305,19 @@ export function SearchResultsScreen(): React.ReactElement {
 
   const [category, setCategory] = useState<CategoryChipKey>(initialChip);
   const [distance, setDistance] = useState<DistanceChipKey>('any');
+  const [selectedNeighbourhoods, setSelectedNeighbourhoods] = useState<string[]>([]);
   const [price, setPrice] = useState<PriceChipKey>('any');
   const [pickup, setPickup] = useState<PickupChipKey>('any');
+  const [selectedOccasion, setSelectedOccasion] = useState<SeasonalOccasionKind | 'all'>('all');
   const [query, setQuery] = useState<string>(route.params?.query ?? '');
+
+  const neighbourhoodBrowseEnabled = isNeighbourhoodBrowseEnabled();
+  const { windows: seasonalWindows } = useSeasonalOccasionWindows(env);
+  const seasonalBadgesEnabled = featureFlags.SEASONAL_BADGES;
+  const activeSeasonalWindows = useMemo(
+    () => (seasonalBadgesEnabled ? getActiveSeasonalWindows(seasonalWindows) : []),
+    [seasonalBadgesEnabled, seasonalWindows],
+  );
 
   const scopedLat = route.params?.lat;
   const scopedLng = route.params?.lng;
@@ -289,8 +373,9 @@ export function SearchResultsScreen(): React.ReactElement {
           pickup_end,
           image_url,
           quantity_remaining,
+          occasion_kind,
           status,
-          outlet:outlets ( id, name, category )
+          outlet:outlets ( id, name, category, landmark )
         `,
           { count: 'exact' },
         )
@@ -329,18 +414,35 @@ export function SearchResultsScreen(): React.ReactElement {
     void fetchPage(0, true);
   }, [fetchPage]);
 
-  const filteredRows = useMemo(
-    () =>
-      rows
-        .filter((r) => bagMatchesCategory(r, category))
-        .filter((r) => priceMatches(r, price))
-        .filter((r) => pickupMatches(r, pickup)),
-    [rows, category, price, pickup],
+  const neighbourhoodOptions = useMemo(
+    () => (neighbourhoodBrowseEnabled ? distinctLandmarks(rows) : []),
+    [neighbourhoodBrowseEnabled, rows],
   );
 
-  // Distance is a UI-only client hint until we wire lat/lng for the customer; we still expose
-  // the chip so the surface matches Stitch HTML and persists a no-op preference.
-  void distance;
+  const filteredRows = useMemo(
+    () =>
+      filterByLandmarks(
+        rows
+          .filter((r) => bagMatchesCategory(r, category))
+          .filter((r) => priceMatches(r, price))
+          .filter((r) => pickupMatches(r, pickup))
+          .filter((r) =>
+            matchesDistanceFilter(r, distance, scopedLat, scopedLng),
+          )
+          .filter((r) => listingMatchesOccasionFilter(r.occasion_kind, selectedOccasion)),
+        selectedNeighbourhoods,
+      ),
+    [rows, category, price, pickup, distance, scopedLat, scopedLng, selectedNeighbourhoods, selectedOccasion],
+  );
+
+  const toggleNeighbourhood = useCallback((landmark: string) => {
+    setSelectedNeighbourhoods((prev) => {
+      const norm = landmark.toLowerCase();
+      const has = prev.some((l) => l.toLowerCase() === norm);
+      if (has) return prev.filter((l) => l.toLowerCase() !== norm);
+      return [...prev, landmark];
+    });
+  }, []);
 
   const renderItem = useCallback(
     ({ item }: { item: Row }) => {
@@ -348,6 +450,11 @@ export function SearchResultsScreen(): React.ReactElement {
       const retail = item.retail_value_estimate;
       const showStrike =
         typeof retail === 'number' && retail > item.rescue_price;
+      const outletSubtitle = formatDiscoverCardSubtitle(
+        item.outlet_name,
+        item.landmark,
+        neighbourhoodBrowseEnabled,
+      );
       return (
         <Pressable
           accessibilityRole="button"
@@ -385,10 +492,20 @@ export function SearchResultsScreen(): React.ReactElement {
                 <StitchText variant="h3" colorKey="text" numberOfLines={2} style={{ marginTop: 4 }}>
                   {item.title}
                 </StitchText>
+                {seasonalBadgesEnabled ? (
+                  <View style={{ marginTop: 4 }}>
+                    <SeasonalOccasionBadge
+                      occasionKind={item.occasion_kind}
+                      windows={seasonalWindows}
+                      featureEnabled={seasonalBadgesEnabled}
+                      compact
+                    />
+                  </View>
+                ) : null}
                 {item.outlet_id ? (
                   <Pressable
                     accessibilityRole="button"
-                    accessibilityLabel={`View ${item.outlet_name ?? 'outlet'} profile`}
+                    accessibilityLabel={`View ${outletSubtitle} profile`}
                     onPress={() =>
                       navigation.navigate('OutletDetail', {
                         outletId: item.outlet_id as string,
@@ -402,7 +519,7 @@ export function SearchResultsScreen(): React.ReactElement {
                       numberOfLines={1}
                       style={{ marginTop: 2 }}
                     >
-                      {item.outlet_name ?? 'Local partner'}
+                      {outletSubtitle}
                     </StitchText>
                   </Pressable>
                 ) : (
@@ -412,10 +529,16 @@ export function SearchResultsScreen(): React.ReactElement {
                     numberOfLines={1}
                     style={{ marginTop: 2 }}
                   >
-                    {item.outlet_name ?? 'Local partner'}
+                    {outletSubtitle}
                   </StitchText>
                 )}
-                {pickupLine ? (
+                {featureFlags.PICKUP_WINDOW_PRESETS ? (
+                  <PickupBrowsePill
+                    pickupStart={item.pickup_start}
+                    pickupEnd={item.pickup_end}
+                    pickupWindowKind={item.pickup_window_kind}
+                  />
+                ) : pickupLine ? (
                   <View style={styles.pickupRow}>
                     <StitchIcon name="schedule" size={16} colorKey="textMuted" />
                     <StitchText variant="body-sm" colorKey="textMuted">
@@ -446,7 +569,7 @@ export function SearchResultsScreen(): React.ReactElement {
         </Pressable>
       );
     },
-    [navigation, styles],
+    [navigation, neighbourhoodBrowseEnabled, seasonalBadgesEnabled, seasonalWindows, styles],
   );
 
   const listHeader = useMemo(
@@ -492,6 +615,74 @@ export function SearchResultsScreen(): React.ReactElement {
           value={distance}
           onSelect={(v) => setDistance(v as DistanceChipKey)}
         />
+        {neighbourhoodBrowseEnabled && neighbourhoodOptions.length > 0 ? (
+          <View style={{ paddingHorizontal: spacing.pageMarginMobile, marginBottom: spacing.xs }}>
+            <StitchText variant="label-caps" colorKey="textMuted" style={{ marginBottom: 4 }}>
+              Neighbourhood
+            </StitchText>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
+              {neighbourhoodOptions.map((landmark) => {
+                const on = selectedNeighbourhoods.some(
+                  (l) => l.toLowerCase() === landmark.toLowerCase(),
+                );
+                return (
+                  <Pressable
+                    key={landmark}
+                    testID={`search.neighbourhood.${landmark.replace(/\s+/g, '_')}`}
+                    onPress={() => toggleNeighbourhood(landmark)}
+                    style={{
+                      paddingHorizontal: spacing.md,
+                      paddingVertical: spacing.sm - 2,
+                      borderRadius: radii.full,
+                      borderWidth: 1,
+                      borderColor: on ? colors.primary : colors.outlineVariant,
+                      backgroundColor: on ? colors.primaryHighlight : colors.surface,
+                    }}
+                  >
+                    <StitchText variant="label" colorKey={on ? 'primaryContainer' : 'text'}>
+                      {landmark}
+                    </StitchText>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+        ) : null}
+        {seasonalBadgesEnabled && activeSeasonalWindows.length > 0 ? (
+          <View style={{ paddingHorizontal: spacing.pageMarginMobile, marginBottom: spacing.xs }}>
+            <StitchText variant="label-caps" colorKey="textMuted" style={{ marginBottom: 4 }}>
+              Season
+            </StitchText>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
+              {activeSeasonalWindows.map((window) => {
+                const on = selectedOccasion === window.occasion;
+                return (
+                  <Pressable
+                    key={window.occasion}
+                    testID={`search.occasion.${window.occasion}`}
+                    onPress={() =>
+                      setSelectedOccasion((prev) =>
+                        prev === window.occasion ? 'all' : window.occasion,
+                      )
+                    }
+                    style={{
+                      paddingHorizontal: spacing.md,
+                      paddingVertical: spacing.sm - 2,
+                      borderRadius: radii.full,
+                      borderWidth: 1,
+                      borderColor: on ? colors.primary : colors.outlineVariant,
+                      backgroundColor: on ? colors.primaryHighlight : colors.surface,
+                    }}
+                  >
+                    <StitchText variant="label" colorKey={on ? 'primaryContainer' : 'text'}>
+                      {window.label}
+                    </StitchText>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+        ) : null}
         <FilterChipBar
           label="Price"
           items={PRICE_CHIPS}
@@ -515,20 +706,36 @@ export function SearchResultsScreen(): React.ReactElement {
       </>
     ),
     [
+      activeSeasonalWindows,
       category,
+      colors.outlineVariant,
+      colors.primary,
+      colors.primaryHighlight,
+      colors.surface,
       colors.textFaint,
       distance,
       error,
       fetchPage,
       hasGeoScope,
+      neighbourhoodBrowseEnabled,
+      neighbourhoodOptions,
       pickup,
       price,
       query,
+      radii.full,
+      selectedNeighbourhoods,
+      selectedOccasion,
+      seasonalBadgesEnabled,
+      spacing.md,
+      spacing.pageMarginMobile,
+      spacing.sm,
+      spacing.xs,
       styles.errorRow,
       styles.pageHeader,
       styles.searchIcon,
       styles.searchInput,
       styles.searchShell,
+      toggleNeighbourhood,
     ],
   );
 

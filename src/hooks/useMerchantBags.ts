@@ -30,6 +30,8 @@ export type CreateMerchantBagPayload = {
   quantity_remaining: number;
   pickup_start: string;
   pickup_end: string;
+  pickup_window_kind?: string;
+  occasion_kind?: string;
   image_url?: string | null;
   status: string;
   allergens?: string[] | null;

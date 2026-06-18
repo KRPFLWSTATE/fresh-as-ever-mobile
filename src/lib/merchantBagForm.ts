@@ -1,3 +1,5 @@
+import type { SeasonalOccasionKind } from '@/domain/seasonalOccasion';
+
 export type MerchantBagFormState = {
   title: string;
   description: string;
@@ -8,6 +10,8 @@ export type MerchantBagFormState = {
   quantity_remaining: string;
   pickup_start: string;
   pickup_end: string;
+  pickup_window_kind: string;
+  occasion_kind: SeasonalOccasionKind;
   selectedAllergens: string[];
   isHalal: boolean;
 };
@@ -49,6 +53,8 @@ export function defaultCreateForm(): MerchantBagFormState {
     quantity_remaining: '1',
     pickup_start: isoLocalRounded(now),
     pickup_end: isoLocalRounded(end),
+    pickup_window_kind: 'immediately_2h',
+    occasion_kind: 'none',
     selectedAllergens: [],
     isHalal: false,
   };

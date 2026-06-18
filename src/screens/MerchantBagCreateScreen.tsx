@@ -29,6 +29,12 @@ import {
   resolveFormBagWeightKg,
 } from '@/components/merchant/BagWeightField';
 import { PickupDateTimeField } from '@/components/PickupDateTimeField';
+import { PickupWindowPresetChips } from '@/components/merchant/PickupWindowPresetChips';
+import { SeasonalOccasionPicker } from '@/components/merchant/SeasonalOccasionPicker';
+import { featureFlags } from '@/config/featureFlags';
+import type { SeasonalOccasionKind } from '@/domain/seasonalOccasion';
+import { useSeasonalOccasionWindows } from '@/hooks/useSeasonalOccasionWindows';
+import type { PickupWindowKind } from '@/lib/pickupWindowPresets';
 import { useStitchTheme } from '@/theme/StitchThemeContext';
 import {
   StitchButton,
@@ -103,6 +109,8 @@ export function MerchantBagCreateScreen() {
   const { env } = useAuthContext();
   const { allowed: bagsAllowed, goToShelves } = useMerchantRescueBagGuard();
   const { createBag, activeOutlet, loading: ctxBusy } = useMerchantBags(env);
+  const { windows: seasonalWindows, loading: seasonalWindowsLoading } =
+    useSeasonalOccasionWindows(env);
   const { colors, spacing, radii } = useStitchTheme();
 
   useFocusEffect(
@@ -139,6 +147,7 @@ export function MerchantBagCreateScreen() {
   const [customWeightKg, setCustomWeightKg] = useState('');
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [occasionKind, setOccasionKind] = useState<SeasonalOccasionKind>('none');
   const [previewOpen, setPreviewOpen] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
 
@@ -289,11 +298,13 @@ export function MerchantBagCreateScreen() {
         quantity_remaining: qtyN,
         pickup_start: ps.toISOString(),
         pickup_end: pe.toISOString(),
+        pickup_window_kind: form.pickup_window_kind || 'custom',
         image_url: form.image_url.trim() || null,
         status: 'live',
         allergens:
           form.selectedAllergens.length > 0 ? form.selectedAllergens : null,
         is_halal: form.isHalal ? true : null,
+        occasion_kind: occasionKind,
       });
       navigation.goBack();
     } catch (e) {
@@ -708,6 +719,15 @@ export function MerchantBagCreateScreen() {
         </View>
       </StitchSurface>
 
+      {featureFlags.SEASONAL_BADGES ? (
+        <SeasonalOccasionPicker
+          value={occasionKind}
+          onChange={setOccasionKind}
+          windows={seasonalWindows}
+          loading={seasonalWindowsLoading}
+        />
+      ) : null}
+
       <StitchSurface elevated padding="md">
         <View style={layout.sectionHeader}>
           <StitchIcon name="schedule" size={22} colorKey="textMuted" />
@@ -716,47 +736,78 @@ export function MerchantBagCreateScreen() {
           </StitchText>
         </View>
         <View style={layout.chipRow}>
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => {
-              const now = new Date();
-              const end = new Date(now.getTime() + 2 * 60 * 60 * 1000);
-              setForm((f) => ({
-                ...f,
-                pickup_start: isoLocalRounded(now),
-                pickup_end: isoLocalRounded(end),
-              }));
-            }}
-            style={({ pressed }) => [
-              {
-                paddingHorizontal: spacing.md,
-                paddingVertical: spacing.sm,
-                borderRadius: radii.full,
-                borderWidth: 1,
-                borderColor: colors.primaryContainer,
-                backgroundColor: colors.primaryHighlight,
-                opacity: pressed ? 0.9 : 1,
-              },
-            ]}
-          >
-            <StitchText variant="label" colorKey="primaryContainer">
-              Immediately (2h window)
-            </StitchText>
-          </Pressable>
+          {featureFlags.PICKUP_WINDOW_PRESETS ? (
+            <PickupWindowPresetChips
+              selectedKind={(form.pickup_window_kind || 'custom') as PickupWindowKind}
+              listingMode="bag"
+              onSelectKind={(kind, pickup_start, pickup_end) =>
+                setForm((f) => ({
+                  ...f,
+                  pickup_window_kind: kind,
+                  pickup_start,
+                  pickup_end,
+                }))
+              }
+              onCustomOverride={() =>
+                setForm((f) => ({ ...f, pickup_window_kind: 'custom' }))
+              }
+            />
+          ) : (
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => {
+                const now = new Date();
+                const end = new Date(now.getTime() + 2 * 60 * 60 * 1000);
+                setForm((f) => ({
+                  ...f,
+                  pickup_window_kind: 'immediately_2h',
+                  pickup_start: isoLocalRounded(now),
+                  pickup_end: isoLocalRounded(end),
+                }));
+              }}
+              style={({ pressed }) => [
+                {
+                  paddingHorizontal: spacing.md,
+                  paddingVertical: spacing.sm,
+                  borderRadius: radii.full,
+                  borderWidth: 1,
+                  borderColor: colors.primaryContainer,
+                  backgroundColor: colors.primaryHighlight,
+                  opacity: pressed ? 0.9 : 1,
+                },
+              ]}
+            >
+              <StitchText variant="label" colorKey="primaryContainer">
+                Immediately (2h window)
+              </StitchText>
+            </Pressable>
+          )}
         </View>
         <View style={layout.pickupRow}>
           <View style={layout.pickupCol}>
             <PickupDateTimeField
               label="Starts *"
               value={form.pickup_start}
-              onChange={(pickup_start) => setForm((f) => ({ ...f, pickup_start }))}
+              onChange={(pickup_start) =>
+                setForm((f) => ({
+                  ...f,
+                  pickup_start,
+                  pickup_window_kind: 'custom',
+                }))
+              }
             />
           </View>
           <View style={layout.pickupCol}>
             <PickupDateTimeField
               label="Ends *"
               value={form.pickup_end}
-              onChange={(pickup_end) => setForm((f) => ({ ...f, pickup_end }))}
+              onChange={(pickup_end) =>
+                setForm((f) => ({
+                  ...f,
+                  pickup_end,
+                  pickup_window_kind: 'custom',
+                }))
+              }
             />
           </View>
         </View>

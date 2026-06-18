@@ -15,6 +15,11 @@ import { useMerchantClearanceShelfGuard } from '@/hooks/useMerchantClearanceShel
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '@/navigation/types';
 import { PickupDateTimeField } from '@/components/PickupDateTimeField';
+import { SeasonalOccasionPicker } from '@/components/merchant/SeasonalOccasionPicker';
+import { featureFlags } from '@/config/featureFlags';
+import { useSeasonalOccasionWindows } from '@/hooks/useSeasonalOccasionWindows';
+import { PickupWindowPresetChips } from '@/components/merchant/PickupWindowPresetChips';
+import type { PickupWindowKind } from '@/lib/pickupWindowPresets';
 import { useAuthContext } from '@/context/AuthContext';
 import { useMerchantContext } from '@/hooks/useMerchantContext';
 import { useMerchantShelves } from '@/hooks/useMerchantShelves';
@@ -51,6 +56,8 @@ type Props = NativeStackScreenProps<RootStackParamList, 'MerchantShelfEditor'>;
 export function MerchantShelfEditorScreen({ navigation, route }: Props) {
   const { allowed: shelvesAllowed, goToBags } = useMerchantClearanceShelfGuard();
   const { env } = useAuthContext();
+  const { windows: seasonalWindows, loading: seasonalWindowsLoading } =
+    useSeasonalOccasionWindows(env);
   const { activeOutlet, merchant, loading: contextLoading } = useMerchantContext(env);
 
   useFocusEffect(
@@ -272,10 +279,12 @@ export function MerchantShelfEditorScreen({ navigation, route }: Props) {
         await upsertShelf({
           pickupStart: ps.toISOString(),
           pickupEnd: pe.toISOString(),
+          pickupWindowKind: form.pickup_window_kind || 'custom',
           notes: form.notes.trim() || null,
           title: form.title.trim() || null,
           description: form.description.trim() || null,
           coverImageUrl: form.cover_image_url.trim() || null,
+          occasionKind: form.occasion_kind,
           status,
           items: form.items,
           removedItemIds,
@@ -437,6 +446,15 @@ export function MerchantShelfEditorScreen({ navigation, route }: Props) {
         </StitchText>
       ) : null}
 
+      {featureFlags.SEASONAL_BADGES ? (
+        <SeasonalOccasionPicker
+          value={form.occasion_kind}
+          onChange={(occasion_kind) => setForm((f) => ({ ...f, occasion_kind }))}
+          windows={seasonalWindows}
+          loading={seasonalWindowsLoading}
+        />
+      ) : null}
+
       <StitchSurface elevated padding="md">
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.md }}>
           <StitchIcon name="schedule" size={22} colorKey="textMuted" />
@@ -446,44 +464,79 @@ export function MerchantShelfEditorScreen({ navigation, route }: Props) {
         </View>
 
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.md }}>
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => {
-              const now = new Date();
-              const end = new Date(now.getTime() + 4 * 60 * 60 * 1000);
-              setForm((f) => ({
-                ...f,
-                pickup_start: isoLocalRounded(now),
-                pickup_end: isoLocalRounded(end),
-              }));
-            }}
-            style={({ pressed }) => ({
-              paddingHorizontal: spacing.md,
-              paddingVertical: spacing.sm,
-              borderRadius: radii.full,
-              borderWidth: 1,
-              borderColor: colors.primaryContainer,
-              backgroundColor: colors.primaryHighlight,
-              opacity: pressed ? 0.9 : 1,
-            })}
-          >
-            <StitchText variant="label" colorKey="primaryContainer">
-              Now (4h window)
-            </StitchText>
-          </Pressable>
+          {featureFlags.PICKUP_WINDOW_PRESETS ? (
+            <PickupWindowPresetChips
+              selectedKind={(form.pickup_window_kind || 'custom') as PickupWindowKind}
+              listingMode="shelf"
+              onSelectKind={(kind, pickup_start, pickup_end) =>
+                setForm((f) => ({
+                  ...f,
+                  pickup_window_kind: kind,
+                  pickup_start,
+                  pickup_end,
+                }))
+              }
+              onCustomOverride={() =>
+                setForm((f) => ({ ...f, pickup_window_kind: 'custom' }))
+              }
+            />
+          ) : (
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => {
+                const now = new Date();
+                const end = new Date(now.getTime() + 4 * 60 * 60 * 1000);
+                setForm((f) => ({
+                  ...f,
+                  pickup_window_kind: 'now_4h',
+                  pickup_start: isoLocalRounded(now),
+                  pickup_end: isoLocalRounded(end),
+                }));
+              }}
+              style={({ pressed }) => ({
+                paddingHorizontal: spacing.md,
+                paddingVertical: spacing.sm,
+                borderRadius: radii.full,
+                borderWidth: 1,
+                borderColor: colors.primaryContainer,
+                backgroundColor: colors.primaryHighlight,
+                opacity: pressed ? 0.9 : 1,
+              })}
+            >
+              <StitchText variant="label" colorKey="primaryContainer">
+                Now (4h window)
+              </StitchText>
+            </Pressable>
+          )}
         </View>
 
         <PickupDateTimeField
           label="Starts *"
           value={form.pickup_start}
           minimumDate={pickupMinimum}
-          onChange={(pickup_start) => setForm((f) => ({ ...f, pickup_start }))}
+          onChange={(pickup_start) =>
+            setForm((f) => ({
+              ...f,
+              pickup_start,
+              pickup_window_kind: featureFlags.PICKUP_WINDOW_PRESETS
+                ? 'custom'
+                : f.pickup_window_kind,
+            }))
+          }
         />
         <PickupDateTimeField
           label="Ends *"
           value={form.pickup_end}
           minimumDate={pickupMinimum}
-          onChange={(pickup_end) => setForm((f) => ({ ...f, pickup_end }))}
+          onChange={(pickup_end) =>
+            setForm((f) => ({
+              ...f,
+              pickup_end,
+              pickup_window_kind: featureFlags.PICKUP_WINDOW_PRESETS
+                ? 'custom'
+                : f.pickup_window_kind,
+            }))
+          }
         />
       </StitchSurface>
 
