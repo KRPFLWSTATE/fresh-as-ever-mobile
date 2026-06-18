@@ -700,12 +700,22 @@ function DiscoverBagCard(props: {
                 onPress={() => onOpenOutlet(bag.outlet_id as string)}
                 hitSlop={6}
               >
-                <StitchText variant="body-sm" colorKey="textMuted">
+                <StitchText
+                  variant="body-sm"
+                  colorKey="textMuted"
+                  testID={`discover.card.subtitle.${bag.id}`}
+                  accessibilityLabel={outletSubtitle}
+                >
                   {outletSubtitle}
                 </StitchText>
               </Pressable>
             ) : (
-              <StitchText variant="body-sm" colorKey="textMuted">
+              <StitchText
+                variant="body-sm"
+                colorKey="textMuted"
+                testID={`discover.card.subtitle.${bag.id}`}
+                accessibilityLabel={outletSubtitle}
+              >
                 {outletSubtitle}
               </StitchText>
             )}
@@ -922,7 +932,12 @@ function DiscoverShelfCard(props: {
               <StitchIcon name="chevron_right" size={18} colorKey="primaryContainer" />
             </Pressable>
           ) : (
-            <StitchText variant="body-sm" colorKey="textMuted">
+            <StitchText
+              variant="body-sm"
+              colorKey="textMuted"
+              testID={`discover.card.subtitle.${item.id}`}
+              accessibilityLabel={outletSubtitle}
+            >
               {outletSubtitle}
             </StitchText>
           )}
@@ -2636,6 +2651,7 @@ export function DiscoverScreen() {
         </ScrollView>
       ) : (
         <FlatList
+          testID="discover.list-feed"
           ref={feedListRef}
           data={loading ? [] : listFeed}
           style={styles.list}

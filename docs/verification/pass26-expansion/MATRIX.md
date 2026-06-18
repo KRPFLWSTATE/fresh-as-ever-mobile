@@ -78,18 +78,18 @@
 | F4-R01 | F4 Seasonal Badges | Regression | qa.customer@ | Untagged bags show without badge | PENDING |  |
 | F4-R02 | F4 Seasonal Badges | Regression | qa.merchant@ | Pass25 merchant publish flow | PENDING |  |
 | F5-SQL01 | F5 On My Way | DB | — | RPC customer_signal_on_the_way exists | PASS | baseline/f5-sql-post.json |
-| F5-C01 | F5 On My Way | Customer | qa.customer@ | On my way / arrived CTA C01 | PENDING | Appium — needs fresh sim build with ON_MY_WAY |
-| F5-C02 | F5 On My Way | Customer | qa.customer@ | On my way / arrived CTA C02 | PENDING | Appium |
-| F5-C03 | F5 On My Way | Customer | qa.customer@ | On my way / arrived CTA C03 | PENDING | Appium |
-| F5-C04 | F5 On My Way | Customer | qa.customer@ | On my way / arrived CTA C04 | PENDING | Appium |
-| F5-C05 | F5 On My Way | Customer | qa.customer@ | On my way / arrived CTA C05 | PENDING | Web CDP parity |
-| F5-M01 | F5 On My Way | Merchant | qa.merchant@ | Live monitor / orders badge M01 | PENDING | Appium — On the way hero tier |
-| F5-M02 | F5 On My Way | Merchant | qa.merchant@ | Live monitor / orders badge M02 | PENDING | Appium — Customer arrived tier |
-| F5-M03 | F5 On My Way | Merchant | qa.merchant@ | Live monitor / orders badge M03 | PENDING | Appium — en-route badge |
-| F5-M04 | F5 On My Way | Merchant | qa.kumbuk@ | Live monitor / orders badge M04 | PENDING | Appium Kumbuk |
-| F5-M05 | F5 On My Way | Merchant | qa.merchant@ | Live monitor / orders badge M05 | PENDING | Appium — collect clears signals |
+| F5-C01 | F5 On My Way | Customer | qa.customer@ | On my way / arrived CTA C01 | FAIL | screenshots/f5/F5-C01-login-fail.png — sim login after marathon |
+| F5-C02 | F5 On My Way | Customer | qa.customer@ | On my way / arrived CTA C02 | FAIL | screenshots/f5/F5-C02-login-fail.png |
+| F5-C03 | F5 On My Way | Customer | qa.customer@ | On my way / arrived CTA C03 | FAIL | screenshots/f5/F5-C03-login-fail.png |
+| F5-C04 | F5 On My Way | Customer | qa.customer@ | On my way / arrived CTA C04 | FAIL | screenshots/f5/F5-C04-login-fail.png |
+| F5-C05 | F5 On My Way | Customer | qa.customer@ | On my way / arrived CTA C05 | FAIL | screenshots/f5/F5-C05-login-fail.png |
+| F5-M01 | F5 On My Way | Merchant | qa.merchant@ | Live monitor / orders badge M01 | FAIL | screenshots/f5/F5-M01-login-fail.png |
+| F5-M02 | F5 On My Way | Merchant | qa.merchant@ | Live monitor / orders badge M02 | FAIL | screenshots/f5/F5-M02-login-fail.png |
+| F5-M03 | F5 On My Way | Merchant | qa.merchant@ | Live monitor / orders badge M03 | FAIL | screenshots/f5/F5-M03-login-fail.png |
+| F5-M04 | F5 On My Way | Merchant | qa.kumbuk@ | Live monitor / orders badge M04 | FAIL | screenshots/f5/F5-M04-login-fail.png |
+| F5-M05 | F5 On My Way | Merchant | qa.merchant@ | Live monitor / orders badge M05 | FAIL | screenshots/f5/F5-M05-login-fail.png |
 | F5-W01 | F5 On My Way | Web | — | Web merchant orders chips | PENDING | CDP — en-route + at-outlet chips |
-| F5-X01 | F5 On My Way | Cross | C+M+SQL | Realtime signal triangulation X01 | PENDING |  |
+| F5-X01 | F5 On My Way | Cross | C+M+SQL | Realtime signal triangulation X01 | FAIL | pass26-f5-appium — login blocked |
 | F5-X02 | F5 On My Way | Cross | C+M+SQL | Realtime signal triangulation X02 | PENDING |  |
 | F5-X03 | F5 On My Way | Cross | C+M+SQL | Realtime signal triangulation X03 | PENDING |  |
 | F5-X04 | F5 On My Way | Cross | C+M+SQL | Realtime signal triangulation X04 | PENDING |  |
@@ -102,14 +102,14 @@
 | F7-EDGE01 | F6/F7 Monthly Savings | Server | — | Invoke edge fn test period | PASS | dryRun 200 |
 | F7-CRON01 | F6/F7 Monthly Savings | Server | — | Vercel cron route auth + 200 | PENDING | Next dev not running |
 | F7-C01 | F6/F7 Monthly Savings | Customer | qa.customer@ | Notification UX C01 | PASS | screenshots/f7/F7-C01.png |
-| F7-C02 | F6/F7 Monthly Savings | Customer | qa.customer@ | Notification UX C02 | PENDING |  |
+| F7-C02 | F6/F7 Monthly Savings | Customer | qa.customer@ | Notification UX C02 | FAIL | screenshots/f6/F7-C02.png
 | F7-C03 | F6/F7 Monthly Savings | Customer | qa.customer@ | Notification UX C03 | PASS | Monthly impact toggle visible |
 | F7-W01 | F6/F7 Monthly Savings | Web | — | Notification prefs web parity | PENDING |  |
 | F7-X01 | F6/F7 Monthly Savings | Cross | C+SQL | Push LKR = useCustomerImpact month slice | PASS | Edge dryRun savedRs=2450 June 2026 |
 | F7-X02 | F6/F7 Monthly Savings | Cross | SQL | ≥2 orders threshold enforced | PASS | edge dryRun eligibility |
 | F7-A01 | F6/F7 Monthly Savings | Admin | — | Cron logs no errors | PENDING |  |
 | F7-R01 | F6/F7 Monthly Savings | Regression | DB | Other push types still work | PENDING |  |
-| F7-R02 | F6/F7 Monthly Savings | Regression | qa.customer@ | Pass25 customer profile | PENDING |  |
+| F7-R02 | F6/F7 Monthly Savings | Regression | qa.customer@ | Pass25 customer profile | FAIL | screenshots/f6/F7-R02.png
 | X-01 | Cross-feature | Cross | multi | Morning bag + WhatsApp deeplink + neighbourhood card | PENDING |  |
 | X-02 | Cross-feature | Cross | multi | Seasonal badge in filtered neighbourhood | PENDING |  |
 | X-03 | Cross-feature | Cross | multi | On my way → merchant collect → impact includes savings | PENDING |  |
