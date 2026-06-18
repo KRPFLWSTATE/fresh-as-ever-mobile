@@ -1,0 +1,78 @@
+{
+  "captured_at": "2026-06-18T18:46:07.551033+00:00",
+  "pass": "pre-migration",
+  "project_id": "odkbpeelvcdmlimdflbr",
+  "outlet_landmark_fill_rate": {
+    "total_outlets": 4,
+    "with_landmark": 2,
+    "fill_rate_pct": 50
+  },
+  "demo_outlets": [
+    {
+      "id": "b4884c9f-5a7c-41b0-af19-321c66f24dea",
+      "name": "[Demo] Galle Face Bites",
+      "landmark": null,
+      "address": "2 Galle Face Terrace, Colombo 01",
+      "active_bags": 0,
+      "published_shelves": 0
+    },
+    {
+      "id": "8fbdd459-d8b1-4c84-a6c4-fd00ccf57ac4",
+      "name": "[Demo] Pettah Green Grocer",
+      "landmark": null,
+      "address": "88 Main Street, Pettah, Colombo 11",
+      "active_bags": 0,
+      "published_shelves": 1
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000003",
+      "name": "Bakehouse Kollupitiya",
+      "landmark": "Near Marine Drive",
+      "address": "402 Galle Road, Kollupitiya, Colombo 03",
+      "active_bags": 0,
+      "published_shelves": 3
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000013",
+      "name": "Kumbuk Colombo 07",
+      "landmark": "Near Independence Square",
+      "address": "12 Ward Place, Colombo 07",
+      "active_bags": 0,
+      "published_shelves": 0
+    }
+  ],
+  "live_listing_counts": {
+    "active_rescue_bags": 0,
+    "published_clearance_shelves": 4
+  },
+  "orders_with_customer_arrived_at": {
+    "total_orders": 30,
+    "with_arrived_at": 1,
+    "recent_arrived": [
+      {
+        "id": "00000000-0000-0000-0000-000000000031",
+        "order_status": "cancelled",
+        "payment_status": "paid",
+        "customer_arrived_at": "2026-05-20T22:34:42.529923+00:00",
+        "outlet_id": "00000000-0000-0000-0000-000000000003"
+      }
+    ]
+  },
+  "xcode_session": {
+    "simulator_udid": "377DAC99-B79C-4B05-BB34-DBA1D160038D",
+    "simulator_name": null,
+    "project_path": null,
+    "workspace_path": null,
+    "scheme": null,
+    "configuration": null,
+    "note": "Xcode MCP session_show_defaults (Wave 0): project/scheme/sim not configured yet \u2014 configure before build_run_sim"
+  },
+  "appium": {
+    "simulator_udid": "377DAC99-B79C-4B05-BB34-DBA1D160038D",
+    "server": "http://127.0.0.1:4723",
+    "mcp_server": "user-Official_Appium_MCP_Server",
+    "note": "Appium MCP tools available; session not started in Wave 0"
+  },
+  "wave": 0,
+  "source": "user-supabase execute_sql (Wave 0 SA-BASELINE); prior capture reused after MCP net::ERR_FAILED retry"
+}
