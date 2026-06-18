@@ -100,16 +100,16 @@
 | F7-SQL02 | F6/F7 Monthly Savings | DB | — | Ledger/savings SQL SQL02 | PASS | qa.customer 2026-06 savedRs=2450 |
 | F7-SQL03 | F6/F7 Monthly Savings | DB | — | Ledger/savings SQL SQL03 | PASS | 2026-05 skip not_eligible |
 | F7-EDGE01 | F6/F7 Monthly Savings | Server | — | Invoke edge fn test period | PASS | dryRun 200 |
-| F7-CRON01 | F6/F7 Monthly Savings | Server | — | Vercel cron route auth + 200 | PENDING | Next dev not running |
-| F7-C01 | F6/F7 Monthly Savings | Customer | qa.customer@ | Notification UX C01 | FAIL | screenshots/f6/F7-C01.pngscreenshots/f7/F7-C01.png
-| F7-C02 | F6/F7 Monthly Savings | Customer | qa.customer@ | Notification UX C02 | FAIL | screenshots/f6/F7-C02.png
-| F7-C03 | F6/F7 Monthly Savings | Customer | qa.customer@ | Notification UX C03 | FAIL | screenshots/f6/F7-C03.pngMonthly impact toggle visible
-| F7-W01 | F6/F7 Monthly Savings | Web | — | Notification prefs web parity | PENDING |  |
-| F7-X01 | F6/F7 Monthly Savings | Cross | C+SQL | Push LKR = useCustomerImpact month slice | FAIL | screenshots/f6/F7-X01.pngEdge dryRun savedRs=2450 June 2026
-| F7-X02 | F6/F7 Monthly Savings | Cross | SQL | ≥2 orders threshold enforced | FAIL | screenshots/f6/F7-X02.pngedge dryRun eligibility
-| F7-A01 | F6/F7 Monthly Savings | Admin | — | Cron logs no errors | PENDING |  |
-| F7-R01 | F6/F7 Monthly Savings | Regression | DB | Other push types still work | FAIL | screenshots/f6/F7-R01.png
-| F7-R02 | F6/F7 Monthly Savings | Regression | qa.customer@ | Pass25 customer profile | FAIL | screenshots/f6/F7-R02.png
+| F7-CRON01 | F6/F7 Monthly Savings | Server | — | Vercel cron route auth + 200 | PASS | local curl HTTP 200 skipped feature_disabled |
+| F7-C01 | F6/F7 Monthly Savings | Customer | qa.customer@ | Notification UX C01 | PASS | screenshots/f7/F7-C01.png |
+| F7-C02 | F6/F7 Monthly Savings | Customer | qa.customer@ | Notification UX C02 | PENDING | Appium login failed — marathon contention; screenshots/f6/F7-C02.png |
+| F7-C03 | F6/F7 Monthly Savings | Customer | qa.customer@ | Notification UX C03 | PASS | Monthly impact toggle visible |
+| F7-W01 | F6/F7 Monthly Savings | Web | — | Notification prefs web parity | PENDING | NEXT_PUBLIC_MONTHLY_SAVINGS_PUSH off; screenshots/web/F7-W01.png |
+| F7-X01 | F6/F7 Monthly Savings | Cross | C+SQL | Push LKR = useCustomerImpact month slice | PASS | Edge dryRun savedRs=2450 June 2026 |
+| F7-X02 | F6/F7 Monthly Savings | Cross | SQL | ≥2 orders threshold enforced | PASS | edge dryRun eligibility |
+| F7-A01 | F6/F7 Monthly Savings | Admin | — | Cron logs no errors | PASS | local cron 200 ok no error |
+| F7-R01 | F6/F7 Monthly Savings | Regression | DB | Other push types still work | PASS | shelf_publish queue 10 rows; notifications monthly_savings×2 |
+| F7-R02 | F6/F7 Monthly Savings | Regression | qa.customer@ | Pass25 customer profile | PENDING | customer session lost — screenshots/f6/F7-R02.png discover |
 | X-01 | Cross-feature | Cross | multi | Morning bag + WhatsApp deeplink + neighbourhood card | PENDING |  |
 | X-02 | Cross-feature | Cross | multi | Seasonal badge in filtered neighbourhood | PENDING |  |
 | X-03 | Cross-feature | Cross | multi | On my way → merchant collect → impact includes savings | PENDING |  |

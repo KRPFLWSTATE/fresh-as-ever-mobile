@@ -1,0 +1,25 @@
+uid=26_0 RootWebArea "Fresh As Ever — Rescue Food. Save Money." url="http://localhost:3000/profile/notifications"
+  uid=26_1 button
+  uid=26_2 heading "Notifications" level="1"
+  uid=26_3 StaticText "Saved to your account"
+  uid=26_4 main
+    uid=26_5 StaticText "Push notifications"
+    uid=26_6 StaticText "Order updates and new bags near you"
+    uid=26_7 switch
+    uid=26_8 StaticText "Email"
+    uid=26_9 StaticText "Receipts and weekly impact summaries"
+    uid=26_10 switch checked
+    uid=26_11 StaticText "SMS"
+    uid=26_12 StaticText "Pickup reminders (requires phone on profile)"
+    uid=26_13 switch
+  uid=26_14 navigation
+    uid=26_15 link "DISCOVER" url="http://localhost:3000/discover"
+      uid=26_16 StaticText "DISCOVER"
+    uid=26_17 link "ORDERS" url="http://localhost:3000/orders"
+      uid=26_18 StaticText "ORDERS"
+    uid=26_19 link "FAVOURITES" url="http://localhost:3000/favourites"
+      uid=26_20 StaticText "FAVOURITES"
+    uid=26_21 link "PROFILE" url="http://localhost:3000/profile"
+      uid=26_22 StaticText "PROFILE"
+  uid=26_23 button "Open Next.js Dev Tools" expandable haspopup="menu"
+  uid=26_24 alert atomic live="assertive" relevant="additions text"
