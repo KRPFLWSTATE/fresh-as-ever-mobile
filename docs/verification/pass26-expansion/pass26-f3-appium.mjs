@@ -49,8 +49,7 @@ async function shot(d, name) {
   return rel;
 }
 
-async function record(id, pass, detail, portal) {
-  const evidence = '';
+async function record(id, pass, detail, portal, evidence = '') {
   R[id] = { pass, detail, portal, evidence };
   log({ id, tool: 'appium.f3', result: pass ? 'PASS' : 'FAIL', detail, portal });
   console.log(`${id}: ${pass ? 'PASS' : 'FAIL'} — ${detail}`);
@@ -109,8 +108,8 @@ async function main() {
       if (!f3DiscoverPrepped) {
         const ok = await prepCustomerDiscover(d, { freshSession: true });
         if (!ok) {
-          await record(id, false, 'customer discover prep failed', 'customer');
-          await shot(d, `${id}.png`);
+          const ev = await shot(d, `${id}.png`);
+          await record(id, false, 'customer discover prep failed', 'customer', ev);
           continue;
         }
         f3DiscoverPrepped = true;
@@ -121,8 +120,8 @@ async function main() {
         await ensureDiscoverFeedInView(d);
       }
       const pass = await waitForLandmarkInDiscover(d, lm);
-      await record(id, pass, `neighbourhood subtitle ${lm}`, 'customer');
-      await shot(d, `${id}.png`);
+      const ev = await shot(d, `${id}.png`);
+      await record(id, pass, `neighbourhood subtitle ${lm}`, 'customer', ev);
     }
 
     const bhOk = await loginBakehouse(d);
@@ -140,8 +139,8 @@ async function main() {
         const pass =
           /landmark|Landmark|Neighbourhood/i.test(src) &&
           /Kollupitiya|Galle/i.test(src);
-        await record(id, pass, 'landmark edit surface', 'merchant-bh');
-        await shot(d, `${id}.png`);
+        const ev = await shot(d, `${id}.png`);
+        await record(id, pass, 'landmark edit surface', 'merchant-bh', ev);
       }
       await merchantLogout(d);
     }
@@ -154,8 +153,8 @@ async function main() {
       await wait(5000);
       const src = await safePageSource(d);
       const pass = /Colombo 07|Kumbuk|landmark|Landmark/i.test(src);
-      await record('F3-M02', pass, 'Kumbuk landmark edit', 'merchant-kb');
-      await shot(d, 'F3-M02.png');
+      const ev = await shot(d, 'F3-M02.png');
+      await record('F3-M02', pass, 'Kumbuk landmark edit', 'merchant-kb', ev);
       await merchantLogout(d);
     }
   } finally {

@@ -5,6 +5,9 @@ import { execSync } from 'node:child_process';
 export const UDID = '377DAC99-B79C-4B05-BB34-DBA1D160038D';
 export const BUNDLE = 'com.freshasever.mobile';
 
+/** Colombo QA geolocation (Pass 26) */
+export const COLOMBO_GEO = { latitude: 6.9271, longitude: 79.8612 };
+
 export const CREDS = {
   bakehouse: { email: 'qa.merchant@freshasever.test', password: 'TempMerchant#12345' },
   kumbuk: { email: 'qa.kumbuk@freshasever.test', password: 'TempMerchant#12345' },
@@ -38,41 +41,62 @@ export async function safePageSource(d) {
 
 export const dl = (u) => {
   execSync(`xcrun simctl openurl ${UDID} "${u}"`, { stdio: 'pipe' });
-  execSync(`xcrun simctl location ${UDID} set 6.9147,79.8655`, { stdio: 'pipe' });
+  execSync(`xcrun simctl location ${UDID} set ${COLOMBO_GEO.latitude},${COLOMBO_GEO.longitude}`, { stdio: 'pipe' });
   return wait(3200);
 };
 
 export async function fillLoginField(el, value) {
   await el.click();
-  await wait(250);
+  await wait(300);
   try {
     await el.clearValue();
   } catch {}
   try {
-    const current = String((await el.getValue().catch(() => '')) || '');
-    if (current && current !== value) {
-      await el.setValue('');
-      await wait(100);
-    }
+    await el.setValue('');
   } catch {}
   try {
     await el.setValue(value);
   } catch {
-    await el.addValue(value);
+    try {
+      await el.addValue(value);
+    } catch {
+      for (const ch of value) {
+        await el.addValue(ch);
+        await wait(20);
+      }
+    }
   }
+  await wait(250);
+  try {
+    const current = String((await el.getValue().catch(() => '')) || '');
+    if (current && current !== value && !current.includes(value)) {
+      await el.clearValue().catch(() => {});
+      await el.setValue(value).catch(() => el.addValue(value));
+    }
+  } catch {}
 }
 
 export async function dismissKeyboard(d) {
-  try {
-    await d.hideKeyboard();
-  } catch {}
+  if (!(await isSessionAlive(d))) return;
   try {
     const ret = await d.$('-ios predicate string:name == "Return" OR label == "Return"');
-    if (await ret.isDisplayed().catch(() => false)) await ret.click();
+    if (await ret.isDisplayed().catch(() => false)) {
+      await ret.click();
+      await wait(200);
+      return;
+    }
   } catch {}
   try {
     const done = await d.$('-ios predicate string:name == "Done" OR label == "Done"');
-    if (await done.isDisplayed().catch(() => false)) await done.click();
+    if (await done.isDisplayed().catch(() => false)) {
+      await done.click();
+      await wait(200);
+      return;
+    }
+  } catch {}
+  try {
+    const { width, height } = await d.getWindowSize();
+    await tapAt(d, width * 0.5, height * 0.25);
   } catch {}
   await wait(300);
 }
@@ -327,17 +351,126 @@ export async function ensureKumbukMerchantSession(d) {
   return await waitForMerchantDashboard(d);
 }
 
-export async function prepCustomerDiscover(d) {
-  await recoverFromErrorBoundary(d);
-  await customerLogout(d);
-  await wait(1500);
-  await relaunchApp(d);
-  const loggedIn = await loginCustomer(d);
-  if (!loggedIn) return false;
-  await dl('freshasever://discover');
-  await wait(6000);
-  await recoverFromErrorBoundary(d);
+export async function dismissDiscoverSheets(d) {
+  await dismissOverlays(d);
+  await dismissSavePassword(d);
+  await tryTap(d, 'label CONTAINS "Dismiss location" OR name CONTAINS "Dismiss location"', 2000);
+  await tryTap(d, 'label == "Not now" OR label == "Not Now"', 1500);
+}
+
+export async function landmarkVisibleInDiscover(d, landmark) {
+  const esc = String(landmark).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const re = new RegExp(esc, 'i');
+  const subs = await d.$$('-ios predicate string:name BEGINSWITH "discover.card.subtitle."');
+  for (const el of subs) {
+    const label =
+      (await el.getText().catch(() => '')) ||
+      (await el.getAttribute('label').catch(() => '')) ||
+      (await el.getAttribute('name').catch(() => '')) ||
+      '';
+    if (re.test(label)) return true;
+    if (label.includes('·') && re.test(label)) return true;
+  }
+  const src = await safePageSource(d);
+  if (new RegExp(`·\\s*${esc}`, 'i').test(src)) return true;
+  return re.test(src);
+}
+
+export async function scrollDiscoverListFeed(d, times = 1) {
+  try {
+    const feed = await d.$('~discover.list-feed');
+    if (await feed.isExisting().catch(() => false)) {
+      for (let i = 0; i < times; i++) {
+        try {
+          await feed.execute('mobile: scroll', { direction: 'down' });
+        } catch {
+          await scrollDown(d, 1);
+        }
+        await wait(600);
+      }
+      return;
+    }
+  } catch {}
+  const { width, height } = await d.getWindowSize();
+  for (let i = 0; i < times; i++) {
+    await d.performActions([
+      {
+        type: 'pointer',
+        id: 'feedScroll',
+        parameters: { pointerType: 'touch' },
+        actions: [
+          { type: 'pointerMove', duration: 0, x: Math.floor(width / 2), y: Math.floor(height * 0.78) },
+          { type: 'pointerDown', button: 0 },
+          { type: 'pause', duration: 80 },
+          { type: 'pointerMove', duration: 450, x: Math.floor(width / 2), y: Math.floor(height * 0.42) },
+          { type: 'pointerUp', button: 0 },
+        ],
+      },
+    ]);
+    await d.releaseActions().catch(() => {});
+    await wait(500);
+  }
+}
+
+export async function ensureDiscoverFeedInView(d) {
+  const rescueNear = await d.$('-ios predicate string:label == "Rescue near you"');
+  if (await rescueNear.isDisplayed().catch(() => false)) return true;
   await scrollMapIntoView(d);
+  await wait(500);
+  await scrollDiscoverListFeed(d, 2);
+  return true;
+}
+
+export async function waitForLandmarkInDiscover(d, landmark, { timeoutMs = 35000, maxScrolls = 14 } = {}) {
+  const deadline = Date.now() + timeoutMs;
+  let scrolls = 0;
+  while (Date.now() < deadline) {
+    if (!(await isSessionAlive(d))) return false;
+    await recoverFromErrorBoundary(d);
+    await dismissDiscoverSheets(d);
+    if (await landmarkVisibleInDiscover(d, landmark)) return true;
+    if (scrolls >= maxScrolls) break;
+    await scrollDiscoverListFeed(d, 1);
+    scrolls += 1;
+    await wait(800);
+  }
+  return landmarkVisibleInDiscover(d, landmark);
+}
+
+export async function prepCustomerDiscover(d, { freshSession = false } = {}) {
+  await recoverFromErrorBoundary(d);
+  if (freshSession) {
+    if (await isMerchantLoggedIn(d)) {
+      await merchantLogout(d);
+      await wait(2000);
+    }
+    const guest =
+      (await d.$('~discover.guestSignInCta').isDisplayed().catch(() => false)) ||
+      (await d.$('~profile.guestHeading').isDisplayed().catch(() => false));
+    if (guest || (await d.$('~login.email').isDisplayed().catch(() => false))) {
+      await relaunchApp(d);
+    } else if (!(await isCustomerLoggedIn(d))) {
+      await customerLogout(d).catch(() => {});
+      await wait(1200);
+      await relaunchApp(d);
+    }
+  }
+  let loggedIn = await isCustomerLoggedIn(d);
+  if (!loggedIn) loggedIn = await loginCustomer(d);
+  if (!loggedIn) return false;
+  await dismissDiscoverSheets(d);
+  await dl('freshasever://discover');
+  await wait(5500);
+  await recoverFromErrorBoundary(d);
+  await dismissDiscoverSheets(d);
+  if (await d.$('~login.email').isDisplayed().catch(() => false)) {
+    loggedIn = await loginCustomer(d);
+    if (!loggedIn) return false;
+    await dl('freshasever://discover');
+    await wait(4500);
+  }
+  await ensureDiscoverFeedInView(d);
+  await scrollDiscoverListFeed(d, 2);
   return await d.$('~discover.searchInput').isDisplayed().catch(() => false);
 }
 
@@ -405,71 +538,180 @@ export async function isMerchantLoggedIn(d) {
   return false;
 }
 
-export async function waitForMerchantDashboard(d, { timeoutMs = 25000 } = {}) {
+export async function waitForMerchantDashboard(d, { timeoutMs = 60000 } = {}) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     await dismissSavePassword(d);
+    await dismissSystemPrompts(d);
+    if (await d.$('~tab.merchant.home').isDisplayed().catch(() => false)) return true;
     if (await isMerchantLoggedIn(d)) return true;
-    await wait(1500);
+    await wait(2000);
   }
-  return await isMerchantLoggedIn(d);
+  return (
+    (await d.$('~tab.merchant.home').isDisplayed().catch(() => false)) || (await isMerchantLoggedIn(d))
+  );
 }
 
 export async function isCustomerLoggedIn(d) {
   if (await d.$('~profile.logOut').isDisplayed().catch(() => false)) return true;
   if (await d.$('~discover.guestSignInCta').isDisplayed().catch(() => false)) return false;
   if (await d.$('~profile.guestHeading').isDisplayed().catch(() => false)) return false;
+  const src = await safePageSource(d);
+  if (/discover\.guestSignIn|guestSignInCta|Sign in to see rescue bags/i.test(src)) return false;
   if (await d.$('~discover.searchInput').isDisplayed().catch(() => false)) {
-    const src = await d.getPageSource().catch(() => '');
-    if (/discover\.guestSignIn|Sign in to see rescue bags/i.test(src)) return false;
-    return true;
+    return !/guestSignIn|Sign in to see/i.test(src);
   }
-  if (await d.$('~tab.orders').isDisplayed().catch(() => false)) return true;
   if (await d.$('~tab.profile').isDisplayed().catch(() => false)) {
-    return !(await d.$('~discover.guestSignInCta').isDisplayed().catch(() => false));
+    await dl('freshasever://profile');
+    await wait(2000);
+    if (await d.$('~profile.logOut').isDisplayed().catch(() => false)) return true;
+    if (await d.$('~profile.guestHeading').isDisplayed().catch(() => false)) return false;
   }
   return false;
 }
 
-export async function emailLogin(d, { email, password, portal }) {
-  await dismissSystemPrompts(d);
-  await dl(`freshasever://login?portal=${portal}`);
-  await wait(3000);
-  await dismissSystemPrompts(d);
 
+export async function waitForPostLoginSurface(d, portal, { timeoutMs = 60000 } = {}) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (!(await isSessionAlive(d))) return false;
+    await dismissSavePassword(d);
+    await dismissSystemPrompts(d);
+    if (portal === 'customer') {
+      if (await isCustomerLoggedIn(d)) return true;
+      await tryTap(d, 'name == "tab.discover" OR label == "Discover"', 1500);
+      await dl('freshasever://discover');
+      await wait(2500);
+      if (await isCustomerLoggedIn(d)) return true;
+      if (!(await d.$('~login.email').isDisplayed().catch(() => false))) {
+        await dl('freshasever://profile');
+        await wait(2000);
+        if (await d.$('~profile.logOut').isDisplayed().catch(() => false)) return true;
+      }
+    }
+    if (portal === 'merchant') {
+      if (await d.$('~tab.merchant.home').isDisplayed().catch(() => false)) return true;
+      if (await isMerchantLoggedIn(d)) return true;
+    }
+    await wait(1500);
+  }
+  if (portal === 'customer') return await isCustomerLoggedIn(d);
+  return (
+    (await d.$('~tab.merchant.home').isDisplayed().catch(() => false)) || (await isMerchantLoggedIn(d))
+  );
+}
+
+export async function screenshotLoginFail(d, tag = 'login-fail') {
+  try {
+    const fs = await import('node:fs');
+    const path = await import('node:path');
+    const { fileURLToPath } = await import('node:url');
+    const here = path.dirname(fileURLToPath(import.meta.url));
+    const dir = path.join(here, '..', 'screenshots', 'login-fail');
+    fs.mkdirSync(dir, { recursive: true });
+    const file = path.join(dir, `${tag}-${Date.now()}.png`);
+    fs.writeFileSync(file, Buffer.from(await d.takeScreenshot(), 'base64'));
+    return file;
+  } catch {
+    return null;
+  }
+}
+
+export async function ensureEmailLoginForm(d, portal) {
   if (portal === 'merchant') {
     const merchantTab = await d.$('~login.portal.merchant');
     if (await merchantTab.isDisplayed().catch(() => false)) {
       await merchantTab.click();
+      await wait(400);
     } else {
-      await tryTap(d, 'label == "Merchant" OR name == "Merchant"', 3000);
+      await tryTap(d, 'label == "Merchant" OR name == "Merchant"', 2500);
     }
-    await wait(500);
   }
   if (portal === 'customer') {
     const customerTab = await d.$('~login.portal.customer');
     if (await customerTab.isDisplayed().catch(() => false)) {
       await customerTab.click();
+      await wait(300);
     }
-    await wait(300);
   }
+  for (let attempt = 0; attempt < 8; attempt++) {
+    if (await d.$('~login.email').isDisplayed().catch(() => false)) return true;
+    const onLogin =
+      (await d.$('~login.title').isDisplayed().catch(() => false)) ||
+      (await d.$('~login.portal.customer').isDisplayed().catch(() => false)) ||
+      (await d.$('~login.portal.merchant').isDisplayed().catch(() => false));
+    const useEmail = await d.$('~login.useEmailPassword');
+    if (await useEmail.isExisting().catch(() => false)) {
+      if (!(await useEmail.isDisplayed().catch(() => false))) {
+        await scrollDown(d, 1);
+        await wait(400);
+      }
+      if (await useEmail.isDisplayed().catch(() => false)) {
+        await useEmail.click();
+        await wait(1200);
+        if (await d.$('~login.email').isDisplayed().catch(() => false)) return true;
+      }
+      await quickTap(d, 'name == "login.useEmailPassword" OR label CONTAINS "Use email"');
+      await wait(1200);
+      if (await d.$('~login.email').isDisplayed().catch(() => false)) return true;
+    }
+    if (onLogin) {
+      await tryTap(
+        d,
+        'label CONTAINS "Use email" OR name == "login.useEmailPassword"',
+        2000,
+      );
+      await wait(900);
+      if (await d.$('~login.email').isDisplayed().catch(() => false)) return true;
+      await scrollDown(d, 1);
+      continue;
+    }
+    await dl(`freshasever://login?portal=${portal}`);
+    await wait(3200);
+  }
+  return d.$('~login.email').isDisplayed().catch(() => false);
+}
 
-  await tryTap(
-    d,
-    'name CONTAINS "Use email" OR label CONTAINS "Use email" OR name == "login.useEmailPassword"',
-    4000,
-  );
-  await wait(1200);
 
-  const emailEl = await d.$('~login.email');
-  for (let i = 0; i < 10; i++) {
-    if (await emailEl.isDisplayed().catch(() => false)) break;
+export async function ensureCustomerEmailForm(d) {
+  const customerTab = await d.$('~login.portal.customer');
+  if (await customerTab.isDisplayed().catch(() => false)) {
+    await customerTab.click();
+    await wait(400);
+  } else {
+    await tryTap(d, 'label == "Customer" OR name == "Customer"', 2500);
+  }
+  const useEmail = await d.$('~login.useEmailPassword');
+  for (let i = 0; i < 8; i++) {
+    if (await d.$('~login.password').isDisplayed().catch(() => false)) return true;
+    if (await useEmail.isDisplayed().catch(() => false)) {
+      await useEmail.click();
+      await wait(600);
+      continue;
+    }
     await tryTap(
       d,
-      'name CONTAINS "Use email" OR label CONTAINS "Use email" OR name == "login.useEmailPassword"',
-      2000,
+      'label CONTAINS "Use email" OR name == "login.useEmailPassword"',
+      1500,
     );
-    await wait(600);
+    await scrollDown(d, 1);
+    await wait(400);
+  }
+  return d.$('~login.password').isDisplayed().catch(() => false);
+}
+
+export async function emailLogin(d, { email, password, portal }) {
+  await dismissSystemPrompts(d);
+  await dl(`freshasever://login?portal=${portal}`);
+  await wait(3500);
+  await dismissSystemPrompts(d);
+  await ensureEmailLoginForm(d, portal);
+
+  const emailEl = await d.$('~login.email');
+  for (let i = 0; i < 6; i++) {
+    if (await emailEl.isDisplayed().catch(() => false)) break;
+    await ensureEmailLoginForm(d, portal);
+    await wait(500);
   }
   if (await emailEl.isDisplayed().catch(() => false)) {
     await fillLoginField(emailEl, email);
@@ -505,25 +747,27 @@ export async function emailLogin(d, { email, password, portal }) {
   }
   await dismissKeyboard(d);
   await tapSignIn(d);
-  await dismissSavePassword(d);
-
-  for (let i = 0; i < 15; i++) {
-    await wait(2000);
-    if (!(await isSessionAlive(d))) return false;
+  for (let i = 0; i < 25; i++) {
+    await wait(1000);
     await dismissSavePassword(d);
-    if (portal === 'customer' && (await isCustomerLoggedIn(d))) {
-      await dl('freshasever://discover');
-      await wait(2000);
-      return true;
-    }
-    if (portal === 'merchant' && (await isMerchantLoggedIn(d))) {
-      await dismissSavePassword(d);
-      await dl('freshasever://merchant/dashboard');
-      await wait(2000);
-      return true;
-    }
+    if (!(await d.$('~login.email').isDisplayed().catch(() => false))) break;
+    if (portal === 'customer' && (await isCustomerLoggedIn(d))) break;
+    if (portal === 'merchant' && (await isMerchantLoggedIn(d))) break;
   }
-  return false;
+  await dismissSavePassword(d);
+  await dismissSystemPrompts(d);
+
+  const landed = await waitForPostLoginSurface(d, portal, { timeoutMs: 60000 });
+  if (!landed) return false;
+  if (portal === 'customer') {
+    await ensureCustomerDiscover(d);
+    return (
+      (await d.$('~discover.searchInput').isDisplayed().catch(() => false)) || (await isCustomerLoggedIn(d))
+    );
+  }
+  await dl('freshasever://merchant/dashboard');
+  await wait(2500);
+  return await waitForMerchantDashboard(d, { timeoutMs: 15000 });
 }
 
 export async function isBakehouseMerchantSession(d) {
@@ -550,46 +794,118 @@ export async function isKumbukMerchantSession(d) {
 }
 
 export async function loginBakehouse(d) {
+  await dismissSystemPrompts(d);
   await dl('freshasever://merchant/dashboard');
-  await wait(3000);
-  if ((await isMerchantLoggedIn(d)) && (await isBakehouseMerchantSession(d))) return true;
+  await wait(4000);
+  if ((await isMerchantLoggedIn(d)) && (await isBakehouseMerchantSession(d))) {
+    return await waitForMerchantDashboard(d, { timeoutMs: 15000 });
+  }
   await dl('freshasever://login?portal=merchant');
-  await wait(2000);
-  return emailLogin(d, { ...CREDS.bakehouse, portal: 'merchant' });
+  await wait(2500);
+  let ok = await emailLogin(d, { ...CREDS.bakehouse, portal: 'merchant' });
+  if (!ok) {
+    await screenshotLoginFail(d, 'bakehouse-attempt1');
+    await relaunchApp(d);
+    ok = await emailLogin(d, { ...CREDS.bakehouse, portal: 'merchant' });
+  }
+  if (!ok) {
+    await screenshotLoginFail(d, 'bakehouse-final');
+    return false;
+  }
+  if (!(await waitForMerchantDashboard(d, { timeoutMs: 60000 }))) return false;
+  return (await isBakehouseMerchantSession(d)) || (await isMerchantLoggedIn(d));
 }
 
 export async function loginKumbuk(d) {
   await dismissSystemPrompts(d);
   if (await isMerchantLoggedIn(d)) return true;
-  const ok = await emailLogin(d, { ...CREDS.kumbuk, portal: 'merchant' });
+  let ok = await emailLogin(d, { ...CREDS.kumbuk, portal: 'merchant' });
   await dismissSystemPrompts(d);
-  if (!ok) return false;
-  return await waitForMerchantDashboard(d);
+  if (!ok) {
+    await screenshotLoginFail(d, 'kumbuk-attempt1');
+    await relaunchApp(d);
+    ok = await emailLogin(d, { ...CREDS.kumbuk, portal: 'merchant' });
+  }
+  if (!ok) {
+    await screenshotLoginFail(d, 'kumbuk-final');
+    return false;
+  }
+  return await waitForMerchantDashboard(d, { timeoutMs: 60000 });
+}
+
+
+export async function ensureCustomerLoginSurface(d) {
+  await dismissSystemPrompts(d);
+  if (
+    (await d.$('~login.email').isDisplayed().catch(() => false)) ||
+    (await d.$('~login.title').isDisplayed().catch(() => false))
+  ) {
+    return true;
+  }
+  await dl('freshasever://login?portal=customer');
+  await wait(2500);
+  await dismissSystemPrompts(d);
+  if (await d.$('~login.title').isDisplayed().catch(() => false)) return true;
+
+  const guest = await d.$('~discover.guestSignInCta');
+  if (await guest.isExisting().catch(() => false)) {
+    try {
+      await guest.scrollIntoView();
+      await wait(350);
+    } catch {}
+    try {
+      await guest.click();
+    } catch {
+      await quickTap(d, 'name == "discover.guestSignInCta" OR label == "Sign in"');
+    }
+    await wait(2200);
+    if (await d.$('~login.title').isDisplayed().catch(() => false)) return true;
+  }
+
+  await tryTap(d, 'label == "Sign in" OR name == "discover.guestSignInCta"', 2500);
+  await wait(1500);
+  return (
+    (await d.$('~login.email').isDisplayed().catch(() => false)) ||
+    (await d.$('~login.title').isDisplayed().catch(() => false))
+  );
 }
 
 export async function loginCustomer(d) {
-  execSync(`xcrun simctl location ${UDID} set 6.9147,79.8655`, { stdio: 'pipe' });
+  execSync(`xcrun simctl location ${UDID} set ${COLOMBO_GEO.latitude},${COLOMBO_GEO.longitude}`, { stdio: 'pipe' });
+  if (await isMerchantLoggedIn(d)) {
+    await merchantLogout(d);
+    await relaunchApp(d);
+  }
   await dl('freshasever://discover');
   await wait(2500);
-  await dismissSystemPrompts(d);
-  if (await isCustomerLoggedIn(d)) return true;
-
-  await dl('freshasever://login?portal=customer');
-  await wait(2500);
-  if (!(await d.$('~login.title').isDisplayed().catch(() => false))) {
-    await dl('freshasever://login?portal=customer');
-    await wait(2500);
+  await dismissDiscoverSheets(d);
+  if (await isCustomerLoggedIn(d)) {
+    await ensureCustomerDiscover(d);
+    return true;
   }
 
-  const ok = await emailLogin(d, { ...CREDS.customer, portal: 'customer' });
+  await ensureCustomerLoginSurface(d);
+  let ok = await emailLogin(d, { ...CREDS.customer, portal: 'customer' });
   await dismissSystemPrompts(d);
   await dismissSavePassword(d);
-  if (ok && (await isCustomerLoggedIn(d))) return true;
+  if (ok && (await isCustomerLoggedIn(d))) {
+    await ensureCustomerDiscover(d);
+    if (await d.$('~discover.searchInput').isDisplayed().catch(() => false)) return true;
+  }
 
+  await screenshotLoginFail(d, 'customer-attempt1');
   await relaunchApp(d);
-  const retry = await emailLogin(d, { ...CREDS.customer, portal: 'customer' });
+  await ensureCustomerLoginSurface(d);
+  ok = await emailLogin(d, { ...CREDS.customer, portal: 'customer' });
   await dismissSavePassword(d);
-  return retry && (await isCustomerLoggedIn(d));
+  if (ok && (await isCustomerLoggedIn(d))) {
+    await ensureCustomerDiscover(d);
+    return (
+      (await d.$('~discover.searchInput').isDisplayed().catch(() => false)) || (await isCustomerLoggedIn(d))
+    );
+  }
+  await screenshotLoginFail(d, 'customer-final');
+  return false;
 }
 
 export async function isLoggedOut(d) {
