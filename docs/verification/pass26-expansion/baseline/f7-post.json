@@ -1,0 +1,16 @@
+{
+  "ts": "2026-06-18T23:30:00Z",
+  "pass": "f7-post",
+  "migration": "20260620160000_monthly_savings_notifications",
+  "edgeFunction": "notify-monthly-savings",
+  "ledger_table_exists": true,
+  "qa_customer": {
+    "email": "qa.customer@freshasever.test",
+    "completed_with_ts": 4,
+    "impact_orders": 5,
+    "lifetime_saved_lkr": 5020,
+    "prev_month_orders": 0,
+    "prev_month_saved_lkr": null,
+    "ledger_rows": 0
+  }
+}

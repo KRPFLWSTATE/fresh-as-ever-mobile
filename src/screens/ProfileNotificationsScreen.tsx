@@ -21,6 +21,7 @@ import { useStitchTheme } from '@/theme/StitchThemeContext';
 import { stitchAmbientShadow } from '@/theme/stitchTokens';
 import { StitchCard, StitchIcon, StitchText } from '@/ui/stitch';
 import { logError } from '@/observability/logError';
+import { isMonthlySavingsPushEnabled } from '@/config/featureFlags';
 import {
   isPushNativeModuleAvailable,
   PUSH_REBUILD_MESSAGE,
@@ -37,7 +38,7 @@ import {
  * Values are JSON-encoded `{ push, email, sms }` booleans.
  */
 const NOTIF_PREFS_PREFIX = 'fresh_as_ever.notification_prefs';
-const DEFAULT_NOTIF_PREFS = { push: true, email: true, sms: false } as const;
+const DEFAULT_NOTIF_PREFS = { push: true, email: true, sms: false, monthly_impact: true } as const;
 
 function initialsFromUser(name: string | undefined, email: string | undefined) {
   const base = (name ?? email ?? '?').trim();
@@ -57,6 +58,7 @@ export function ProfileNotificationsScreen() {
   const [pushOn, setPushOn] = useState<boolean>(DEFAULT_NOTIF_PREFS.push);
   const [emailOn, setEmailOn] = useState<boolean>(DEFAULT_NOTIF_PREFS.email);
   const [smsOn, setSmsOn] = useState<boolean>(DEFAULT_NOTIF_PREFS.sms);
+  const [monthlyImpactOn, setMonthlyImpactOn] = useState<boolean>(DEFAULT_NOTIF_PREFS.monthly_impact);
   const [profilePhone, setProfilePhone] = useState('');
   const [hydrated, setHydrated] = useState(false);
   const prefsKey = useMemo(
@@ -72,6 +74,7 @@ export function ProfileNotificationsScreen() {
     if (typeof parsed.push === 'boolean') setPushOn(parsed.push);
     if (typeof parsed.email === 'boolean') setEmailOn(parsed.email);
     if (typeof parsed.sms === 'boolean') setSmsOn(parsed.sms);
+    if (typeof parsed.monthly_impact === 'boolean') setMonthlyImpactOn(parsed.monthly_impact);
   };
 
   // Hydrate from `profiles.notification_prefs`, then AsyncStorage fallback.
@@ -115,7 +118,7 @@ export function ProfileNotificationsScreen() {
   // Persist to profile jsonb + local cache after hydration.
   useEffect(() => {
     if (!hydrated) return;
-    const prefs = { push: pushOn, email: emailOn, sms: smsOn };
+    const prefs = { push: pushOn, email: emailOn, sms: smsOn, monthly_impact: monthlyImpactOn };
     AsyncStorage.setItem(prefsKey, JSON.stringify(prefs)).catch((err) =>
       logError(err, { context: 'ProfileNotificationsScreen.asyncStorage' }),
     );
@@ -133,7 +136,7 @@ export function ProfileNotificationsScreen() {
         logError(err, { context: 'ProfileNotificationsScreen.notification_prefs' });
       }
     })();
-  }, [emailOn, env, hydrated, prefsKey, pushOn, smsOn, user?.id]);
+  }, [emailOn, env, hydrated, monthlyImpactOn, prefsKey, pushOn, smsOn, user?.id]);
 
   useProfileNotificationPush({
     env,
@@ -415,7 +418,7 @@ export function ProfileNotificationsScreen() {
                 thumbColor={colors.surface}
               />
             </View>
-            <View style={[styles.row, styles.rowLast]}>
+            <View style={[styles.row, !isMonthlySavingsPushEnabled() ? styles.rowLast : undefined]}>
               <View style={{ flex: 1, gap: 4, paddingRight: spacing.sm }}>
                 <StitchText variant="h3" colorKey="text">
                   SMS Messages
@@ -431,6 +434,24 @@ export function ProfileNotificationsScreen() {
                 thumbColor={colors.surface}
               />
             </View>
+            {isMonthlySavingsPushEnabled() ? (
+              <View style={[styles.row, styles.rowLast]}>
+                <View style={{ flex: 1, gap: 4, paddingRight: spacing.sm }}>
+                  <StitchText variant="h3" colorKey="text">
+                    Monthly impact summary
+                  </StitchText>
+                  <StitchText variant="body-sm" colorKey="textMuted">
+                    Push on the 1st with last month&apos;s savings
+                  </StitchText>
+                </View>
+                <Switch
+                  value={monthlyImpactOn}
+                  onValueChange={setMonthlyImpactOn}
+                  trackColor={trackColor}
+                  thumbColor={colors.surface}
+                />
+              </View>
+            ) : null}
           </StitchCard>
         </View>
       </ScrollView>
