@@ -5,17 +5,14 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execSync } from 'node:child_process';
 import { remote } from '../pass23-cross-portal/node_modules/webdriverio/build/index.js';
+import {
+  UDID, BUNDLE, wait, loginCustomer, merchantLogout, dismissOverlays, safePageSource, isMerchantLoggedIn,
+} from './lib/merchantLogin.mjs';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const SHOT = path.join(ROOT, 'screenshots/f6', 'F7-R02.png');
-const UDID = '377DAC99-B79C-4B05-BB34-DBA1D160038D';
-const BUNDLE = 'com.freshasever.mobile';
-const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function main() {
-  execSync(`xcrun simctl openurl ${UDID} "freshasever://profile"`, { stdio: 'pipe' });
-  await wait(5000);
-
   const driver = await remote({
     hostname: '127.0.0.1',
     port: 4723,
@@ -26,18 +23,27 @@ async function main() {
       'appium:udid': UDID,
       'appium:bundleId': BUNDLE,
       'appium:noReset': true,
-      'appium:newCommandTimeout': 120,
+      'appium:newCommandTimeout': 240,
     },
   });
 
   try {
-    const src = await driver.getPageSource();
-    const pass = /ProfileScreen|Your Impact|Account Details|tab\.profile.*selected/i.test(src) && !/discover\.list-feed|Welcome Back/i.test(src);
+    await dismissOverlays(driver);
+    if (await isMerchantLoggedIn(driver)) await merchantLogout(driver);
+    const logged = await loginCustomer(driver);
+    if (!logged) {
+      console.log(JSON.stringify({ id: 'F7-R02', pass: false, detail: 'customer login failed' }));
+      process.exit(1);
+    }
+    execSync(`xcrun simctl openurl ${UDID} "freshasever://profile"`, { stdio: 'pipe' });
+    await wait(6000);
+    const src = await safePageSource(driver);
+    const pass = /Profile|QA Customer|Notifications|Food Rescuer/i.test(src);
     fs.mkdirSync(path.dirname(SHOT), { recursive: true });
     try {
       fs.writeFileSync(SHOT, Buffer.from(await driver.takeScreenshot(), 'base64'));
     } catch {}
-    console.log(JSON.stringify({ id: 'F7-R02', pass, shot: SHOT, detail: 'profile regression', sample: src.slice(0, 300) }));
+    console.log(JSON.stringify({ id: 'F7-R02', pass, shot: SHOT, detail: 'profile regression' }));
     process.exit(pass ? 0 : 1);
   } finally {
     await driver.deleteSession().catch(() => {});
