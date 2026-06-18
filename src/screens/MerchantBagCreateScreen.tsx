@@ -19,6 +19,9 @@ import { useAuthContext } from '@/context/AuthContext';
 import { useMerchantBags } from '@/hooks/useMerchantBags';
 import { BAG_ALLERGEN_LABELS } from '@/lib/bagAllergens';
 import { defaultCreateForm, isoLocalRounded } from '@/lib/merchantBagForm';
+import { SeasonalOccasionPicker } from '@/components/merchant/SeasonalOccasionPicker';
+import { featureFlags } from '@/config/featureFlags';
+import { useSeasonalOccasionWindows } from '@/hooks/useSeasonalOccasionWindows';
 import { useScrollContentBottomPad } from '@/lib/useScrollContentBottomPad';
 import {
   bagImagePath,
@@ -30,11 +33,7 @@ import {
 } from '@/components/merchant/BagWeightField';
 import { PickupDateTimeField } from '@/components/PickupDateTimeField';
 import { PickupWindowPresetChips } from '@/components/merchant/PickupWindowPresetChips';
-import { SeasonalOccasionPicker } from '@/components/merchant/SeasonalOccasionPicker';
-import { featureFlags } from '@/config/featureFlags';
-import type { SeasonalOccasionKind } from '@/domain/seasonalOccasion';
-import { useSeasonalOccasionWindows } from '@/hooks/useSeasonalOccasionWindows';
-import type { PickupWindowKind } from '@/lib/pickupWindowPresets';
+import { type PickupWindowKind } from '@/lib/pickupWindowPresets';
 import { useStitchTheme } from '@/theme/StitchThemeContext';
 import {
   StitchButton,
@@ -147,7 +146,6 @@ export function MerchantBagCreateScreen() {
   const [customWeightKg, setCustomWeightKg] = useState('');
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const [occasionKind, setOccasionKind] = useState<SeasonalOccasionKind>('none');
   const [previewOpen, setPreviewOpen] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
 
@@ -304,7 +302,7 @@ export function MerchantBagCreateScreen() {
         allergens:
           form.selectedAllergens.length > 0 ? form.selectedAllergens : null,
         is_halal: form.isHalal ? true : null,
-        occasion_kind: occasionKind,
+        occasion_kind: form.occasion_kind,
       });
       navigation.goBack();
     } catch (e) {
@@ -721,8 +719,8 @@ export function MerchantBagCreateScreen() {
 
       {featureFlags.SEASONAL_BADGES ? (
         <SeasonalOccasionPicker
-          value={occasionKind}
-          onChange={setOccasionKind}
+          value={form.occasion_kind}
+          onChange={(occasion_kind) => setForm((f) => ({ ...f, occasion_kind }))}
           windows={seasonalWindows}
           loading={seasonalWindowsLoading}
         />
@@ -792,7 +790,9 @@ export function MerchantBagCreateScreen() {
                 setForm((f) => ({
                   ...f,
                   pickup_start,
-                  pickup_window_kind: 'custom',
+                  pickup_window_kind: featureFlags.PICKUP_WINDOW_PRESETS
+                    ? 'custom'
+                    : f.pickup_window_kind,
                 }))
               }
             />
@@ -805,7 +805,9 @@ export function MerchantBagCreateScreen() {
                 setForm((f) => ({
                   ...f,
                   pickup_end,
-                  pickup_window_kind: 'custom',
+                  pickup_window_kind: featureFlags.PICKUP_WINDOW_PRESETS
+                    ? 'custom'
+                    : f.pickup_window_kind,
                 }))
               }
             />

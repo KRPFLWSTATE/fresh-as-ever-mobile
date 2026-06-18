@@ -12,7 +12,6 @@ import {
   Platform,
   Pressable,
   ScrollView,
-  Share,
   StyleSheet,
   View,
 } from 'react-native';
@@ -31,8 +30,17 @@ import { resolveBagAllergensFromBag } from '@/lib/bagAllergens';
 import { useStitchTheme } from '@/theme/StitchThemeContext';
 import { stitchColorsDark } from '@/theme/stitchTokens';
 import { OutletTrustBadge } from '@/components/OutletTrustBadge';
+import { PickupBrowsePill } from '@/components/PickupBrowsePill';
 import { isGroupReservationsEnabled } from '@/config/groupReservations';
+import { featureFlags, isListingWhatsAppShareEnabled } from '@/config/featureFlags';
+import { formatPickupKindLabel } from '@/lib/pickupWindowPresets';
+import { SeasonalOccasionBadge } from '@/components/SeasonalOccasionBadge';
+import { useSeasonalOccasionWindows } from '@/hooks/useSeasonalOccasionWindows';
 import { useReservationCart } from '@/hooks/useReservationCart';
+import {
+  buildBagWhatsAppMessage,
+  openWhatsAppShare,
+} from '@/lib/listingShare';
 import { StitchButton, StitchCard, StitchIcon, StitchText } from '@/ui/stitch';
 
 function formatLKR(value: number): string {
@@ -78,6 +86,9 @@ export function BagDetailScreen() {
   );
   const cart = useReservationCart();
   const groupReservationsEnabled = isGroupReservationsEnabled();
+  const { windows: seasonalWindows } = useSeasonalOccasionWindows(env);
+  const seasonalBadgesEnabled = featureFlags.SEASONAL_BADGES;
+  const listingWhatsAppShareEnabled = isListingWhatsAppShareEnabled();
   const { colors, spacing, radii, mode } = useStitchTheme();
   const insets = useSafeAreaInsets();
   const { width: screenW } = Dimensions.get('window');
@@ -189,17 +200,25 @@ export function BagDetailScreen() {
   const outletId = outlet?.id != null ? String(outlet.id) : '';
   const outletSaved = outletId !== '' ? isSaved(outletId) : false;
 
-  const onShare = useCallback(async () => {
+  const onShareWhatsApp = useCallback(async () => {
     if (!bag) return;
-    const title = typeof bag.title === 'string' ? bag.title : 'Rescue bag';
-    try {
-      await Share.share({
-        message: `${title} — Fresh As Ever`,
-      });
-    } catch {
-      /* ignore */
-    }
-  }, [bag]);
+    const bagTitle = typeof bag.title === 'string' ? bag.title : 'Rescue bag';
+    const outletRecord = bag.outlet as Record<string, unknown> | undefined;
+    const outletName =
+      outletRecord?.name != null ? String(outletRecord.name) : 'Outlet';
+    const message = buildBagWhatsAppMessage({
+      bagId: id,
+      title: bagTitle,
+      outletName,
+      rescuePrice:
+        typeof bag.rescue_price === 'number' ? bag.rescue_price : 0,
+      pickupStart:
+        typeof bag.pickup_start === 'string' ? bag.pickup_start : null,
+      pickupEnd: typeof bag.pickup_end === 'string' ? bag.pickup_end : null,
+      webBaseUrl: env.apiBaseUrl || undefined,
+    });
+    await openWhatsAppShare(message, { title: 'Share on WhatsApp' });
+  }, [bag, env.apiBaseUrl, id]);
 
   if (!id || !parsed.success) {
     return null;
@@ -243,6 +262,9 @@ export function BagDetailScreen() {
     typeof bag.pickup_start === 'string' ? bag.pickup_start : null;
   const pickupEnd =
     typeof bag.pickup_end === 'string' ? bag.pickup_end : null;
+  const pickupWindowKind =
+    bag.pickup_window_kind != null ? String(bag.pickup_window_kind) : null;
+  const pickupKindLabel = formatPickupKindLabel(pickupWindowKind);
   const { window: pickupWindow, day: pickupDay } = formatPickupWindow(
     pickupStart,
     pickupEnd,
@@ -360,20 +382,23 @@ export function BagDetailScreen() {
             </Pressable>
 
             <View style={styles.heroToolbarRight}>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Share"
-                onPress={() => void onShare()}
-                style={({ pressed }) => [
-                  styles.circleBtn,
-                  {
-                    backgroundColor: circleBtnBackground,
-                    opacity: pressed ? 0.9 : 1,
-                  },
-                ]}
-              >
-                <StitchIcon name="share" size={20} colorKey="onSurface" />
-              </Pressable>
+              {listingWhatsAppShareEnabled ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Share on WhatsApp"
+                  testID="bagDetail.whatsappShare"
+                  onPress={() => void onShareWhatsApp()}
+                  style={({ pressed }) => [
+                    styles.circleBtn,
+                    {
+                      backgroundColor: circleBtnBackground,
+                      opacity: pressed ? 0.9 : 1,
+                    },
+                  ]}
+                >
+                  <StitchIcon name="share" size={20} colorKey="onSurface" />
+                </Pressable>
+              ) : null}
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={
@@ -424,6 +449,17 @@ export function BagDetailScreen() {
             <StitchText variant="h1" colorKey="onSurface">
               {title}
             </StitchText>
+
+            {seasonalBadgesEnabled ? (
+              <View style={{ marginTop: spacing.sm }}>
+                <SeasonalOccasionBadge
+                  occasionKind={bag.occasion_kind}
+                  windows={seasonalWindows}
+                  featureEnabled={seasonalBadgesEnabled}
+                  testID="bagDetail.occasionBadge"
+                />
+              </View>
+            ) : null}
 
             <View style={styles.chipRow}>
               {showHighValue ? (
@@ -518,6 +554,20 @@ export function BagDetailScreen() {
                 <StitchText variant="h3" colorKey="onSurface">
                   {pickupWindow}
                 </StitchText>
+                {featureFlags.PICKUP_WINDOW_PRESETS ? (
+                  <View style={{ marginTop: spacing.sm }}>
+                    <PickupBrowsePill
+                      pickupStart={pickupStart}
+                      pickupEnd={pickupEnd}
+                      pickupWindowKind={pickupWindowKind}
+                    />
+                  </View>
+                ) : null}
+                {pickupKindLabel && featureFlags.PICKUP_WINDOW_PRESETS ? (
+                  <StitchText variant="body-sm" colorKey="textMuted" style={{ marginTop: 4 }}>
+                    {pickupKindLabel}
+                  </StitchText>
+                ) : null}
                 {pickupDay ? (
                   <StitchText variant="body-sm" colorKey="textMuted" style={{ marginTop: 4 }}>
                     {pickupDay}

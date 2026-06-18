@@ -59,9 +59,9 @@
 | F3-A01 | F3 Neighbourhood | Admin | qa.admin@ | Admin merchant list addresses | PENDING |  |
 | F3-R01 | F3 Neighbourhood | Regression | qa.customer@ | Discover load Pass25 C-01 | PENDING |  |
 | F3-R02 | F3 Neighbourhood | Regression | qa.customer@ | Geo scope still Colombo | PENDING |  |
-| F4-SQL01 | F4 Seasonal Badges | DB | — | seasonal_occasion_windows seeded | PENDING |  |
-| F4-SQL02 | F4 Seasonal Badges | DB | — | Demo bag tagged avurudu during window | PENDING |  |
-| F4-P0 | F4 Seasonal Badges | Setup | — | SEASONAL_BADGES flag ON | PENDING |  |
+| F4-SQL01 | F4 Seasonal Badges | DB | — | seasonal_occasion_windows seeded | PASS | f4-sql-post.json |
+| F4-SQL02 | F4 Seasonal Badges | DB | — | Demo bag tagged avurudu during window | PASS | avurudu window extended Jun 2026 QA |
+| F4-P0 | F4 Seasonal Badges | Setup | — | SEASONAL_BADGES flag ON | PASS | mobile .env + web .env.local |
 | F4-M01 | F4 Seasonal Badges | Merchant | qa.merchant@ | Occasion picker M01 | PENDING |  |
 | F4-M02 | F4 Seasonal Badges | Merchant | qa.merchant@ | Occasion picker M02 | PENDING |  |
 | F4-M03 | F4 Seasonal Badges | Merchant | qa.kumbuk@ | Occasion picker M03 | PENDING |  |

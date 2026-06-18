@@ -1,0 +1,21 @@
+{
+  "captured_at": "2026-06-19T00:05:00.000Z",
+  "pass": "f4-sql-post",
+  "project_id": "odkbpeelvcdmlimdflbr",
+  "matrix_ids": ["F4-SQL01", "F4-SQL02"],
+  "result": "PASS",
+  "migration": "20260620140000_seasonal_occasion_kind.sql",
+  "seasonal_occasion_windows": [
+    { "occasion": "avurudu", "starts_on": "2026-06-01", "ends_on": "2026-06-30", "label": "Avurudu" },
+    { "occasion": "vesak_dana", "starts_on": "2026-05-11", "ends_on": "2026-05-12", "label": "Vesak Dana" },
+    { "occasion": "eid_special", "starts_on": "2026-03-30", "ends_on": "2026-04-01", "label": "Eid Special" },
+    { "occasion": "christmas_bake", "starts_on": "2026-12-15", "ends_on": "2026-12-26", "label": "Christmas Bake" }
+  ],
+  "demo_avurudu_bag": {
+    "id": "00000000-0000-0000-0000-000000000004",
+    "title": "[Demo] Surprise Pastries Bag",
+    "occasion_kind": "avurudu",
+    "status": "live",
+    "in_window_today": true
+  }
+}

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getSupabase } from '@/lib/supabase';
 import type { AppEnv } from '@/config/env';
 import { useMerchantContext } from '@/hooks/useMerchantContext';
+import type { SeasonalOccasionKind } from '@/domain/seasonalOccasion';
 import { canPublishRescueBags } from '@/lib/outletListingMode';
 import { logError } from '@/observability/logError';
 import { mapSupabaseError, logSupabaseError } from '@/lib/supabaseError';
@@ -31,11 +32,11 @@ export type CreateMerchantBagPayload = {
   pickup_start: string;
   pickup_end: string;
   pickup_window_kind?: string;
-  occasion_kind?: string;
   image_url?: string | null;
   status: string;
   allergens?: string[] | null;
   is_halal?: boolean | null;
+  occasion_kind?: SeasonalOccasionKind;
 };
 
 function mapBag(b: Record<string, unknown>): MerchantBagRow {

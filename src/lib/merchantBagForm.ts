@@ -1,4 +1,7 @@
-import type { SeasonalOccasionKind } from '@/domain/seasonalOccasion';
+import {
+  parseSeasonalOccasionKind,
+  type SeasonalOccasionKind,
+} from '@/domain/seasonalOccasion';
 
 export type MerchantBagFormState = {
   title: string;
@@ -11,9 +14,9 @@ export type MerchantBagFormState = {
   pickup_start: string;
   pickup_end: string;
   pickup_window_kind: string;
-  occasion_kind: SeasonalOccasionKind;
   selectedAllergens: string[];
   isHalal: boolean;
+  occasion_kind: SeasonalOccasionKind;
 };
 
 export type MerchantBagFormValues = {
@@ -54,10 +57,14 @@ export function defaultCreateForm(): MerchantBagFormState {
     pickup_start: isoLocalRounded(now),
     pickup_end: isoLocalRounded(end),
     pickup_window_kind: 'immediately_2h',
-    occasion_kind: 'none',
     selectedAllergens: [],
     isHalal: false,
+    occasion_kind: 'none',
   };
+}
+
+export function parseBagOccasionKind(value: unknown): SeasonalOccasionKind {
+  return parseSeasonalOccasionKind(value);
 }
 
 export function buildRescueBagInsertPayload(

@@ -19,9 +19,13 @@ import { getSupabase } from '@/lib/supabase';
 import { BAG_ALLERGEN_LABELS } from '@/lib/bagAllergens';
 import {
   defaultCreateForm,
+  parseBagOccasionKind,
   toLocalDateTime,
   type MerchantBagFormState,
 } from '@/lib/merchantBagForm';
+import { SeasonalOccasionPicker } from '@/components/merchant/SeasonalOccasionPicker';
+import { featureFlags } from '@/config/featureFlags';
+import { useSeasonalOccasionWindows } from '@/hooks/useSeasonalOccasionWindows';
 import { useMerchantBags } from '@/hooks/useMerchantBags';
 import {
   bagImagePath,
@@ -37,11 +41,7 @@ import { ERROR } from '@/lib/messages/errors';
 import { mapSupabaseError } from '@/lib/supabaseError';
 import { PickupDateTimeField } from '@/components/PickupDateTimeField';
 import { PickupWindowPresetChips } from '@/components/merchant/PickupWindowPresetChips';
-import { SeasonalOccasionPicker } from '@/components/merchant/SeasonalOccasionPicker';
-import { featureFlags } from '@/config/featureFlags';
-import { parseSeasonalOccasionKind } from '@/domain/seasonalOccasion';
-import { useSeasonalOccasionWindows } from '@/hooks/useSeasonalOccasionWindows';
-import type { PickupWindowKind } from '@/lib/pickupWindowPresets';
+import { type PickupWindowKind, parsePickupWindowKind } from '@/lib/pickupWindowPresets';
 import { useStitchTheme } from '@/theme/StitchThemeContext';
 import {
   StitchButton,
@@ -294,17 +294,14 @@ export function MerchantBagEditScreen() {
           pickup_end: toLocalDateTime(
             typeof row.pickup_end === 'string' ? row.pickup_end : '',
           ),
-          pickup_window_kind:
-            typeof row.pickup_window_kind === 'string'
-              ? row.pickup_window_kind
-              : 'custom',
-          occasion_kind: parseSeasonalOccasionKind(row.occasion_kind),
+          pickup_window_kind: parsePickupWindowKind(row.pickup_window_kind),
           image_url:
             typeof row.image_url === 'string' ? row.image_url : '',
           selectedAllergens: Array.isArray(row.allergens)
             ? row.allergens.filter((x): x is string => typeof x === 'string')
             : [],
           isHalal: row.is_halal === true,
+          occasion_kind: parseBagOccasionKind(row.occasion_kind),
         });
       } catch (e) {
         if (!cancelled.current) {
@@ -833,23 +830,25 @@ export function MerchantBagEditScreen() {
             Pickup window
           </StitchText>
         </View>
-        {featureFlags.PICKUP_WINDOW_PRESETS ? (
-          <PickupWindowPresetChips
-            selectedKind={(form.pickup_window_kind || 'custom') as PickupWindowKind}
-            listingMode="bag"
-            onSelectKind={(kind, pickup_start, pickup_end) =>
-              setForm((f) => ({
-                ...f,
-                pickup_window_kind: kind,
-                pickup_start,
-                pickup_end,
-              }))
-            }
-            onCustomOverride={() =>
-              setForm((f) => ({ ...f, pickup_window_kind: 'custom' }))
-            }
-          />
-        ) : null}
+        <View style={layout.chipRow}>
+          {featureFlags.PICKUP_WINDOW_PRESETS ? (
+            <PickupWindowPresetChips
+              selectedKind={(form.pickup_window_kind || 'custom') as PickupWindowKind}
+              listingMode="bag"
+              onSelectKind={(kind, pickup_start, pickup_end) =>
+                setForm((f) => ({
+                  ...f,
+                  pickup_window_kind: kind,
+                  pickup_start,
+                  pickup_end,
+                }))
+              }
+              onCustomOverride={() =>
+                setForm((f) => ({ ...f, pickup_window_kind: 'custom' }))
+              }
+            />
+          ) : null}
+        </View>
         <View style={layout.pickupRow}>
           <View style={layout.pickupCol}>
             <PickupDateTimeField
