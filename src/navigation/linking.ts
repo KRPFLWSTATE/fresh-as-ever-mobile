@@ -1,4 +1,4 @@
-import type { LinkingOptions } from '@react-navigation/native';
+import type { LinkingOptions, PartialState, NavigationState } from '@react-navigation/native';
 import { getStateFromPath as getStateFromPathCore } from '@react-navigation/native';
 import type { RootStackParamList } from './types';
 import { normalizeIncomingLinkPath } from '@/navigation/normalizeIncomingLinkPath';
@@ -281,6 +281,40 @@ const config: NonNullable<LinkingOptions<RootStackParamList>['config']> = {
   },
 };
 
+/** `MainTabs > OrdersTab` uses path `orders`; stack screens use `orders/:orderId`. */
+const CUSTOMER_ORDER_DETAIL =
+  /^orders\/([^/?#]+)(?:\/(review))?(?:\?.*)?$/i;
+
+function customerOrderDetailState(
+  canonical: string,
+): PartialState<NavigationState> | undefined {
+  const m = CUSTOMER_ORDER_DETAIL.exec(canonical);
+  if (!m?.[1]) return undefined;
+  const orderId = decodeURIComponent(m[1]);
+  const screen = m[2]?.toLowerCase() === 'review' ? 'OrderReview' : 'OrderDetail';
+  const qs = canonical.includes('?') ? canonical.split('?')[1] ?? '' : '';
+  const headerVariant = new URLSearchParams(qs).get('headerVariant') === 'logo'
+    ? 'logo'
+    : undefined;
+  const params =
+    screen === 'OrderDetail' && headerVariant
+      ? { orderId, headerVariant }
+      : { orderId };
+  return {
+    routes: [
+      {
+        name: 'MainTabs',
+        state: {
+          routes: [{ name: 'DiscoverTab' }],
+          index: 0,
+        },
+      },
+      { name: screen, params },
+    ],
+    index: 1,
+  };
+}
+
 export const linking: LinkingOptions<RootStackParamList> = {
   prefixes,
   config,
@@ -289,6 +323,10 @@ export const linking: LinkingOptions<RootStackParamList> = {
     const outletEdit = canonical.match(/^merchant\/outlets\/([^/]+)\/edit\/?$/);
     if (outletEdit?.[1]) {
       pinMerchantActiveOutlet(readEnv(), outletEdit[1]);
+    }
+    const orderDetail = customerOrderDetailState(canonical);
+    if (orderDetail) {
+      return orderDetail as NavigationState;
     }
     return getStateFromPathCore<RootStackParamList>(canonical, {
       ...(options ?? {}),

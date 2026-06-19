@@ -1332,31 +1332,14 @@ export async function customerLogout(d) {
   return false;
 }
 
-/** Open F5 QA order detail — ensure customer session, Orders tab first, deeplink fallback. */
+/** Open F5 QA order detail — login, Appium deepLink, wait for testIDs, Orders-tab fallback. */
 export async function openF5OrderDetail(d, seed = null) {
   const code = seed?.reservation_code || 'UQV76C';
-  const orderId = seed?.order_id || '';
+  const orderId = seed?.order_id || 'a1ba7758-7290-4ece-804d-15585f7da9eb';
   const outlet = seed?.outlet_name || '';
   const orderRef = `#FAE-${code}`;
   const deeplink =
-    seed?.deeplink || (orderId ? `freshasever://orders/${orderId}` : null);
-  let sessionPrimed = false;
-
-  async function ensureCustomerSession() {
-    if (sessionPrimed && (await confirmCustomerAuth(d))) return true;
-    if (await confirmCustomerAuth(d)) {
-      sessionPrimed = true;
-      return true;
-    }
-    const ok = await loginCustomer(d);
-    if (ok) sessionPrimed = true;
-    return ok;
-  }
-
-  async function onSignInGate() {
-    const src = await safePageSource(d);
-    return /Please sign in/i.test(src);
-  }
+    seed?.deeplink || `freshasever://orders/${orderId}`;
 
   async function onOrderDetail() {
     const src = await safePageSource(d);
@@ -1373,32 +1356,29 @@ export async function openF5OrderDetail(d, seed = null) {
     );
   }
 
-  async function recoverFromSignInGate() {
-    if (!(await onSignInGate())) return false;
-    await tryTap(d, 'label == "Sign in"', 3000);
-    await wait(2500);
-    return ensureCustomerSession();
+  async function waitForOrderSurface(timeoutMs = 30_000) {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      await dismissOverlays(d);
+      if (await onOrderDetail()) return true;
+      if (await d.$('~order.onMyWay').isExisting().catch(() => false)) return true;
+      await wait(1000);
+    }
+    return false;
   }
 
-  async function ensureActiveOrdersSegment() {
-    await tryTap(d, 'label == "Active"', 4000);
-    await wait(2000);
+  async function openViaDeeplink() {
+    try {
+      await d.execute('mobile: deepLink', { url: deeplink });
+    } catch {
+      await dl(deeplink);
+    }
+    await wait(3500);
     await dismissOverlays(d);
-  }
-
-  async function tapOrderRow() {
-    return (
-      (orderRef && (await tryTap(d, `label CONTAINS "${orderRef}"`, 4000))) ||
-      (code && (await tryTap(d, `label CONTAINS "${code}"`, 4000))) ||
-      (orderId && (await tryTap(d, `label CONTAINS "${orderId.slice(0, 8)}"`, 4000))) ||
-      (outlet && (await tryTap(d, `label CONTAINS "${outlet}"`, 4000))) ||
-      (await tryTap(d, 'label CONTAINS "Surprise Pastries" OR label CONTAINS "Pastries Bag"', 4000)) ||
-      (await tryTap(d, 'label CONTAINS "Pickup Window"', 3000))
-    );
+    return waitForOrderSurface(30_000);
   }
 
   async function openViaOrdersTab() {
-    if (!(await ensureCustomerSession())) return false;
     const tab = await d.$('~tab.orders');
     if (await tab.isDisplayed().catch(() => false)) {
       await tab.click();
@@ -1407,62 +1387,26 @@ export async function openF5OrderDetail(d, seed = null) {
     }
     await wait(4500);
     await dismissOverlays(d);
-    if (await onSignInGate()) {
-      if (!(await recoverFromSignInGate())) return false;
-      await tryTap(d, 'name == "tab.orders" OR label CONTAINS "Orders, tab"', 5000);
-      await wait(4500);
-    }
-    await ensureActiveOrdersSegment();
-    const ordersSrc = await safePageSource(d);
-    if (/Sign in to see orders/i.test(ordersSrc)) {
-      if (!(await loginCustomer(d))) return false;
-      await tryTap(d, 'name == "tab.orders" OR label CONTAINS "Orders, tab"', 5000);
-      await wait(4500);
-      await ensureActiveOrdersSegment();
-    }
-    for (let scroll = 0; scroll < 5; scroll += 1) {
+    await tryTap(d, 'label == "Active"', 4000);
+    await wait(2000);
+    for (let scroll = 0; scroll < 6; scroll += 1) {
       if (await onOrderDetail()) return true;
-      const tapped = await tapOrderRow();
+      const tapped =
+        (await tryTap(d, `label CONTAINS "${code}"`, 4000)) ||
+        (orderRef && (await tryTap(d, `label CONTAINS "${orderRef}"`, 4000))) ||
+        (orderId && (await tryTap(d, `label CONTAINS "${orderId.slice(0, 8)}"`, 4000)));
       if (tapped) {
         await wait(4000);
         await dismissOverlays(d);
-        if (await onSignInGate() && (await recoverFromSignInGate())) {
-          await tryTap(d, 'name == "tab.orders" OR label CONTAINS "Orders, tab"', 5000);
-          await wait(4500);
-          continue;
-        }
         if (await onOrderDetail()) return true;
       }
       await scrollDown(d, 1);
       await wait(600);
     }
-    return await onOrderDetail();
+    return onOrderDetail();
   }
 
-  async function openViaDeeplink() {
-    if (!deeplink) return false;
-    if (!(await ensureCustomerSession())) return false;
-    for (let attempt = 0; attempt < 2; attempt += 1) {
-      await dl(deeplink);
-      await wait(attempt === 0 ? 5000 : 6500);
-      await dismissOverlays(d);
-      if (await onSignInGate()) {
-        if (!(await recoverFromSignInGate())) return false;
-        await dl(deeplink);
-        await wait(5000);
-      }
-      if (await onOrderDetail()) return true;
-      if (await tapOrderRow()) {
-        await wait(4000);
-        if (await onOrderDetail()) return true;
-      }
-    }
-    return false;
-  }
-
-  if (!(await ensureCustomerSession())) return false;
-
-  if (await openViaOrdersTab()) return true;
+  if (!(await loginCustomer(d))) return false;
   if (await openViaDeeplink()) return true;
-  return await openViaOrdersTab();
+  return openViaOrdersTab();
 }

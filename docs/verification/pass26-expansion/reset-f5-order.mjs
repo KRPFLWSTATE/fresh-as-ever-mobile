@@ -40,7 +40,7 @@ async function main() {
   const env = loadEnv();
   const now = Date.now();
   // Window must be OPEN NOW: pickup already started, end still in future.
-  const pickupStart = new Date(now - 10 * 60 * 1000).toISOString();
+  const pickupStart = new Date(now - 30 * 60 * 1000).toISOString();
   const pickupEnd = new Date(now + 2 * 60 * 60 * 1000).toISOString();
 
   await rest(env, 'PATCH', 'orders', `id=eq.${seed.order_id}`, {
