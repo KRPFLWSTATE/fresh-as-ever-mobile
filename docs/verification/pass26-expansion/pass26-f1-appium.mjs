@@ -24,6 +24,7 @@ const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const SS_DIR = path.join(ROOT, 'screenshots', 'f1');
 const LOG = path.join(ROOT, 'verify-log.jsonl');
 const MATRIX = path.join(ROOT, 'MATRIX.md');
+const RESULTS = path.join(ROOT, 'results.json');
 
 const BAKEHOUSE_BAG1 = '00000000-0000-0000-0000-000000000004';
 const BAKEHOUSE_BAG2 = '00000000-0000-0000-0000-000000000014';
@@ -63,6 +64,21 @@ function updateMatrix() {
     md = md.replace(re, `$1${status}$3${row.evidence || ''}$4`);
   }
   fs.writeFileSync(MATRIX, md);
+}
+
+function mergeResults() {
+  let merged = { ...R };
+  if (fs.existsSync(RESULTS)) {
+    try {
+      merged = { ...JSON.parse(fs.readFileSync(RESULTS, 'utf8')).results, ...R };
+    } catch {}
+  }
+  const pass = Object.values(merged).filter((v) => v.pass).length;
+  const fail = Object.values(merged).filter((v) => !v.pass).length;
+  fs.writeFileSync(
+    RESULTS,
+    JSON.stringify({ pass, fail, results: merged, ts: new Date().toISOString(), wave3: true }, null, 2),
+  );
 }
 
 async function main() {
@@ -155,6 +171,7 @@ async function main() {
   } finally {
     await d.deleteSession().catch(() => {});
     updateMatrix();
+    mergeResults();
     const passIds = Object.keys(R).filter((k) => R[k].pass);
     const failIds = Object.keys(R).filter((k) => !R[k].pass);
     const out = { status: failIds.length ? 'PARTIAL' : 'PASS', matrixIds: { pass: passIds, fail: failIds }, commits: [], blockers: [] };

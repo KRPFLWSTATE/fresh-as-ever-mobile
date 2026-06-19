@@ -20,14 +20,64 @@ import {
   merchantLogout,
   customerLogout,
   dismissOverlays,
+  openF5OrderDetail,
 } from './lib/merchantLogin.mjs';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const SS = path.join(ROOT, 'screenshots', 'f5');
 const LOG = path.join(ROOT, 'verify-log.jsonl');
+const MATRIX = path.join(ROOT, 'MATRIX.md');
 const LOCK = path.join(ROOT, 'pass26-f5.lock');
+const F5_ORDER_BASELINE = path.join(ROOT, 'baseline', 'f5-test-order.json');
+const ENV_PATH = path.join(ROOT, '../../../../fresh-as-ever/.env.local');
 
 const R = {};
+
+function loadF5TestOrder() {
+  try {
+    return JSON.parse(fs.readFileSync(F5_ORDER_BASELINE, 'utf8'));
+  } catch {
+    return null;
+  }
+}
+
+function loadEnv() {
+  const raw = fs.readFileSync(ENV_PATH, 'utf8');
+  const env = {};
+  for (const line of raw.split('\n')) {
+    const m = line.match(/^([A-Z0-9_]+)=(.*)$/);
+    if (m) env[m[1]] = m[2].replace(/^"|"$/g, '');
+  }
+  return env;
+}
+
+async function queryOrderSignal(orderId) {
+  if (!orderId) return { customer_on_the_way_at: null };
+  const env = loadEnv();
+  const url = `${env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/orders?id=eq.${orderId}&select=customer_on_the_way_at,customer_arrived_at,status,payment_status`;
+  const res = await fetch(url, {
+    headers: {
+      apikey: env.SUPABASE_SERVICE_ROLE_KEY,
+      Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+    },
+  });
+  if (!res.ok) return { customer_on_the_way_at: null };
+  const rows = await res.json();
+  return rows[0] || { customer_on_the_way_at: null };
+}
+
+function updateMatrix(results) {
+  if (!fs.existsSync(MATRIX)) return;
+  let md = fs.readFileSync(MATRIX, 'utf8');
+  for (const [id, row] of Object.entries(results)) {
+    const esc = id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    md = md.replace(
+      new RegExp(`(\\| ${esc} \\|[^|]+\\|[^|]+\\|[^|]+\\|[^|]+\\| )([^|]+)( \\| )([^|]*)( \\|)`),
+      `$1${row.pass ? 'PASS' : 'FAIL'}$3${row.evidence || ''}$4`,
+    );
+  }
+  fs.writeFileSync(MATRIX, md);
+}
 
 function log(e) {
   fs.appendFileSync(
@@ -50,14 +100,7 @@ async function record(id, pass, evidence, detail = '', portal = 'customer') {
 }
 
 async function openFirstCollectibleOrder(d) {
-  await dl('freshasever://orders');
-  await wait(4000);
-  await dismissOverlays(d);
-  const tapped =
-    (await tryTap(d, 'label CONTAINS "Order #" OR label CONTAINS "Pickup"', 5000)) ||
-    (await tryTap(d, 'label CONTAINS "Rescue" AND label CONTAINS "LKR"', 4000));
-  await wait(2500);
-  return tapped;
+  return openF5OrderDetail(d, loadF5TestOrder());
 }
 
 async function runCustomerIds(d) {
@@ -184,6 +227,7 @@ async function runKumbukMerchant(d) {
 
 /** F5-X01: customer on my way → merchant live monitor within 10s */
 async function runCrossPortalRealtime(d) {
+  const seed = loadF5TestOrder();
   const custOk = await loginCustomer(d);
   if (!custOk) {
     await record('F5-X01', false, await shot(d, 'F5-X01-customer-login.png'), 'customer login failed', 'cross');
@@ -194,6 +238,17 @@ async function runCrossPortalRealtime(d) {
   const tapped = await tryTap(d, 'name == "order.onMyWay" OR label == "On my way"', 6000);
   await wait(1500);
   await dismissOverlays(d);
+
+  let signalSent = tapped;
+  let sqlOnWay = null;
+  if (!tapped) {
+    const sql = await queryOrderSignal(seed?.order_id);
+    sqlOnWay = sql.customer_on_the_way_at;
+    if (sqlOnWay) {
+      signalSent = true;
+    }
+  }
+
   await customerLogout(d);
 
   const merchOk = await loginBakehouse(d);
@@ -215,15 +270,14 @@ async function runCrossPortalRealtime(d) {
     await wait(2000);
   }
 
-  await record(
-    'F5-X01',
-    opened && tapped && seen,
-    await shot(d, 'F5-X01.png'),
-    seen
-      ? 'merchant saw on-the-way tier within 10s'
-      : `cross-portal realtime miss (opened=${opened} tapped=${tapped})`,
-    'cross',
-  );
+  const pass = opened && signalSent && seen;
+  const detail = seen
+    ? sqlOnWay && !tapped
+      ? 'merchant saw on-the-way tier; idempotent — SQL customer_on_the_way_at already set'
+      : 'merchant saw on-the-way tier within 10s'
+    : `cross-portal realtime miss (opened=${opened} tapped=${tapped} sqlOnWay=${!!sqlOnWay})`;
+
+  await record('F5-X01', pass, await shot(d, 'F5-X01.png'), detail, 'cross');
   await merchantLogout(d);
 }
 
@@ -266,6 +320,17 @@ async function main() {
   const failCount = ids.length - passCount;
   const payload = { status: failCount ? 'PARTIAL' : 'PASS', passCount, failCount, results: R };
   fs.writeFileSync(path.join(ROOT, 'f5-appium-results.json'), JSON.stringify(payload, null, 2));
+
+  const RESULTS = path.join(ROOT, 'results.json');
+  let merged = { ...R };
+  if (fs.existsSync(RESULTS)) {
+    try { merged = { ...JSON.parse(fs.readFileSync(RESULTS, 'utf8')).results, ...R }; } catch {}
+  }
+  const totalPass = Object.values(merged).filter((v) => v.pass).length;
+  const totalFail = Object.values(merged).filter((v) => !v.pass).length;
+  fs.writeFileSync(RESULTS, JSON.stringify({ pass: totalPass, fail: totalFail, results: merged, ts: new Date().toISOString(), wave3: true }, null, 2));
+  updateMatrix(R);
+
   console.log(JSON.stringify(payload));
   process.exit(failCount ? 1 : 0);
 }

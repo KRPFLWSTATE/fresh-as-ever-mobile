@@ -1301,6 +1301,10 @@ export async function customerLogout(d) {
 /** Open F5 QA order detail — deeplink first, Orders tab fallback when tab route wins. */
 export async function openF5OrderDetail(d, seed = null) {
   const code = seed?.reservation_code || 'UQV76C';
+  const orderId = seed?.order_id || '';
+  const outlet = seed?.outlet_name || '';
+  const deeplink =
+    seed?.deeplink || (orderId ? `freshasever://orders/${orderId}` : null);
 
   async function onOrderDetail() {
     const src = await safePageSource(d);
@@ -1308,25 +1312,39 @@ export async function openF5OrderDetail(d, seed = null) {
       (await d.$('~order.onMyWay').isExisting().catch(() => false)) ||
       (await d.$('~order.arrival').isExisting().catch(() => false)) ||
       (await d.$('~order.onMyWayStatus').isExisting().catch(() => false)) ||
+      (orderId && src.includes(orderId)) ||
       (code && new RegExp(code, 'i').test(src)) ||
-      /Surprise Pastries|Pickup window|Reservation code/i.test(src)
+      (outlet && new RegExp(outlet.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i').test(src)) ||
+      /Surprise Pastries|Pickup window|Reservation code|On my way/i.test(src)
     );
   }
 
-  if (seed?.deeplink) {
-    await dl(seed.deeplink);
-    await wait(4500);
-    await dismissOverlays(d);
-    if (await onOrderDetail()) return true;
+  async function openViaDeeplink() {
+    if (!deeplink) return false;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      await dl(deeplink);
+      await wait(attempt === 0 ? 5000 : 6500);
+      await dismissOverlays(d);
+      if (await onOrderDetail()) return true;
+    }
+    return false;
   }
 
-  await tryTap(d, 'name == "tab.orders" OR label == "Orders"', 4000);
+  if (await openViaDeeplink()) return true;
+
+  await tryTap(d, 'name == "tab.orders" OR label == "Orders"', 5000);
   await wait(3500);
   await dismissOverlays(d);
+  await scrollDown(d, 2);
   const tapped =
+    (orderId && (await tryTap(d, `label CONTAINS "${orderId.slice(0, 8)}"`, 4000))) ||
     (code && (await tryTap(d, `label CONTAINS "${code}"`, 5000))) ||
+    (outlet && (await tryTap(d, `label CONTAINS "${outlet}"`, 5000))) ||
     (await tryTap(d, 'label CONTAINS "Surprise Pastries" OR label CONTAINS "Pastries Bag"', 5000)) ||
+    (await tryTap(d, 'label CONTAINS "Bakehouse" AND label CONTAINS "LKR"', 4000)) ||
     (await tryTap(d, 'label CONTAINS "Pickup" AND label CONTAINS "LKR"', 4000));
   await wait(3000);
-  return tapped && (await onOrderDetail());
+  if (await onOrderDetail()) return true;
+  if (tapped) return await onOrderDetail();
+  return await openViaDeeplink();
 }
