@@ -325,9 +325,14 @@ async function main() {
   fs.writeFileSync(path.join(ROOT, 'f5-appium-results.json'), JSON.stringify(payload, null, 2));
 
   const RESULTS = path.join(ROOT, 'results.json');
-  let merged = { ...R };
+  let merged = {};
   if (fs.existsSync(RESULTS)) {
-    try { merged = { ...JSON.parse(fs.readFileSync(RESULTS, 'utf8')).results, ...R }; } catch {}
+    try {
+      merged = { ...(JSON.parse(fs.readFileSync(RESULTS, 'utf8')).results || {}) };
+    } catch {}
+  }
+  for (const [id, row] of Object.entries(R)) {
+    if (id.startsWith('F5-')) merged[id] = row;
   }
   const totalPass = Object.values(merged).filter((v) => v.pass).length;
   const totalFail = Object.values(merged).filter((v) => !v.pass).length;

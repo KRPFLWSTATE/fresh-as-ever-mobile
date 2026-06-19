@@ -191,8 +191,13 @@ export async function quickTap(d, pred) {
 /** iOS "Save Password?" sheet after email login. */
 export async function dismissSavePassword(d) {
   for (let i = 0; i < 5; i++) {
-    const notNow = await d.$('~Not Now');
-    if (await notNow.isDisplayed().catch(() => false)) {
+    let notNow;
+    try {
+      notNow = await d.$('~Not Now');
+    } catch {
+      notNow = null;
+    }
+    if (notNow && (await notNow.isDisplayed().catch(() => false))) {
       await notNow.click();
       await wait(500);
       continue;
@@ -1298,11 +1303,12 @@ export async function customerLogout(d) {
   return false;
 }
 
-/** Open F5 QA order detail — deeplink first, Orders tab fallback when tab route wins. */
+/** Open F5 QA order detail — Orders tab first (deeplink `orders/:id` conflicts with OrdersTab). */
 export async function openF5OrderDetail(d, seed = null) {
   const code = seed?.reservation_code || 'UQV76C';
   const orderId = seed?.order_id || '';
   const outlet = seed?.outlet_name || '';
+  const orderRef = `#FAE-${code}`;
   const deeplink =
     seed?.deeplink || (orderId ? `freshasever://orders/${orderId}` : null);
 
@@ -1314,37 +1320,62 @@ export async function openF5OrderDetail(d, seed = null) {
       (await d.$('~order.onMyWayStatus').isExisting().catch(() => false)) ||
       (orderId && src.includes(orderId)) ||
       (code && new RegExp(code, 'i').test(src)) ||
+      (orderRef && src.includes(orderRef)) ||
       (outlet && new RegExp(outlet.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i').test(src)) ||
-      /Surprise Pastries|Pickup window|Reservation code|On my way/i.test(src)
+      /Surprise Pastries|Pickup window|Reservation code|On my way|Order Detail/i.test(src)
     );
+  }
+
+  async function tapOrderRow() {
+    return (
+      (orderRef && (await tryTap(d, `label CONTAINS "${orderRef}"`, 4000))) ||
+      (code && (await tryTap(d, `label CONTAINS "${code}"`, 4000))) ||
+      (orderId && (await tryTap(d, `label CONTAINS "${orderId.slice(0, 8)}"`, 4000))) ||
+      (outlet && (await tryTap(d, `label CONTAINS "${outlet}"`, 4000))) ||
+      (await tryTap(d, 'label CONTAINS "Surprise Pastries" OR label CONTAINS "Pastries Bag"', 4000)) ||
+      (await tryTap(d, 'label CONTAINS "Pickup Window"', 3000))
+    );
+  }
+
+  async function openViaOrdersTab() {
+    const tab = await d.$('~tab.orders');
+    if (await tab.isDisplayed().catch(() => false)) {
+      await tab.click();
+    } else {
+      await tryTap(d, 'name == "tab.orders" OR label CONTAINS "Orders, tab"', 5000);
+    }
+    await wait(4500);
+    await dismissOverlays(d);
+    for (let scroll = 0; scroll < 5; scroll += 1) {
+      if (await onOrderDetail()) return true;
+      const tapped = await tapOrderRow();
+      if (tapped) {
+        await wait(4000);
+        await dismissOverlays(d);
+        if (await onOrderDetail()) return true;
+      }
+      await scrollDown(d, 1);
+      await wait(600);
+    }
+    return await onOrderDetail();
   }
 
   async function openViaDeeplink() {
     if (!deeplink) return false;
-    for (let attempt = 0; attempt < 3; attempt += 1) {
+    for (let attempt = 0; attempt < 2; attempt += 1) {
       await dl(deeplink);
       await wait(attempt === 0 ? 5000 : 6500);
       await dismissOverlays(d);
       if (await onOrderDetail()) return true;
+      if (await tapOrderRow()) {
+        await wait(4000);
+        if (await onOrderDetail()) return true;
+      }
     }
     return false;
   }
 
+  if (await openViaOrdersTab()) return true;
   if (await openViaDeeplink()) return true;
-
-  await tryTap(d, 'name == "tab.orders" OR label == "Orders"', 5000);
-  await wait(3500);
-  await dismissOverlays(d);
-  await scrollDown(d, 2);
-  const tapped =
-    (orderId && (await tryTap(d, `label CONTAINS "${orderId.slice(0, 8)}"`, 4000))) ||
-    (code && (await tryTap(d, `label CONTAINS "${code}"`, 5000))) ||
-    (outlet && (await tryTap(d, `label CONTAINS "${outlet}"`, 5000))) ||
-    (await tryTap(d, 'label CONTAINS "Surprise Pastries" OR label CONTAINS "Pastries Bag"', 5000)) ||
-    (await tryTap(d, 'label CONTAINS "Bakehouse" AND label CONTAINS "LKR"', 4000)) ||
-    (await tryTap(d, 'label CONTAINS "Pickup" AND label CONTAINS "LKR"', 4000));
-  await wait(3000);
-  if (await onOrderDetail()) return true;
-  if (tapped) return await onOrderDetail();
-  return await openViaDeeplink();
+  return await openViaOrdersTab();
 }

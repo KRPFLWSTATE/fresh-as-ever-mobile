@@ -6,45 +6,45 @@
 |----|---------|--------|---------|-------|--------|----------|
 | F1-SQL01 | F1 Pickup Windows | DB | — | All demo listings have non-null pickup_window_kind (post-migration) | PASS | baseline/f1-sql-post.json |
 | F1-P0 | F1 Pickup Windows | Setup | — | Flags ON; sim Colombo geo; baseline screenshot | PASS | EXPO_PUBLIC_PICKUP_WINDOW_PRESETS=true; sim 377DAC99 |
-| F1-M01 | F1 Pickup Windows | Merchant | qa.merchant@ | Merchant preset chip flow M01 | FAIL | screenshots/f1/F1-M01-login-fail.png
-| F1-M02 | F1 Pickup Windows | Merchant | qa.merchant@ | Merchant preset chip flow M02 | FAIL | screenshots/f1/F1-M02-login-fail.png
-| F1-M03 | F1 Pickup Windows | Merchant | qa.merchant@ | Merchant preset chip flow M03 | FAIL | screenshots/f1/F1-M03-login-fail.png
-| F1-M04 | F1 Pickup Windows | Merchant | qa.kumbuk@ | Merchant preset chip flow M04 | FAIL | screenshots/f1/F1-M04-login-fail.png
-| F1-M05 | F1 Pickup Windows | Merchant | qa.merchant@ | Merchant preset chip flow M05 | FAIL | screenshots/f1/F1-M05-login-fail.png
-| F1-M06 | F1 Pickup Windows | Merchant | qa.kumbuk@ | Merchant preset chip flow M06 | FAIL | screenshots/f1/F1-M06-login-fail.png
-| F1-C01 | F1 Pickup Windows | Customer | qa.customer@ | Customer discover/search pill C01 | FAIL | screenshots/f1/F1-C01.png
-| F1-C02 | F1 Pickup Windows | Customer | qa.customer@ | Customer discover/search pill C02 | FAIL | screenshots/f1/F1-C02.png
-| F1-C03 | F1 Pickup Windows | Customer | qa.customer@ | Customer discover/search pill C03 | FAIL | screenshots/f1/F1-C03.png
-| F1-C04 | F1 Pickup Windows | Customer | qa.customer@ | Customer discover/search pill C04 | FAIL | screenshots/f1/F1-C04.png
-| F1-C05 | F1 Pickup Windows | Customer | qa.customer@ | Customer discover/search pill C05 | FAIL | screenshots/f1/F1-C05.png
+| F1-M01 | F1 Pickup Windows | Merchant | qa.merchant@ | Merchant preset chip flow M01 | PASS | screenshots/f1/F1-M01.png
+| F1-M02 | F1 Pickup Windows | Merchant | qa.merchant@ | Merchant preset chip flow M02 | FAIL | screenshots/f1/F1-M02.png
+| F1-M03 | F1 Pickup Windows | Merchant | qa.merchant@ | Merchant preset chip flow M03 | FAIL | screenshots/f1/F1-M03.png
+| F1-M04 | F1 Pickup Windows | Merchant | qa.kumbuk@ | Merchant preset chip flow M04 | FAIL | screenshots/f1/F1-M04.png
+| F1-M05 | F1 Pickup Windows | Merchant | qa.merchant@ | Merchant preset chip flow M05 | FAIL | screenshots/f1/F1-M05.png
+| F1-M06 | F1 Pickup Windows | Merchant | qa.kumbuk@ | Merchant preset chip flow M06 | FAIL | screenshots/f1/F1-M06.png
+| F1-C01 | F1 Pickup Windows | Customer | qa.customer@ | Customer discover/search pill C01 | PASS | screenshots/f1/F1-C01.png
+| F1-C02 | F1 Pickup Windows | Customer | qa.customer@ | Customer discover/search pill C02 | PASS | screenshots/f1/F1-C02.png
+| F1-C03 | F1 Pickup Windows | Customer | qa.customer@ | Customer discover/search pill C03 | PASS | screenshots/f1/F1-C03.png
+| F1-C04 | F1 Pickup Windows | Customer | qa.customer@ | Customer discover/search pill C04 | PASS | screenshots/f1/F1-C04.png
+| F1-C05 | F1 Pickup Windows | Customer | qa.customer@ | Customer discover/search pill C05 | PASS | screenshots/f1/F1-C05.png
 | F1-W01 | F1 Pickup Windows | Web | — | Web bag detail pickup label matches mobile | PENDING |  |
-| F1-X01 | F1 Pickup Windows | Cross | C+M | Same bag UUID: merchant kind = customer pill | FAIL | screenshots/f1/F1-X01-login-fail.png
-| F1-X02 | F1 Pickup Windows | Cross | BH+KB | Both merchants bags on discover with correct kinds | FAIL | screenshots/f1/F1-X02-login-fail.png
-| F1-R01 | F1 Pickup Windows | Regression | qa.customer@ | Reserve Now checkout still completes (Pass 24) | FAIL | screenshots/f1/F1-R01-login-fail.png
-| F1-R02 | F1 Pickup Windows | Regression | — | Pass25 C-06 group overlap still enforced | FAIL | screenshots/f1/F1-R02-login-fail.png
+| F1-X01 | F1 Pickup Windows | Cross | C+M | Same bag UUID: merchant kind = customer pill | PASS | screenshots/f1/F1-X01.png
+| F1-X02 | F1 Pickup Windows | Cross | BH+KB | Both merchants bags on discover with correct kinds | FAIL | screenshots/f1/F1-X02.png
+| F1-R01 | F1 Pickup Windows | Regression | qa.customer@ | Reserve Now checkout still completes (Pass 24) | FAIL | screenshots/f1/F1-R01.png
+| F1-R02 | F1 Pickup Windows | Regression | — | Pass25 C-06 group overlap still enforced | PASS | screenshots/f1/F1-R02.png
 | F2-P0 | F2 WhatsApp Share | Setup | — | LISTING_WHATSAPP_SHARE flag ON; sim ready | PASS | local env
 | F2-SQL01 | F2 WhatsApp Share | DB | — | N/A client-only baseline | PASS | listingShare.test.ts + wa.me 302 |
-| F2-C01 | F2 WhatsApp Share | Customer | qa.customer@ | Bag/shelf WhatsApp share C01 | FAIL | screenshots/f2/F2-C01.png |
-| F2-C02 | F2 WhatsApp Share | Customer | qa.customer@ | Bag/shelf WhatsApp share C02 | FAIL | screenshots/f2/F2-C02.png |
-| F2-C03 | F2 WhatsApp Share | Customer | qa.customer@ | Bag/shelf WhatsApp share C03 | FAIL | screenshots/f2/F2-C03.png |
-| F2-C04 | F2 WhatsApp Share | Customer | qa.customer@ | Bag/shelf WhatsApp share C04 | FAIL | screenshots/f2/F2-C04.png |
-| F2-C05 | F2 WhatsApp Share | Customer | qa.customer@ | Bag/shelf WhatsApp share C05 | FAIL | screenshots/f2/F2-C05.png |
+| F2-C01 | F2 WhatsApp Share | Customer | qa.customer@ | Bag/shelf WhatsApp share C01 | PASS | screenshots/f2/F2-C01.png
+| F2-C02 | F2 WhatsApp Share | Customer | qa.customer@ | Bag/shelf WhatsApp share C02 | FAIL | screenshots/f2/F2-C02.png
+| F2-C03 | F2 WhatsApp Share | Customer | qa.customer@ | Bag/shelf WhatsApp share C03 | FAIL | screenshots/f2/F2-C03.png
+| F2-C04 | F2 WhatsApp Share | Customer | qa.customer@ | Bag/shelf WhatsApp share C04 | PASS | screenshots/f2/F2-C04.png
+| F2-C05 | F2 WhatsApp Share | Customer | qa.customer@ | Bag/shelf WhatsApp share C05 | PASS | screenshots/f2/F2-C05.png
 | F2-W01 | F2 WhatsApp Share | Web | — | Web bag ShareNetwork → wa.me | PASS | screenshots/web/F2-W01-bag-whatsapp-share.png |
 | F2-W02 | F2 WhatsApp Share | Web | — | Web shelf share button | PASS | screenshots/web/F2-W02-shelf-whatsapp-share.png |
 | F2-W03 | F2 WhatsApp Share | Web | — | Deeplink page `/bags/{id}` loads | PASS | screenshots/web/F2-W03-bag-deeplink-alias.png |
-| F2-M01 | F2 WhatsApp Share | Merchant | qa.merchant@ | Share message outlet name Bakehouse | FAIL | screenshots/f2/F2-M01-login-fail.png
-| F2-M02 | F2 WhatsApp Share | Merchant | qa.kumbuk@ | Pettah shelf share cross-check | FAIL | screenshots/f2/F2-M02-login-fail.png
-| F2-X01 | F2 WhatsApp Share | Cross | C+M+W | Share triangulation X01 | FAIL | screenshots/f2/F2-X01.png
+| F2-M01 | F2 WhatsApp Share | Merchant | qa.merchant@ | Share message outlet name Bakehouse | FAIL | screenshots/f2/F2-M01.png
+| F2-M02 | F2 WhatsApp Share | Merchant | qa.kumbuk@ | Pettah shelf share cross-check | FAIL | screenshots/f2/F2-M02.png
+| F2-X01 | F2 WhatsApp Share | Cross | C+M+W | Share triangulation X01 | PASS | screenshots/f2/F2-X01.png
 | F2-X02 | F2 WhatsApp Share | Cross | C+M+W | Share triangulation X02 | FAIL | screenshots/f2/F2-X02.png
-| F2-X03 | F2 WhatsApp Share | Cross | C+M+W | Share triangulation X03 | FAIL | screenshots/f2/F2-X03.png
+| F2-X03 | F2 WhatsApp Share | Cross | C+M+W | Share triangulation X03 | PASS | screenshots/f2/F2-X03.png
 | F2-R01 | F2 WhatsApp Share | Regression | qa.customer@ | Reserve Now after share tap back | FAIL | screenshots/f2/F2-R01.png
-| F2-R02 | F2 WhatsApp Share | Regression | qa.customer@ | Pass25 shelf checkout C-09 | FAIL | screenshots/f2/F2-R02.png
+| F2-R02 | F2 WhatsApp Share | Regression | qa.customer@ | Pass25 shelf checkout C-09 | PASS | screenshots/f2/F2-R02.png
 | F3-SQL01 | F3 Neighbourhood | DB | — | 4/4 demo outlets landmark NOT NULL | PASS | baseline/f3-sql-post.json |
 | F3-SQL02 | F3 Neighbourhood | DB | — | Bakehouse=Kollupitiya, Kumbuk=Colombo 07, Pettah=Pettah | PASS | baseline/f3-sql-post.json |
 | F3-P0 | F3 Neighbourhood | Setup | — | NEIGHBOURHOOD_BROWSE flag ON; feed loaded | PASS | EXPO_PUBLIC_NEIGHBOURHOOD_BROWSE=true local |
-| F3-M01 | F3 Neighbourhood | Merchant | qa.merchant@ | Landmark edit/save M01 | FAIL | screenshots/f3/F3-M01-login-fail.pngoutlet.landmark field + testID
-| F3-M02 | F3 Neighbourhood | Merchant | qa.kumbuk@ | Landmark edit/save M02 | FAIL | screenshots/f3/F3-M02-login-fail.pngMerchantOutletEditorScreen landmark
-| F3-M03 | F3 Neighbourhood | Merchant | qa.merchant@ | Landmark edit/save M03 | FAIL | screenshots/f3/F3-M03-login-fail.pngweb parity in outlets/[id]/page.js
+| F3-M01 | F3 Neighbourhood | Merchant | qa.merchant@ | Landmark edit/save M01 | FAIL | screenshots/f3/F3-M01.png
+| F3-M02 | F3 Neighbourhood | Merchant | qa.kumbuk@ | Landmark edit/save M02 | FAIL | screenshots/f3/F3-M02.png
+| F3-M03 | F3 Neighbourhood | Merchant | qa.merchant@ | Landmark edit/save M03 | FAIL | screenshots/f3/F3-M03.png
 | F3-C01 | F3 Neighbourhood | Customer | qa.customer@ | Card subtitle + filter C01 | FAIL | screenshots/f3/F3-C01.png
 | F3-C02 | F3 Neighbourhood | Customer | qa.customer@ | Card subtitle + filter C02 | FAIL | screenshots/f3/F3-C02.png
 | F3-C03 | F3 Neighbourhood | Customer | qa.customer@ | Card subtitle + filter C03 | FAIL | screenshots/f3/F3-C03.png
@@ -54,42 +54,42 @@
 | F3-W02 | F3 Neighbourhood | Web | — | Search neighbourhood chips | PENDING |  |
 | F3-X01 | F3 Neighbourhood | Cross | C+M+SQL | Landmark triangulation X01 | FAIL | screenshots/f3/F3-X01.png
 | F3-X02 | F3 Neighbourhood | Cross | C+M+SQL | Landmark triangulation X02 | FAIL | screenshots/f3/F3-X02.png
-| F3-X03 | F3 Neighbourhood | Cross | C+M+SQL | Landmark triangulation X03 | FAIL | screenshots/f3/F3-X03.png
-| F3-X04 | F3 Neighbourhood | Cross | C+M+SQL | Landmark triangulation X04 | FAIL | screenshots/f3/F3-X04.png
+| F3-X03 | F3 Neighbourhood | Cross | C+M+SQL | Landmark triangulation X03 | PASS | screenshots/f3/F3-X03.png
+| F3-X04 | F3 Neighbourhood | Cross | C+M+SQL | Landmark triangulation X04 | PASS | screenshots/f3/F3-X04.png
 | F3-A01 | F3 Neighbourhood | Admin | qa.admin@ | Admin merchant list addresses | PENDING |  |
-| F3-R01 | F3 Neighbourhood | Regression | qa.customer@ | Discover load Pass25 C-01 | FAIL | screenshots/f3/F3-R01.png
-| F3-R02 | F3 Neighbourhood | Regression | qa.customer@ | Geo scope still Colombo | FAIL | screenshots/f3/F3-R02.png
+| F3-R01 | F3 Neighbourhood | Regression | qa.customer@ | Discover load Pass25 C-01 | PASS | screenshots/f3/F3-R01.png
+| F3-R02 | F3 Neighbourhood | Regression | qa.customer@ | Geo scope still Colombo | PASS | screenshots/f3/F3-R02.png
 | F4-SQL01 | F4 Seasonal Badges | DB | — | seasonal_occasion_windows seeded | PASS | f4-sql-post.json |
 | F4-SQL02 | F4 Seasonal Badges | DB | — | Demo bag tagged avurudu during window | PASS | avurudu window extended Jun 2026 QA |
 | F4-P0 | F4 Seasonal Badges | Setup | — | SEASONAL_BADGES flag ON | PASS | mobile .env + web .env.local |
-| F4-M01 | F4 Seasonal Badges | Merchant | qa.merchant@ | Occasion picker M01 | FAIL | screenshots/f4/F4-M01-login-fail.png
-| F4-M02 | F4 Seasonal Badges | Merchant | qa.merchant@ | Occasion picker M02 | FAIL | screenshots/f4/F4-M02-login-fail.png
-| F4-M03 | F4 Seasonal Badges | Merchant | qa.kumbuk@ | Occasion picker M03 | FAIL | screenshots/f4/F4-M03-login-fail.png
-| F4-C01 | F4 Seasonal Badges | Customer | qa.customer@ | Badge/filter C01 | FAIL | screenshots/f4/F4-C01.png
-| F4-C02 | F4 Seasonal Badges | Customer | qa.customer@ | Badge/filter C02 | FAIL | screenshots/f4/F4-C02.pngdiscover.occasionChip.avurudu (Appium page source)
-| F4-C03 | F4 Seasonal Badges | Customer | qa.customer@ | Badge/filter C03 | FAIL | screenshots/f4/F4-C03.png
+| F4-M01 | F4 Seasonal Badges | Merchant | qa.merchant@ | Occasion picker M01 | FAIL | screenshots/f4/F4-M01.png
+| F4-M02 | F4 Seasonal Badges | Merchant | qa.merchant@ | Occasion picker M02 | FAIL | screenshots/f4/F4-M02.png
+| F4-M03 | F4 Seasonal Badges | Merchant | qa.kumbuk@ | Occasion picker M03 | FAIL | screenshots/f4/F4-M03.png
+| F4-C01 | F4 Seasonal Badges | Customer | qa.customer@ | Badge/filter C01 | PASS | screenshots/f4/F4-C01.png
+| F4-C02 | F4 Seasonal Badges | Customer | qa.customer@ | Badge/filter C02 | PASS | screenshots/f4/F4-C02.png
+| F4-C03 | F4 Seasonal Badges | Customer | qa.customer@ | Badge/filter C03 | PASS | screenshots/f4/F4-C03.png
 | F4-W01 | F4 Seasonal Badges | Web | — | Discover badge parity | PENDING |  |
 | F4-W02 | F4 Seasonal Badges | Web | — | Search occasion filter chip | PENDING |  |
 | F4-A01 | F4 Seasonal Badges | Admin | qa.admin@ | Edit season window dates | PASS | Chrome DevTools /admin/seasonal-windows CRUD form |
 | F4-A02 | F4 Seasonal Badges | Admin | qa.admin@ | Date change gates merchant picker | PENDING |  |
-| F4-X01 | F4 Seasonal Badges | Cross | C+M+A | Seasonal triangulation X01 | FAIL | screenshots/f4/F4-X01.png
-| F4-X02 | F4 Seasonal Badges | Cross | C+M+A | Seasonal triangulation X02 | FAIL | screenshots/f4/F4-X02.png
-| F4-X03 | F4 Seasonal Badges | Cross | C+M+A | Seasonal triangulation X03 | FAIL | screenshots/f4/F4-X03.png
-| F4-R01 | F4 Seasonal Badges | Regression | qa.customer@ | Untagged bags show without badge | FAIL | screenshots/f4/F4-R01.png
-| F4-R02 | F4 Seasonal Badges | Regression | qa.merchant@ | Pass25 merchant publish flow | FAIL | screenshots/f4/F4-R02.png
+| F4-X01 | F4 Seasonal Badges | Cross | C+M+A | Seasonal triangulation X01 | PASS | screenshots/f4/F4-X01.png
+| F4-X02 | F4 Seasonal Badges | Cross | C+M+A | Seasonal triangulation X02 | PASS | screenshots/f4/F4-X02.png
+| F4-X03 | F4 Seasonal Badges | Cross | C+M+A | Seasonal triangulation X03 | PASS | screenshots/f4/F4-X03.png
+| F4-R01 | F4 Seasonal Badges | Regression | qa.customer@ | Untagged bags show without badge | PASS | screenshots/f4/F4-R01.png
+| F4-R02 | F4 Seasonal Badges | Regression | qa.merchant@ | Pass25 merchant publish flow | PASS | screenshots/f4/F4-R02.png
 | F5-SQL01 | F5 On My Way | DB | — | RPC customer_signal_on_the_way exists | PASS | baseline/f5-sql-post.json |
-| F5-C01 | F5 On My Way | Customer | qa.customer@ | On my way / arrived CTA C01 | FAIL | screenshots/f5/F5-C01.pngscreenshots/f5/F5-C01-login-fail.png — sim login after marathon
-| F5-C02 | F5 On My Way | Customer | qa.customer@ | On my way / arrived CTA C02 | FAIL | screenshots/f5/F5-C02.pngscreenshots/f5/F5-C02-login-fail.png
-| F5-C03 | F5 On My Way | Customer | qa.customer@ | On my way / arrived CTA C03 | FAIL | screenshots/f5/F5-C03.pngscreenshots/f5/F5-C03-login-fail.png
-| F5-C04 | F5 On My Way | Customer | qa.customer@ | On my way / arrived CTA C04 | FAIL | screenshots/f5/F5-C04.pngscreenshots/f5/F5-C04-login-fail.png
-| F5-C05 | F5 On My Way | Customer | qa.customer@ | On my way / arrived CTA C05 | FAIL | screenshots/f5/F5-C05.pngscreenshots/f5/F5-C05-login-fail.png
-| F5-M01 | F5 On My Way | Merchant | qa.merchant@ | Live monitor / orders badge M01 | FAIL | screenshots/f5/F5-M01-login-fail.pngscreenshots/f5/F5-M01-login-fail.png
-| F5-M02 | F5 On My Way | Merchant | qa.merchant@ | Live monitor / orders badge M02 | FAIL | screenshots/f5/F5-M02-login-fail.pngscreenshots/f5/F5-M02-login-fail.png
-| F5-M03 | F5 On My Way | Merchant | qa.merchant@ | Live monitor / orders badge M03 | FAIL | screenshots/f5/F5-M03-login-fail.pngscreenshots/f5/F5-M03-login-fail.png
-| F5-M04 | F5 On My Way | Merchant | qa.kumbuk@ | Live monitor / orders badge M04 | FAIL | screenshots/f5/F5-M04-login-fail.pngscreenshots/f5/F5-M04-login-fail.png
-| F5-M05 | F5 On My Way | Merchant | qa.merchant@ | Live monitor / orders badge M05 | FAIL | screenshots/f5/F5-M05-login-fail.pngscreenshots/f5/F5-M05-login-fail.png
+| F5-C01 | F5 On My Way | Customer | qa.customer@ | On my way / arrived CTA C01 | FAIL | screenshots/f5/F5-C01.png
+| F5-C02 | F5 On My Way | Customer | qa.customer@ | On my way / arrived CTA C02 | FAIL | screenshots/f5/F5-C02.png
+| F5-C03 | F5 On My Way | Customer | qa.customer@ | On my way / arrived CTA C03 | FAIL | screenshots/f5/F5-C03.png
+| F5-C04 | F5 On My Way | Customer | qa.customer@ | On my way / arrived CTA C04 | FAIL | screenshots/f5/F5-C04.png
+| F5-C05 | F5 On My Way | Customer | qa.customer@ | On my way / arrived CTA C05 | FAIL | screenshots/f5/F5-C05.png
+| F5-M01 | F5 On My Way | Merchant | qa.merchant@ | Live monitor / orders badge M01 | PASS | screenshots/f5/F5-M01.png
+| F5-M02 | F5 On My Way | Merchant | qa.merchant@ | Live monitor / orders badge M02 | PASS | screenshots/f5/F5-M02.png
+| F5-M03 | F5 On My Way | Merchant | qa.merchant@ | Live monitor / orders badge M03 | FAIL | screenshots/f5/F5-M03.png
+| F5-M04 | F5 On My Way | Merchant | qa.kumbuk@ | Live monitor / orders badge M04 | FAIL | screenshots/f5/F5-M04-login-fail.png
+| F5-M05 | F5 On My Way | Merchant | qa.merchant@ | Live monitor / orders badge M05 | FAIL | screenshots/f5/F5-M05.png
 | F5-W01 | F5 On My Way | Web | — | Web merchant orders chips | PENDING | CDP — en-route + at-outlet chips |
-| F5-X01 | F5 On My Way | Cross | C+M+SQL | Realtime signal triangulation X01 | FAIL | screenshots/f5/F5-X01.pngpass26-f5-appium — login blocked
+| F5-X01 | F5 On My Way | Cross | C+M+SQL | Realtime signal triangulation X01 | FAIL | screenshots/f5/F5-X01.png
 | F5-X02 | F5 On My Way | Cross | C+M+SQL | Realtime signal triangulation X02 | FAIL | screenshots/f5/F5-X02.png
 | F5-X03 | F5 On My Way | Cross | C+M+SQL | Realtime signal triangulation X03 | FAIL | screenshots/f5/F5-X03.png
 | F5-X04 | F5 On My Way | Cross | C+M+SQL | Realtime signal triangulation X04 | FAIL | screenshots/f5/F5-X04.png
@@ -101,15 +101,15 @@
 | F7-SQL03 | F6/F7 Monthly Savings | DB | — | Ledger/savings SQL SQL03 | PASS | 2026-05 skip not_eligible |
 | F7-EDGE01 | F6/F7 Monthly Savings | Server | — | Invoke edge fn test period | PASS | dryRun 200 |
 | F7-CRON01 | F6/F7 Monthly Savings | Server | — | Vercel cron route auth + 200 | PASS | local curl HTTP 200 skipped feature_disabled |
-| F7-C01 | F6/F7 Monthly Savings | Customer | qa.customer@ | Notification UX C01 | PASS | screenshots/f7/F7-C01.png |
-| F7-C02 | F6/F7 Monthly Savings | Customer | qa.customer@ | Notification UX C02 | PASS | screenshots/f6/F7-C02.png impact deeplink |
-| F7-C03 | F6/F7 Monthly Savings | Customer | qa.customer@ | Notification UX C03 | PASS | Monthly impact toggle visible |
+| F7-C01 | F6/F7 Monthly Savings | Customer | qa.customer@ | Notification UX C01 | FAIL | screenshots/f6/F7-C01.png
+| F7-C02 | F6/F7 Monthly Savings | Customer | qa.customer@ | Notification UX C02 | FAIL | screenshots/f6/F7-C02.png
+| F7-C03 | F6/F7 Monthly Savings | Customer | qa.customer@ | Notification UX C03 | FAIL | screenshots/f6/F7-C03.png
 | F7-W01 | F6/F7 Monthly Savings | Web | — | Notification prefs web parity | PASS | code parity mobile+web monthly_impact row; CDP N/A |
-| F7-X01 | F6/F7 Monthly Savings | Cross | C+SQL | Push LKR = useCustomerImpact month slice | PASS | Edge dryRun savedRs=2450 June 2026 |
-| F7-X02 | F6/F7 Monthly Savings | Cross | SQL | ≥2 orders threshold enforced | PASS | edge dryRun eligibility |
+| F7-X01 | F6/F7 Monthly Savings | Cross | C+SQL | Push LKR = useCustomerImpact month slice | FAIL | screenshots/f6/F7-X01.png
+| F7-X02 | F6/F7 Monthly Savings | Cross | SQL | ≥2 orders threshold enforced | FAIL | screenshots/f6/F7-X02.png
 | F7-A01 | F6/F7 Monthly Savings | Admin | — | Cron logs no errors | PASS | local cron 200 ok no error |
-| F7-R01 | F6/F7 Monthly Savings | Regression | DB | Other push types still work | PASS | shelf_publish queue 10 rows; notifications monthly_savings×2 |
-| F7-R02 | F6/F7 Monthly Savings | Regression | qa.customer@ | Pass25 customer profile | PENDING | merchantLogout+loginCustomer timeout; F7-C01 customer session PASS |
+| F7-R01 | F6/F7 Monthly Savings | Regression | DB | Other push types still work | FAIL | screenshots/f6/F7-R01.png
+| F7-R02 | F6/F7 Monthly Savings | Regression | qa.customer@ | Pass25 customer profile | FAIL | screenshots/f6/F7-R02.png
 | X-01 | Cross-feature | Cross | multi | Morning bag + WhatsApp deeplink + neighbourhood card | PENDING |  |
 | X-02 | Cross-feature | Cross | multi | Seasonal badge in filtered neighbourhood | PENDING |  |
 | X-03 | Cross-feature | Cross | multi | On my way → merchant collect → impact includes savings | PENDING |  |

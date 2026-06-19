@@ -39,7 +39,8 @@ async function main() {
   const seed = JSON.parse(fs.readFileSync(BASELINE, 'utf8'));
   const env = loadEnv();
   const now = Date.now();
-  const pickupStart = new Date(now + 15 * 60 * 1000).toISOString();
+  // Window must be OPEN NOW: pickup already started, end still in future.
+  const pickupStart = new Date(now - 10 * 60 * 1000).toISOString();
   const pickupEnd = new Date(now + 2 * 60 * 60 * 1000).toISOString();
 
   await rest(env, 'PATCH', 'orders', `id=eq.${seed.order_id}`, {
@@ -81,7 +82,7 @@ async function main() {
       pickup_end_not_passed: true,
       collectible: true,
     },
-    refreshed_for_run: 'SA-PASS26-LAST',
+    refreshed_for_run: 'SA-F5-FINAL',
   };
   fs.writeFileSync(BASELINE, JSON.stringify(updated, null, 2) + '\n');
 
