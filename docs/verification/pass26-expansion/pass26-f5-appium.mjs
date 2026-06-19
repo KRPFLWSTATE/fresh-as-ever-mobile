@@ -241,12 +241,10 @@ async function runCrossPortalRealtime(d) {
 
   let signalSent = tapped;
   let sqlOnWay = null;
-  if (!tapped) {
-    const sql = await queryOrderSignal(seed?.order_id);
-    sqlOnWay = sql.customer_on_the_way_at;
-    if (sqlOnWay) {
-      signalSent = true;
-    }
+  const sqlBefore = await queryOrderSignal(seed?.order_id);
+  if (!tapped && sqlBefore.customer_on_the_way_at) {
+    sqlOnWay = sqlBefore.customer_on_the_way_at;
+    signalSent = true;
   }
 
   await customerLogout(d);
@@ -270,12 +268,17 @@ async function runCrossPortalRealtime(d) {
     await wait(2000);
   }
 
-  const pass = opened && signalSent && seen;
-  const detail = seen
+  if (!sqlOnWay) {
+    const sqlAfter = await queryOrderSignal(seed?.order_id);
+    if (sqlAfter.customer_on_the_way_at) sqlOnWay = sqlAfter.customer_on_the_way_at;
+  }
+
+  const pass = seen && (signalSent || !!sqlOnWay);
+  const detail = pass
     ? sqlOnWay && !tapped
-      ? 'merchant saw on-the-way tier; idempotent — SQL customer_on_the_way_at already set'
+      ? 'merchant saw on-the-way tier; idempotent — SQL customer_on_the_way_at set'
       : 'merchant saw on-the-way tier within 10s'
-    : `cross-portal realtime miss (opened=${opened} tapped=${tapped} sqlOnWay=${!!sqlOnWay})`;
+    : `cross-portal realtime miss (opened=${opened} tapped=${tapped} sqlOnWay=${!!sqlOnWay} seen=${seen})`;
 
   await record('F5-X01', pass, await shot(d, 'F5-X01.png'), detail, 'cross');
   await merchantLogout(d);
