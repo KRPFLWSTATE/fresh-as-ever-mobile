@@ -1297,3 +1297,36 @@ export async function customerLogout(d) {
   }
   return false;
 }
+
+/** Open F5 QA order detail — deeplink first, Orders tab fallback when tab route wins. */
+export async function openF5OrderDetail(d, seed = null) {
+  const code = seed?.reservation_code || 'UQV76C';
+
+  async function onOrderDetail() {
+    const src = await safePageSource(d);
+    return (
+      (await d.$('~order.onMyWay').isExisting().catch(() => false)) ||
+      (await d.$('~order.arrival').isExisting().catch(() => false)) ||
+      (await d.$('~order.onMyWayStatus').isExisting().catch(() => false)) ||
+      (code && new RegExp(code, 'i').test(src)) ||
+      /Surprise Pastries|Pickup window|Reservation code/i.test(src)
+    );
+  }
+
+  if (seed?.deeplink) {
+    await dl(seed.deeplink);
+    await wait(4500);
+    await dismissOverlays(d);
+    if (await onOrderDetail()) return true;
+  }
+
+  await tryTap(d, 'name == "tab.orders" OR label == "Orders"', 4000);
+  await wait(3500);
+  await dismissOverlays(d);
+  const tapped =
+    (code && (await tryTap(d, `label CONTAINS "${code}"`, 5000))) ||
+    (await tryTap(d, 'label CONTAINS "Surprise Pastries" OR label CONTAINS "Pastries Bag"', 5000)) ||
+    (await tryTap(d, 'label CONTAINS "Pickup" AND label CONTAINS "LKR"', 4000));
+  await wait(3000);
+  return tapped && (await onOrderDetail());
+}

@@ -8,7 +8,7 @@ import {
   UDID, BUNDLE, wait, dl, scrollDown, tryTap,
   loginBakehouse, loginKumbuk, loginCustomer, merchantLogout, customerLogout,
   dismissOverlays, recoverFromErrorBoundary, scrollMapIntoView,
-  relaunchApp, ensureCustomerDiscover, safePageSource, waitForLoginScreen,
+  relaunchApp, ensureCustomerDiscover, safePageSource, waitForLoginScreen, openF5OrderDetail,
 } from './lib/merchantLogin.mjs';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
@@ -16,6 +16,15 @@ const LOCK = path.join(ROOT, '.runner.lock');
 const LOG = path.join(ROOT, 'verify-log.jsonl');
 const RESULTS = path.join(ROOT, 'results.json');
 const MATRIX = path.join(ROOT, 'MATRIX.md');
+const F5_ORDER_BASELINE = path.join(ROOT, 'baseline', 'f5-test-order.json');
+
+function loadF5TestOrder() {
+  try { return JSON.parse(fs.readFileSync(F5_ORDER_BASELINE, 'utf8')); } catch { return null; }
+}
+
+async function openF5Order(d) {
+  return openF5OrderDetail(d, loadF5TestOrder());
+}
 
 const OUTLETS = { bh: '00000000-0000-0000-0000-000000000003', kb: '00000000-0000-0000-0000-000000000013', pettah: '8fbdd459-d8b1-4c84-a6c4-fd00ccf57ac4', galle: 'b4884c9f-5a7c-41b0-af19-321c66f24dea' };
 const BAGS = { bh1: '00000000-0000-0000-0000-000000000004', bh2: '00000000-0000-0000-0000-000000000014', kb: '00000000-0000-0000-0000-000000000105' };
@@ -88,11 +97,36 @@ const JOURNEYS = {
   'F4-C01': async (d) => { await dl(`freshasever://bag/${BAGS.bh1}`); await wait(3000); const s = await safePageSource(d); return { pass: /Avurudu|occasion|seasonal/i.test(s), detail: 'seasonal badge' }; },
   'F4-C02': async (d) => { await dl('freshasever://discover'); await wait(3000); const s = await safePageSource(d); return { pass: /occasion|Avurudu|discover/i.test(s), detail: 'occasion chip' }; },
   'F4-C03': async (d) => { await dl(`freshasever://bag/${BAGS.bh2}`); await wait(3000); const s = await safePageSource(d); return { pass: /Pastries|Bread|Bag/i.test(s), detail: 'untagged bag' }; },
-  'F5-C01': async (d) => { await dl('freshasever://orders'); await wait(4000); const s = await safePageSource(d); return { pass: /On my way|Order|No orders/i.test(s), detail: 'orders on-my-way' }; },
-  'F5-C02': async (d) => JOURNEYS['F5-C01'](d),
-  'F5-C03': async (d) => JOURNEYS['F5-C01'](d),
-  'F5-C04': async (d) => JOURNEYS['F5-C01'](d),
-  'F5-C05': async (d) => JOURNEYS['F5-C01'](d),
+  'F5-C01': async (d) => {
+    const opened = await openF5Order(d);
+    const src = await safePageSource(d);
+    const hasOnMyWay = (await d.$('~order.onMyWay').isExisting().catch(() => false)) || /On my way/i.test(src);
+    return { pass: opened && hasOnMyWay, detail: opened ? 'On my way CTA visible' : 'order detail not opened' };
+  },
+  'F5-C02': async (d) => {
+    await openF5Order(d);
+    const tapped = await tryTap(d, 'name == "order.onMyWay" OR label == "On my way"', 6000);
+    await wait(2000);
+    const src = await safePageSource(d);
+    const pass = tapped && (/I'm at the outlet|on your way|Outlet notified/i.test(src));
+    return { pass, detail: tapped ? 'on my way tapped' : 'could not tap On my way' };
+  },
+  'F5-C03': async (d) => {
+    await openF5Order(d);
+    const src = await safePageSource(d);
+    return { pass: /Available 2 hours|Complete payment|On my way|at the outlet/i.test(src), detail: 'window / payment copy visible' };
+  },
+  'F5-C04': async (d) => {
+    await openF5Order(d);
+    const secondTap = await tryTap(d, 'name == "order.onMyWay" OR label == "On my way"', 2000);
+    const src = await safePageSource(d);
+    return { pass: !secondTap || /on your way|Outlet notified/i.test(src), detail: 'idempotent on-my-way' };
+  },
+  'F5-C05': async (d) => {
+    await openF5Order(d);
+    const pass = (await d.$('~order.onMyWay').isExisting().catch(() => false)) || (await d.$('~order.arrival').isExisting().catch(() => false));
+    return { pass, detail: 'mobile order detail signal testIDs present' };
+  },
   'F7-C01': async (d) => { await dl('freshasever://profile/notifications'); await wait(4000); const s = await safePageSource(d); return { pass: /Monthly impact|Push|notification/i.test(s), detail: 'monthly impact toggle' }; },
   'F7-C02': async (d) => { await dl('freshasever://impact'); await wait(4000); const s = await safePageSource(d); return { pass: /LKR|Impact|Rescue/i.test(s), detail: 'impact screen' }; },
   'F7-C03': async (d) => JOURNEYS['F7-C01'](d),
@@ -112,7 +146,29 @@ const JOURNEYS = {
   'F2-X01': async (d) => JOURNEYS['F2-C01'](d), 'F2-X02': async (d) => JOURNEYS['F2-C03'](d), 'F2-X03': async (d) => JOURNEYS['F2-C04'](d),
   'F3-X01': async (d) => JOURNEYS['F3-C01'](d), 'F3-X02': async (d) => JOURNEYS['F3-C02'](d), 'F3-X03': async (d) => JOURNEYS['F3-C03'](d), 'F3-X04': async (d) => JOURNEYS['F3-C04'](d),
   'F4-X01': async (d) => JOURNEYS['F4-C01'](d), 'F4-X02': async (d) => JOURNEYS['F4-C02'](d), 'F4-X03': async (d) => JOURNEYS['F4-C03'](d),
-  'F5-X01': async (d) => JOURNEYS['F5-C01'](d), 'F5-X02': async (d) => JOURNEYS['F5-C01'](d), 'F5-X03': async (d) => JOURNEYS['F5-C01'](d), 'F5-X04': async (d) => JOURNEYS['F5-C01'](d),
+  'F5-X01': async (d) => {
+    const opened = await openF5Order(d);
+    const tapped = await tryTap(d, 'name == "order.onMyWay" OR label == "On my way"', 6000);
+    await wait(1500);
+    await dismissOverlays(d);
+    await customerLogout(d);
+    const merchOk = await loginBakehouse(d);
+    if (!merchOk) return { pass: false, detail: 'merchant login failed' };
+    let seen = false;
+    const deadline = Date.now() + 10_000;
+    while (Date.now() < deadline) {
+      await dl('freshasever://merchant/live-monitor');
+      await wait(2000);
+      const src = await safePageSource(d);
+      if (/On the way|En route|Heading to you|merchant\.liveMonitor\.hero/i.test(src)) { seen = true; break; }
+      await wait(2000);
+    }
+    await merchantLogout(d);
+    return {
+      pass: opened && tapped && seen,
+      detail: seen ? 'merchant saw on-the-way tier within 10s' : `cross-portal realtime miss (opened=${opened} tapped=${tapped})`,
+    };
+  }, 'F5-X02': async (d) => JOURNEYS['F5-C01'](d), 'F5-X03': async (d) => JOURNEYS['F5-C01'](d), 'F5-X04': async (d) => JOURNEYS['F5-C01'](d),
   'F7-X01': async (d) => JOURNEYS['F7-C02'](d), 'F7-X02': async (d) => JOURNEYS['F7-C02'](d),
   'F1-M01': async (d) => { await dl(`freshasever://merchant/bags/${BAGS.bh2}/edit`); await wait(5000); await scrollDown(d,2); const s = await safePageSource(d); return { pass: /Morning bake|Pickup window/i.test(s), detail: 'preset morning' }; },
   'F1-M02': async (d) => { await dl(`freshasever://merchant/bags/${BAGS.bh2}/edit`); await wait(5000); const s = await safePageSource(d); return { pass: /Lunch/i.test(s), detail: 'preset lunch' }; },
@@ -217,4 +273,8 @@ async function main() {
   console.log(JSON.stringify({ status: summary.failCount ? 'PARTIAL' : 'PASS', ...summary, blockers }));
 }
 
-main().catch((e) => { console.error(e); process.exit(1); });
+main().catch((e) => {
+  try { writeResults(); } catch {}
+  console.error(e);
+  process.exit(1);
+});
