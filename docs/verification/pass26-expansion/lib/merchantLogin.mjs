@@ -215,17 +215,34 @@ export async function dismissSavePassword(d) {
   return !(await d.$('~Not Now').isDisplayed().catch(() => false));
 }
 
-export async function tapSignIn(d) {
-  const signIn = await d.$('~login.signIn');
-  if (await signIn.isDisplayed().catch(() => false)) {
-    const enabled = await signIn.isEnabled().catch(() => true);
-    if (enabled) {
-      await signIn.click();
-      await wait(700);
-      return true;
+export async function tapSignIn(d, { portal } = {}) {
+  if (portal === 'customer') {
+    await ensureEmailLoginForm(d, 'customer');
+    const src = await safePageSource(d);
+    if (/Sign in as merchant/i.test(src)) {
+      const cust = await d.$('~login.portal.customer');
+      if (await cust.isDisplayed().catch(() => false)) await cust.click();
+      await wait(900);
+      await ensureEmailLoginForm(d, 'customer');
     }
   }
-  if (await tryTap(d, 'label CONTAINS "Sign in as merchant" OR label CONTAINS "Sign in"', 2500)) {
+  const signIn = await d.$('~login.signIn');
+  if (await signIn.isDisplayed().catch(() => false)) {
+    const label = String((await signIn.getText().catch(() => '')) || '');
+    if (portal === 'customer' && /merchant/i.test(label)) {
+      await ensureEmailLoginForm(d, 'customer');
+    } else {
+      const enabled = await signIn.isEnabled().catch(() => true);
+      if (enabled) {
+        await signIn.click();
+        await wait(700);
+        return true;
+      }
+    }
+  }
+  if (portal === 'customer') {
+    if (await tryTap(d, 'label == "Sign in" AND NOT label CONTAINS "merchant"', 2500)) return true;
+  } else if (await tryTap(d, 'label CONTAINS "Sign in as merchant" OR label CONTAINS "Sign in"', 2500)) {
     return true;
   }
   try {
@@ -256,6 +273,7 @@ export async function dismissSystemPrompts(d) {
     const dismissed =
       (await quickTap(d, 'label == "Don\'t Allow" OR label CONTAINS "Don\'t Allow"')) ||
       (await quickTap(d, 'label == "Later" OR name == "Later"')) ||
+      (await quickTap(d, 'label == "Keep order" OR name == "Keep order"')) ||
       (await quickTap(d, 'label == "OK" OR name == "OK"')) ||
       (await quickTap(d, 'label == "Cancel" OR name == "Cancel"'));
     if (!dismissed) break;
@@ -614,6 +632,19 @@ export async function isCustomerLoggedIn(d) {
   return false;
 }
 
+/** Confirm Supabase session hydrated — profile logout visible. */
+export async function confirmCustomerAuth(d) {
+  await dl('freshasever://profile');
+  await wait(3000);
+  await dismissOverlays(d);
+  for (let i = 0; i < 8; i++) {
+    if (await d.$('~profile.logOut').isDisplayed().catch(() => false)) return true;
+    if (await d.$('~profile.guestHeading').isDisplayed().catch(() => false)) return false;
+    await scrollDown(d, 1);
+    await wait(400);
+  }
+  return false;
+}
 
 export async function waitForPostLoginSurface(d, portal, { timeoutMs = 60000 } = {}) {
   const deadline = Date.now() + timeoutMs;
@@ -816,15 +847,15 @@ export async function emailLogin(d, { email, password, portal }) {
       }
     }
     await dismissSavePassword(d);
-    await tapSignIn(d);
+    await tapSignIn(d, { portal });
     for (let i = 0; i < 25; i++) {
       await wait(1000);
       await dismissSavePassword(d);
+      if (portal === 'customer' && (await isCustomerLoggedIn(d))) break;
       if (portal === 'customer' && (await d.$('~discover.searchInput').isDisplayed().catch(() => false))) {
-        break;
+        if (await isCustomerLoggedIn(d)) break;
       }
       if (!(await d.$('~login.email').isDisplayed().catch(() => false))) break;
-      if (portal === 'customer' && (await isCustomerLoggedIn(d))) break;
       if (portal === 'merchant' && (await isMerchantLoggedIn(d))) break;
     }
     await dismissSavePassword(d);
@@ -833,9 +864,7 @@ export async function emailLogin(d, { email, password, portal }) {
     if (!landed) return false;
     if (portal === 'customer') {
       await ensureCustomerDiscover(d);
-      return (
-        (await d.$('~discover.searchInput').isDisplayed().catch(() => false)) || (await isCustomerLoggedIn(d))
-      );
+      return await isCustomerLoggedIn(d);
     }
     await dl('freshasever://merchant/dashboard');
     await wait(2500);
@@ -918,15 +947,15 @@ export async function emailLogin(d, { email, password, portal }) {
     }
   }
   await dismissSavePassword(d);
-  await tapSignIn(d);
+  await tapSignIn(d, { portal });
   for (let i = 0; i < 25; i++) {
     await wait(1000);
     await dismissSavePassword(d);
+    if (portal === 'customer' && (await isCustomerLoggedIn(d))) break;
     if (portal === 'customer' && (await d.$('~discover.searchInput').isDisplayed().catch(() => false))) {
-      break;
+      if (await isCustomerLoggedIn(d)) break;
     }
     if (!(await d.$('~login.email').isDisplayed().catch(() => false))) break;
-    if (portal === 'customer' && (await isCustomerLoggedIn(d))) break;
     if (portal === 'merchant' && (await isMerchantLoggedIn(d))) break;
   }
   await dismissSavePassword(d);
@@ -936,9 +965,7 @@ export async function emailLogin(d, { email, password, portal }) {
   if (!landed) return false;
   if (portal === 'customer') {
     await ensureCustomerDiscover(d);
-    return (
-      (await d.$('~discover.searchInput').isDisplayed().catch(() => false)) || (await isCustomerLoggedIn(d))
-    );
+    return await isCustomerLoggedIn(d);
   }
   await dl('freshasever://merchant/dashboard');
   await wait(2500);
@@ -1107,7 +1134,7 @@ async function merchantLoginTapPath(d, { email, account = 'bakehouse' } = {}) {
       }
     }
     await dismissSavePassword(d);
-    await tapSignIn(d);
+    await tapSignIn(d, { portal: 'merchant' });
   } else {
     const emailEl = await d.$('~login.email');
     if (await emailEl.isDisplayed().catch(() => false)) {
@@ -1118,7 +1145,7 @@ async function merchantLoginTapPath(d, { email, account = 'bakehouse' } = {}) {
       await fillLoginField(passEl, CREDS.bakehouse.password, { secure: true, skipClear: true });
     }
     await dismissKeyboard(d);
-    await tapSignIn(d);
+    await tapSignIn(d, { portal: 'merchant' });
   }
   for (let i = 0; i < 25; i++) {
     await wait(2000);
@@ -1152,7 +1179,7 @@ async function loginKumbukTapPath(d) {
   }
   await dismissKeyboard(d);
   await dismissSavePassword(d);
-  await tapSignIn(d);
+  await tapSignIn(d, { portal: 'merchant' });
   for (let i = 0; i < 25; i++) {
     await wait(2000);
     await dismissSavePassword(d);
@@ -1170,22 +1197,21 @@ async function customerLoginTapPath(d) {
   if (await cust.isDisplayed().catch(() => false)) await cust.click();
   await wait(2000);
   await ensureEmailLoginForm(d, 'customer');
-  await tapSignIn(d);
+  await tapSignIn(d, { portal: 'customer' });
   for (let i = 0; i < 25; i++) {
     await wait(2000);
     await dismissSavePassword(d);
-    if (await d.$('~discover.searchInput').isDisplayed().catch(() => false)) return true;
     if (await isCustomerLoggedIn(d)) return true;
     const tabDiscover = await d.$('~tab.discover');
     if (await tabDiscover.isDisplayed().catch(() => false)) await tabDiscover.click().catch(() => {});
   }
-  return (
-    (await d.$('~discover.searchInput').isDisplayed().catch(() => false)) || (await isCustomerLoggedIn(d))
-  );
+  return await isCustomerLoggedIn(d);
 }
 
 export async function loginCustomer(d) {
   execSync(`xcrun simctl location ${UDID} set ${COLOMBO_GEO.latitude},${COLOMBO_GEO.longitude}`, { stdio: 'pipe' });
+  await dismissOverlays(d);
+  await tryTap(d, 'label == "Keep order" OR name == "Keep order"', 2000);
   if (await isMerchantLoggedIn(d)) {
     await merchantLogout(d);
     await relaunchApp(d);
@@ -1195,13 +1221,13 @@ export async function loginCustomer(d) {
   await dismissDiscoverSheets(d);
   if (await isCustomerLoggedIn(d)) {
     await ensureCustomerDiscover(d);
-    return true;
+    return customerLoginSucceeded(d);
   }
 
   let ok = await customerLoginTapPath(d);
   if (ok) {
     await ensureCustomerDiscover(d);
-    return true;
+    return customerLoginSucceeded(d);
   }
 
   await ensureCustomerLoginSurface(d);
@@ -1210,7 +1236,7 @@ export async function loginCustomer(d) {
   await dismissSavePassword(d);
   if (ok && (await isCustomerLoggedIn(d))) {
     await ensureCustomerDiscover(d);
-    if (await d.$('~discover.searchInput').isDisplayed().catch(() => false)) return true;
+    return customerLoginSucceeded(d);
   }
 
   await screenshotLoginFail(d, 'customer-attempt1');
@@ -1220,12 +1246,15 @@ export async function loginCustomer(d) {
   await dismissSavePassword(d);
   if (ok && (await isCustomerLoggedIn(d))) {
     await ensureCustomerDiscover(d);
-    return (
-      (await d.$('~discover.searchInput').isDisplayed().catch(() => false)) || (await isCustomerLoggedIn(d))
-    );
+    return customerLoginSucceeded(d);
   }
   await screenshotLoginFail(d, 'customer-final');
   return false;
+}
+
+async function customerLoginSucceeded(d) {
+  if (await confirmCustomerAuth(d)) return true;
+  return isCustomerLoggedIn(d);
 }
 
 export async function isLoggedOut(d) {
@@ -1303,7 +1332,7 @@ export async function customerLogout(d) {
   return false;
 }
 
-/** Open F5 QA order detail — Orders tab first (deeplink `orders/:id` conflicts with OrdersTab). */
+/** Open F5 QA order detail — ensure customer session, Orders tab first, deeplink fallback. */
 export async function openF5OrderDetail(d, seed = null) {
   const code = seed?.reservation_code || 'UQV76C';
   const orderId = seed?.order_id || '';
@@ -1311,9 +1340,27 @@ export async function openF5OrderDetail(d, seed = null) {
   const orderRef = `#FAE-${code}`;
   const deeplink =
     seed?.deeplink || (orderId ? `freshasever://orders/${orderId}` : null);
+  let sessionPrimed = false;
+
+  async function ensureCustomerSession() {
+    if (sessionPrimed && (await confirmCustomerAuth(d))) return true;
+    if (await confirmCustomerAuth(d)) {
+      sessionPrimed = true;
+      return true;
+    }
+    const ok = await loginCustomer(d);
+    if (ok) sessionPrimed = true;
+    return ok;
+  }
+
+  async function onSignInGate() {
+    const src = await safePageSource(d);
+    return /Please sign in/i.test(src);
+  }
 
   async function onOrderDetail() {
     const src = await safePageSource(d);
+    if (/Please sign in/i.test(src)) return false;
     return (
       (await d.$('~order.onMyWay').isExisting().catch(() => false)) ||
       (await d.$('~order.arrival').isExisting().catch(() => false)) ||
@@ -1322,8 +1369,21 @@ export async function openF5OrderDetail(d, seed = null) {
       (code && new RegExp(code, 'i').test(src)) ||
       (orderRef && src.includes(orderRef)) ||
       (outlet && new RegExp(outlet.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i').test(src)) ||
-      /Surprise Pastries|Pickup window|Reservation code|On my way|Order Detail/i.test(src)
+      /Surprise Pastries|Pickup window|Reservation code|On my way/i.test(src)
     );
+  }
+
+  async function recoverFromSignInGate() {
+    if (!(await onSignInGate())) return false;
+    await tryTap(d, 'label == "Sign in"', 3000);
+    await wait(2500);
+    return ensureCustomerSession();
+  }
+
+  async function ensureActiveOrdersSegment() {
+    await tryTap(d, 'label == "Active"', 4000);
+    await wait(2000);
+    await dismissOverlays(d);
   }
 
   async function tapOrderRow() {
@@ -1338,6 +1398,7 @@ export async function openF5OrderDetail(d, seed = null) {
   }
 
   async function openViaOrdersTab() {
+    if (!(await ensureCustomerSession())) return false;
     const tab = await d.$('~tab.orders');
     if (await tab.isDisplayed().catch(() => false)) {
       await tab.click();
@@ -1346,12 +1407,30 @@ export async function openF5OrderDetail(d, seed = null) {
     }
     await wait(4500);
     await dismissOverlays(d);
+    if (await onSignInGate()) {
+      if (!(await recoverFromSignInGate())) return false;
+      await tryTap(d, 'name == "tab.orders" OR label CONTAINS "Orders, tab"', 5000);
+      await wait(4500);
+    }
+    await ensureActiveOrdersSegment();
+    const ordersSrc = await safePageSource(d);
+    if (/Sign in to see orders/i.test(ordersSrc)) {
+      if (!(await loginCustomer(d))) return false;
+      await tryTap(d, 'name == "tab.orders" OR label CONTAINS "Orders, tab"', 5000);
+      await wait(4500);
+      await ensureActiveOrdersSegment();
+    }
     for (let scroll = 0; scroll < 5; scroll += 1) {
       if (await onOrderDetail()) return true;
       const tapped = await tapOrderRow();
       if (tapped) {
         await wait(4000);
         await dismissOverlays(d);
+        if (await onSignInGate() && (await recoverFromSignInGate())) {
+          await tryTap(d, 'name == "tab.orders" OR label CONTAINS "Orders, tab"', 5000);
+          await wait(4500);
+          continue;
+        }
         if (await onOrderDetail()) return true;
       }
       await scrollDown(d, 1);
@@ -1362,10 +1441,16 @@ export async function openF5OrderDetail(d, seed = null) {
 
   async function openViaDeeplink() {
     if (!deeplink) return false;
+    if (!(await ensureCustomerSession())) return false;
     for (let attempt = 0; attempt < 2; attempt += 1) {
       await dl(deeplink);
       await wait(attempt === 0 ? 5000 : 6500);
       await dismissOverlays(d);
+      if (await onSignInGate()) {
+        if (!(await recoverFromSignInGate())) return false;
+        await dl(deeplink);
+        await wait(5000);
+      }
       if (await onOrderDetail()) return true;
       if (await tapOrderRow()) {
         await wait(4000);
@@ -1374,6 +1459,8 @@ export async function openF5OrderDetail(d, seed = null) {
     }
     return false;
   }
+
+  if (!(await ensureCustomerSession())) return false;
 
   if (await openViaOrdersTab()) return true;
   if (await openViaDeeplink()) return true;

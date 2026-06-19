@@ -1,36 +1,36 @@
 {
   "status": "PARTIAL",
-  "passCount": 4,
-  "failCount": 7,
+  "passCount": 5,
+  "failCount": 6,
   "results": {
     "F5-C01": {
       "pass": false,
-      "evidence": "screenshots/f5/F5-C01.png",
-      "detail": "no eligible order / CTA absent",
+      "evidence": "screenshots/f5/F5-C01-login-fail.png",
+      "detail": "customer login failed",
       "portal": "customer"
     },
     "F5-C02": {
       "pass": false,
-      "evidence": "screenshots/f5/F5-C02.png",
-      "detail": "could not tap On my way",
+      "evidence": "screenshots/f5/F5-C02-login-fail.png",
+      "detail": "customer login failed",
       "portal": "customer"
     },
     "F5-C03": {
       "pass": false,
-      "evidence": "screenshots/f5/F5-C03.png",
-      "detail": "window / payment copy visible",
+      "evidence": "screenshots/f5/F5-C03-login-fail.png",
+      "detail": "customer login failed",
       "portal": "customer"
     },
     "F5-C04": {
-      "pass": true,
-      "evidence": "screenshots/f5/F5-C04.png",
-      "detail": "idempotent — CTA hidden after first signal",
+      "pass": false,
+      "evidence": "screenshots/f5/F5-C04-login-fail.png",
+      "detail": "customer login failed",
       "portal": "customer"
     },
     "F5-C05": {
       "pass": false,
-      "evidence": "screenshots/f5/F5-C05.png",
-      "detail": "mobile order detail signal testIDs present (web parity via shared RPC)",
+      "evidence": "screenshots/f5/F5-C05-login-fail.png",
+      "detail": "customer login failed",
       "portal": "customer"
     },
     "F5-M01": {
@@ -40,13 +40,13 @@
       "portal": "merchant-bh"
     },
     "F5-M02": {
-      "pass": false,
+      "pass": true,
       "evidence": "screenshots/f5/F5-M02.png",
       "detail": "merchant surface freshasever://merchant/live-monitor",
       "portal": "merchant-bh"
     },
     "F5-M03": {
-      "pass": false,
+      "pass": true,
       "evidence": "screenshots/f5/F5-M03.png",
       "detail": "merchant surface freshasever://merchant/orders",
       "portal": "merchant-bh"
@@ -65,8 +65,8 @@
     },
     "F5-X01": {
       "pass": false,
-      "evidence": "screenshots/f5/F5-X01.png",
-      "detail": "merchant saw on-the-way tier within 10s",
+      "evidence": "screenshots/f5/F5-X01-customer-login.png",
+      "detail": "customer login failed",
       "portal": "cross"
     }
   }

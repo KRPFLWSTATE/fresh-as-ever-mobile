@@ -1,5 +1,5 @@
 {
-  "seeded_at": "2026-06-19T13:36:25.545Z",
+  "seeded_at": "2026-06-19T15:05:24.370Z",
   "pass": "f5-test-order",
   "project_id": "odkbpeelvcdmlimdflbr",
   "customer_id": "571aadc0-d2e6-43bf-bab7-03a35ce3ef7f",
@@ -11,8 +11,8 @@
   "outlet_name": "Bakehouse Kollupitiya",
   "order_status": "reserved",
   "payment_status": "paid",
-  "pickup_start": "2026-06-19T13:26:24.948Z",
-  "pickup_end": "2026-06-19T15:36:24.948Z",
+  "pickup_start": "2026-06-19T14:55:23.098Z",
+  "pickup_end": "2026-06-19T17:05:23.098Z",
   "eligibility": {
     "on_my_way_window": true,
     "pickup_end_not_passed": true,

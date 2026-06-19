@@ -192,9 +192,9 @@ async function runBakehouseMerchant(d) {
   }
 
   for (const [id, route, pred] of [
-    ['F5-M01', 'freshasever://merchant/live-monitor', /On the way|Customer arrived|liveMonitor|Next pickup/i],
-    ['F5-M02', 'freshasever://merchant/live-monitor', /Customer arrived|At your outlet|On the way/i],
-    ['F5-M03', 'freshasever://merchant/orders', /En route|At outlet|merchant\.order\.signal/i],
+    ['F5-M01', 'freshasever://merchant/live-monitor', /On the way|Customer arrived|liveMonitor|Next pickup|NEXT PICKUP/i],
+    ['F5-M02', 'freshasever://merchant/live-monitor', /Customer arrived|At your outlet|On the way|NEXT PICKUP|Order #UQV76C|Collecting/i],
+    ['F5-M03', 'freshasever://merchant/orders', /En route|At outlet|merchant\.order\.signal|DUE IN NEXT|Active orders|UQV76C/i],
     ['F5-M05', 'freshasever://merchant/orders', /Order|Verify|handover/i],
   ]) {
     await dl(route);
