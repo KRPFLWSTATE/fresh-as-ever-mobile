@@ -1,0 +1,25 @@
+{
+  "seeded_at": "2026-06-19T13:04:40.731Z",
+  "pass": "f5-test-order",
+  "project_id": "odkbpeelvcdmlimdflbr",
+  "customer_id": "571aadc0-d2e6-43bf-bab7-03a35ce3ef7f",
+  "customer_email": "qa.customer@freshasever.test",
+  "order_id": "a1ba7758-7290-4ece-804d-15585f7da9eb",
+  "deeplink": "freshasever://orders/a1ba7758-7290-4ece-804d-15585f7da9eb",
+  "bag_id": "00000000-0000-0000-0000-000000000004",
+  "outlet_id": "00000000-0000-0000-0000-000000000003",
+  "outlet_name": "Bakehouse Kollupitiya",
+  "order_status": "reserved",
+  "payment_status": "paid",
+  "pickup_start": "2026-06-19T13:19:40.091Z",
+  "pickup_end": "2026-06-19T15:04:40.091Z",
+  "eligibility": {
+    "on_my_way_window": true,
+    "pickup_end_not_passed": true,
+    "collectible": true
+  },
+  "method": "supabase.rest.patch",
+  "note": "pickup_start/pickup_end live on rescue_bags (bag_id), not orders; orders only hold customer_on_the_way_at",
+  "refreshed_for_run": "SA-PASS26-LAST",
+  "reservation_code": "UQV76C"
+}

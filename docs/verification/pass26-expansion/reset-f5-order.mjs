@@ -45,7 +45,7 @@ async function main() {
   await rest(env, 'PATCH', 'orders', `id=eq.${seed.order_id}`, {
     customer_on_the_way_at: null,
     customer_arrived_at: null,
-    status: 'reserved',
+    order_status: 'reserved',
     payment_status: 'paid',
   });
 
@@ -58,7 +58,7 @@ async function main() {
     env,
     'GET',
     'orders',
-    `id=eq.${seed.order_id}&select=id,status,payment_status,customer_on_the_way_at,customer_arrived_at,group_id,reservation_code`,
+    `id=eq.${seed.order_id}&select=id,order_status,payment_status,customer_on_the_way_at,customer_arrived_at,group_id,reservation_code`,
   );
   const order = orderRows[0];
   if (order?.group_id) {
