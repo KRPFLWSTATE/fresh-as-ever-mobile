@@ -1,0 +1,3 @@
+# Documented false positives — see docs/security/SEMGREP_TRIAGE.md
+# MainActivity must stay exported for launcher + freshasever:// deep links.
+android/app/src/main/AndroidManifest.xml

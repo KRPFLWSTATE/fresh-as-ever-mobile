@@ -30,8 +30,6 @@
 	<dict>
 		<key>NSAllowsArbitraryLoads</key>
 		<false/>
-		<key>NSAllowsLocalNetworking</key>
-		<true/>
 	</dict>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Fresh As Ever uses your location to show rescue bags near you and keep the map in sync as you move.</string>

@@ -17,10 +17,9 @@ export function logError(
   ctx: LogErrorContext | string = {},
 ): void {
   const c = typeof ctx === 'string' ? { context: ctx } : ctx;
-  const tag = c.context ? `[logError ${c.context}]` : '[logError]';
   if (c.extra) {
-    console.warn(tag, err, c.extra);
+    console.warn('[logError]', c.context ?? '(unknown)', err, c.extra);
   } else {
-    console.warn(tag, err);
+    console.warn('[logError]', c.context ?? '(unknown)', err);
   }
 }

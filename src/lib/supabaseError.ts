@@ -51,6 +51,6 @@ export function logSupabaseError(
 ): void {
   if (__DEV__) {
     // eslint-disable-next-line no-console
-    console.warn(`[supabase] ${context}`, error);
+    console.warn('[supabase]', context, error);
   }
 }

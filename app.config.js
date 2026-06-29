@@ -1,4 +1,13 @@
 /** Expo config for config plugins (Sign in with Apple, scheme). Used by `npx expo prebuild` / EAS. */
+const isDevBuild =
+  process.env.NODE_ENV !== 'production' &&
+  process.env.EXPO_PUBLIC_ALLOW_LOCAL_NETWORKING !== '0';
+
+const appTransportSecurity = {
+  NSAllowsArbitraryLoads: false,
+  ...(isDevBuild ? { NSAllowsLocalNetworking: true } : {}),
+};
+
 module.exports = {
   expo: {
     name: 'FreshAsEverMobile',
@@ -24,6 +33,7 @@ module.exports = {
       bundleIdentifier: 'com.freshasever.mobile',
       infoPlist: {
         UIBackgroundModes: ['remote-notification'],
+        NSAppTransportSecurity: appTransportSecurity,
       },
     },
     android: {
