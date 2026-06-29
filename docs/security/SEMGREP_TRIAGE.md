@@ -17,6 +17,7 @@ npm audit
 | `unsafe-formatstring` in logs | Constant format strings in [`supabaseError.ts`](../../src/lib/supabaseError.ts), [`logError.ts`](../../src/observability/logError.ts) |
 | `fast-xml-parser`, `js-yaml`, `uuid` (npm) | `package.json` overrides; dev-tooling only |
 | `concurrent-ruby` (Ruby) | Bumped to 1.3.7 in `Gemfile.lock` |
+| `activesupport` 6.1.7.10 → 7.2.3.1 (3 CVEs) | Ruby minimum raised to 3.1; `.ruby-version` 3.4.4; `bundle-audit check` clean |
 
 ## Accepted risk / false positive (triage in Semgrep UI)
 
@@ -43,37 +44,24 @@ npm audit
 
 **Justification:** `MainActivity` must remain exported for launcher intent and `freshasever://` deep links. Activity exposes no privileged data.
 
-### Supply chain — activesupport 6.1.7.10 (3 CVEs)
+### Supply chain — activesupport (fixed)
 
-| ID | CVE | Rule title | EPSS |
-|----|-----|------------|------|
-| 867458703 | CVE-2026-33169 | Inefficient Regular Expression Complexity | 0.5% (Low) |
-| 867458704 | CVE-2026-33170 | Cross-site Scripting | 0.33% (Low) |
-| 867458705 | CVE-2026-33176 | Uncontrolled Resource Consumption | 0.61% (Low) |
+| ID | CVE | Rule title | Status |
+|----|-----|------------|--------|
+| 867458703 | CVE-2026-33169 | Inefficient Regular Expression Complexity | **Fixed** — `activesupport` 7.2.3.1 |
+| 867458704 | CVE-2026-33170 | Cross-site Scripting | **Fixed** — `activesupport` 7.2.3.1 |
+| 867458705 | CVE-2026-33176 | Uncontrolled Resource Consumption | **Fixed** — `activesupport` 7.2.3.1 |
 
-| Field | Value |
-|-------|-------|
-| **Dependency** | `activesupport` 6.1.7.10 (direct, `Gemfile.lock`) |
-| **Severity** | Medium (each) |
-| **Reachability** | No reachability analysis |
-| **Disposition** | Accepted risk — triage in Semgrep Supply Chain UI |
+**Remediation (2026-06-29):** Raised `Gemfile` Ruby minimum to `>= 3.1.0`, pinned `.ruby-version` to 3.4.4 (Homebrew `ruby@3.4`), and bumped `activesupport` to `>= 7.2.3.1`. Run `bundle install` with Ruby 3.1+ (not macOS system Ruby 2.6). `bundle-audit check` reports no vulnerabilities.
 
-**Justification:**
-
-- `activesupport` is a **CocoaPods build-time** dependency only; it is not bundled in the mobile app runtime.
-- CVEs affect `SafeBuffer#%` (XSS), `number_to_delimited` (ReDoS), and number helpers (DoS) — none are exercised in this React Native / Expo project.
-- Patched versions require `activesupport >= 7.2.3.1`, which requires **Ruby >= 3.1**; project `Gemfile` pins `ruby ">= 2.6.10"` for system Ruby / CocoaPods compatibility.
-- `bundle update activesupport` cannot resolve past 6.1.7.10 under current Ruby constraint (verified 2026-06-29).
-- `bundle-audit check` confirms all three CVEs; monitor for CocoaPods / Ruby upgrade path to `activesupport 7.2.3.1+`.
-
-## Local verification (2026-06-29, post-b5ddfcd)
+## Local verification (2026-06-29, post activesupport bump)
 
 | Check | Result |
 |-------|--------|
 | `semgrep scan` (p/security-audit, p/javascript, p/typescript, p/react on src/ios/android) | **0 findings** |
 | `semgrep scan --config p/swift Info.plist` | 1 finding (suppressed via `.semgrepignore`) |
 | `npm audit` | **0 vulnerabilities** |
-| `bundle-audit check` | 3 advisories (`activesupport` 6.1.7.10 — accepted, see above) |
+| `bundle-audit check` | **0 vulnerabilities** (`activesupport` 7.2.3.1) |
 
 ## Dev notes
 
