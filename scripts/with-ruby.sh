@@ -14,10 +14,10 @@ ensure_ruby() {
   fi
 
   for prefix in \
-    "/opt/homebrew/opt/ruby@3.4/bin" \
     "/opt/homebrew/opt/ruby/bin" \
-    "/usr/local/opt/ruby@3.4/bin" \
-    "/usr/local/opt/ruby/bin"; do
+    "/opt/homebrew/opt/ruby@3.4/bin" \
+    "/usr/local/opt/ruby/bin" \
+    "/usr/local/opt/ruby@3.4/bin"; do
     if [[ -x "$prefix/ruby" ]] && "$prefix/ruby" -e 'Gem::Version.new(RUBY_VERSION) >= Gem::Version.new("3.1.0")' 2>/dev/null; then
       export PATH="$prefix:$PATH"
       return 0
