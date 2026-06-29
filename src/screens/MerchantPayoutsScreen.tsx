@@ -251,7 +251,7 @@ export function MerchantPayoutsScreen() {
               </View>
               <View style={{ alignItems: 'flex-end' }}>
                 <StitchText
-                  variant="price-original"
+                  variant="price"
                   colorKey="text"
                   style={{ fontWeight: '600' }}
                 >

@@ -8,6 +8,7 @@ import { outletListingMode, type OutletListingMode } from '@/lib/outletListingMo
 import { useMerchantContext } from '@/hooks/useMerchantContext';
 import { isPickupWindowOpen } from '@/domain/pickupWindow';
 import { logError } from '@/observability/logError';
+import { utcShelfDate } from '@/lib/utcShelfDate';
 
 export type DashboardPopularBag = {
   id: string;
@@ -128,7 +129,7 @@ export function useMerchantDashboard(env: AppEnv) {
       }).length;
 
       let activeBagsCount = 0;
-      const todayDate = today.toISOString().slice(0, 10);
+      const todayDate = utcShelfDate();
       const listingOutletIds = activeOutlet?.id
         ? [String(activeOutlet.id)]
         : outletScopeIds;
@@ -302,7 +303,7 @@ export function useMerchantDashboard(env: AppEnv) {
       // approximation of how the inventory moved overnight.
       let yesterdayActiveBagsCount = 0;
       if (listingMode === 'clearance_shelf') {
-        const yDate = yesterday.toISOString().slice(0, 10);
+        const yDate = utcShelfDate(yesterday);
         const { data: yShelves, error: yShelfErr } = await supabase
           .from('clearance_shelves')
           .select('id')

@@ -137,16 +137,24 @@ function createStyles({ spacing, radii }: CreateStylesArgs) {
       marginTop: 'auto',
       paddingTop: spacing.md,
     },
-    lateHeaderRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      marginBottom: spacing.sm,
+    lateSection: {
+      gap: spacing.sm,
+      marginBottom: spacing.md,
     },
     lateFiltersRow: {
       flexDirection: 'row',
+      flexWrap: 'wrap',
+      alignItems: 'center',
       gap: spacing.sm,
-      marginBottom: spacing.md,
+    },
+    lateUrgentPill: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.xs,
+      paddingHorizontal: spacing.md,
+      paddingVertical: 8,
+      borderRadius: radii.full,
+      borderWidth: 1,
     },
     lateCardBody: {
       padding: spacing.md,
@@ -976,31 +984,29 @@ export function MerchantOrdersScreen() {
           {MERCHANT_ORDERS_VIEW_LABELS[view].subtitle}
         </StitchText>
         {view === 'late-pickups' ? (
-          <>
-            <View style={styles.lateHeaderRow}>
-              <StitchText variant="body-sm" colorKey="textMuted">
-                Orders past their scheduled collection window.
-              </StitchText>
+          <View style={styles.lateSection}>
+            <StitchText variant="body-sm" colorKey="textMuted">
+              Orders past their scheduled collection window.
+            </StitchText>
+            <View style={styles.lateFiltersRow}>
               <View
-                style={{
-                  paddingHorizontal: spacing.md,
-                  paddingVertical: 6,
-                  borderRadius: radii.lg,
-                  backgroundColor: colors.surface,
-                  borderWidth: 1,
-                  borderColor: colors.divider,
-                  alignItems: 'center',
-                }}
+                accessibilityRole="text"
+                accessibilityLabel={`${lateCounts.total} urgent late pickups`}
+                style={[
+                  styles.lateUrgentPill,
+                  {
+                    backgroundColor: colors.accentHighlight,
+                    borderColor: `${colors.accent}33`,
+                  },
+                ]}
               >
-                <StitchText variant="h2" colorKey="accent">
-                  {visibleOrders.length}
+                <StitchText variant="label" colorKey="accent">
+                  {lateCounts.total}
                 </StitchText>
-                <StitchText variant="label-caps" colorKey="textMuted">
-                  URGENT
+                <StitchText variant="label-caps" colorKey="accent">
+                  urgent
                 </StitchText>
               </View>
-            </View>
-            <View style={styles.lateFiltersRow}>
               {(
                 [
                   { id: 'all' as const, label: `All (${lateCounts.total})` },
@@ -1044,7 +1050,7 @@ export function MerchantOrdersScreen() {
                 );
               })}
             </View>
-          </>
+          </View>
         ) : null}
         {error ? (
           <StitchText variant="body-sm" colorKey="error" style={{ marginBottom: spacing.sm }}>
@@ -1066,13 +1072,12 @@ export function MerchantOrdersScreen() {
       pendingHandoverCount,
       verificationHandoverCount,
       radii.full,
-      radii.lg,
       spacing,
       tabRow,
       view,
-      visibleOrders.length,
       styles.lateFiltersRow,
-      styles.lateHeaderRow,
+      styles.lateSection,
+      styles.lateUrgentPill,
     ],
   );
 

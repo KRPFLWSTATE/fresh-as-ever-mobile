@@ -25,6 +25,11 @@ import {
   StitchText,
 } from '@/ui/stitch';
 import { logError } from '@/observability/logError';
+import {
+  bagVisibilityIssue,
+  bagVisibilityIssueLabel,
+  isBagCustomerVisible,
+} from '@/domain/listingVisibility';
 
 type BagTab = 'all' | 'live' | 'drafts' | 'sold';
 
@@ -148,6 +153,23 @@ function createStyles({ spacing, radii }: CreateStylesArgs) {
       justifyContent: 'center',
     },
   });
+}
+
+function merchantBagForVisibility(
+  item: MerchantBagRow,
+  activeOutlet: Record<string, unknown> | null,
+): Record<string, unknown> {
+  return {
+    status: item.status,
+    quantity_remaining: item.quantity_available,
+    pickup_end: item.pickup_end,
+    seed_demo: item.seed_demo === true,
+    outlet: {
+      is_active: activeOutlet?.is_active !== false,
+      use_demo_listings: activeOutlet?.use_demo_listings !== false,
+      merchant: { status: 'approved' },
+    },
+  };
 }
 
 type MerchantBagsListScreenProps = {
@@ -368,6 +390,15 @@ export function MerchantBagsListScreen({ embeddedInTab: _embeddedInTab }: Mercha
             ? 'Draft'
             : 'Sold Out';
 
+      const hiddenFromCustomers =
+        displayKind === 'live' &&
+        !isBagCustomerVisible(merchantBagForVisibility(item, activeOutlet as Record<string, unknown> | null));
+      const hiddenReason = hiddenFromCustomers
+        ? bagVisibilityIssueLabel(
+            bagVisibilityIssue(merchantBagForVisibility(item, activeOutlet as Record<string, unknown> | null)) ?? 'pickup_ended',
+          )
+        : null;
+
       const statusTextColorKey =
         displayKind === 'sold' ? 'onErrorContainer' : displayKind === 'draft' ? 'textMuted' : 'text';
 
@@ -421,26 +452,56 @@ export function MerchantBagsListScreen({ embeddedInTab: _embeddedInTab }: Mercha
                 />
               )}
               <View
-                style={[
-                  styles.statusPill,
-                  {
-                    backgroundColor: statusPillBg,
-                    zIndex: displayKind === 'sold' ? 30 : 10,
-                  },
-                  statusBorder,
-                ]}
+                style={{
+                  position: 'absolute',
+                  top: spacing.sm + 4,
+                  right: spacing.sm + 4,
+                  zIndex: displayKind === 'sold' ? 30 : 10,
+                  alignItems: 'flex-end',
+                  gap: 6,
+                }}
               >
                 <View
-                  style={{
-                    width: 8,
-                    height: 8,
-                    borderRadius: 4,
-                    backgroundColor: dotColor,
-                  }}
-                />
-                <StitchText variant="label-caps" colorKey={statusTextColorKey}>
-                  {statusLabel}
-                </StitchText>
+                  style={[
+                    styles.statusPill,
+                    {
+                      position: 'relative',
+                      top: 0,
+                      right: 0,
+                      backgroundColor: statusPillBg,
+                    },
+                    statusBorder,
+                  ]}
+                >
+                  <View
+                    style={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: 4,
+                      backgroundColor: dotColor,
+                    }}
+                  />
+                  <StitchText variant="label-caps" colorKey={statusTextColorKey}>
+                    {statusLabel}
+                  </StitchText>
+                </View>
+                {hiddenFromCustomers ? (
+                  <View
+                    style={[
+                      styles.statusPill,
+                      {
+                        position: 'relative',
+                        top: 0,
+                        right: 0,
+                        backgroundColor: `${colors.errorContainer}E6`,
+                      },
+                    ]}
+                  >
+                    <StitchText variant="label-caps" colorKey="onErrorContainer">
+                      Hidden · {hiddenReason}
+                    </StitchText>
+                  </View>
+                ) : null}
               </View>
             </View>
 
@@ -611,6 +672,7 @@ export function MerchantBagsListScreen({ embeddedInTab: _embeddedInTab }: Mercha
       styles.scheduleRow,
       styles.smallCta,
       styles.statusPill,
+      activeOutlet,
     ],
   );
 

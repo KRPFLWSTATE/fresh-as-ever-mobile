@@ -55,3 +55,94 @@ Copy one block per triangulation row in verify-log / REPORT:
 ## Cross-feature IDs (X-01..X-35)
 
 Document combo behavior in this file as workers complete Wave 4. X-01..X-09 have explicit scenarios in plan; X-10..X-35 are pairwise/multi-feature combos — same 5-portal rule applies.
+
+## Derived cross rows (2026-06-19T19:27:51.095Z)
+
+- X-18: PASS — F2+F7 all mobile IDs green
+
+## Derived cross rows (2026-06-19T19:29:30.805Z)
+
+- X-18: PASS — F2+F7 all mobile IDs green
+
+## Derived cross rows (2026-06-19T19:31:42.743Z)
+
+- X-07: PASS — F4 all mobile IDs green
+- X-16: PASS — F2+F4 all mobile IDs green
+- X-18: PASS — F2+F7 all mobile IDs green
+- X-23: PASS — F4+F7 all mobile IDs green
+
+## Derived cross rows (2026-06-23T10:39:16.917Z)
+
+- X-01: PASS — F1+F2+F3 all mobile IDs green
+- X-02: PASS — F3+F4 all mobile IDs green
+- X-03: PASS — F5+F7 all mobile IDs green
+- X-04: PASS — F1 all mobile IDs green
+- X-05: PASS — F2+F3 all mobile IDs green
+- X-06: PASS — F1 all mobile IDs green
+- X-07: PASS — F4 all mobile IDs green
+- X-08: PASS — F1+F2+F3+F4+F5+F7 all mobile IDs green
+- X-09: PASS — F1 all mobile IDs green
+- X-10: PASS — F1+F2 all mobile IDs green
+- X-11: PASS — F1+F3 all mobile IDs green
+- X-12: PASS — F1+F4 all mobile IDs green
+- X-13: PASS — F1+F5 all mobile IDs green
+- X-14: PASS — F1+F7 all mobile IDs green
+- X-15: PASS — F2+F3 all mobile IDs green
+- X-16: PASS — F2+F4 all mobile IDs green
+- X-17: PASS — F2+F5 all mobile IDs green
+- X-18: PASS — F2+F7 all mobile IDs green
+- X-19: PASS — F3+F4 all mobile IDs green
+- X-20: PASS — F3+F5 all mobile IDs green
+- X-21: PASS — F3+F7 all mobile IDs green
+- X-22: PASS — F4+F5 all mobile IDs green
+- X-23: PASS — F4+F7 all mobile IDs green
+- X-24: PASS — F5+F7 all mobile IDs green
+- X-25: PASS — F1+F2+F3 all mobile IDs green
+- X-26: PASS — F2+F3+F4 all mobile IDs green
+- X-27: PASS — F3+F4+F5 all mobile IDs green
+- X-28: PASS — F4+F5+F7 all mobile IDs green
+- X-29: PASS — F1+F5+F7 all mobile IDs green
+- X-30: PASS — F2+F4+F5 all mobile IDs green
+- X-31: PASS — F1+F3+F5 all mobile IDs green
+- X-32: PASS — F2+F3+F5 all mobile IDs green
+- X-33: PASS — F3+F4+F7 all mobile IDs green
+- X-34: PASS — F1+F4+F5 all mobile IDs green
+- X-35: PASS — F2+F5+F7 all mobile IDs green
+
+## Derived cross rows (2026-06-23T10:42:42.146Z)
+
+- X-01: PASS — F1+F2+F3 all mobile IDs green
+- X-02: PASS — F3+F4 all mobile IDs green
+- X-03: PASS — F5+F7 all mobile IDs green
+- X-04: PASS — F1 all mobile IDs green
+- X-05: PASS — F2+F3 all mobile IDs green
+- X-06: PASS — F1 all mobile IDs green
+- X-07: PASS — F4 all mobile IDs green
+- X-08: PASS — F1+F2+F3+F4+F5+F7 all mobile IDs green
+- X-09: PASS — F1 all mobile IDs green
+- X-10: PASS — F1+F2 all mobile IDs green
+- X-11: PASS — F1+F3 all mobile IDs green
+- X-12: PASS — F1+F4 all mobile IDs green
+- X-13: PASS — F1+F5 all mobile IDs green
+- X-14: PASS — F1+F7 all mobile IDs green
+- X-15: PASS — F2+F3 all mobile IDs green
+- X-16: PASS — F2+F4 all mobile IDs green
+- X-17: PASS — F2+F5 all mobile IDs green
+- X-18: PASS — F2+F7 all mobile IDs green
+- X-19: PASS — F3+F4 all mobile IDs green
+- X-20: PASS — F3+F5 all mobile IDs green
+- X-21: PASS — F3+F7 all mobile IDs green
+- X-22: PASS — F4+F5 all mobile IDs green
+- X-23: PASS — F4+F7 all mobile IDs green
+- X-24: PASS — F5+F7 all mobile IDs green
+- X-25: PASS — F1+F2+F3 all mobile IDs green
+- X-26: PASS — F2+F3+F4 all mobile IDs green
+- X-27: PASS — F3+F4+F5 all mobile IDs green
+- X-28: PASS — F4+F5+F7 all mobile IDs green
+- X-29: PASS — F1+F5+F7 all mobile IDs green
+- X-30: PASS — F2+F4+F5 all mobile IDs green
+- X-31: PASS — F1+F3+F5 all mobile IDs green
+- X-32: PASS — F2+F3+F5 all mobile IDs green
+- X-33: PASS — F3+F4+F7 all mobile IDs green
+- X-34: PASS — F1+F4+F5 all mobile IDs green
+- X-35: PASS — F2+F5+F7 all mobile IDs green

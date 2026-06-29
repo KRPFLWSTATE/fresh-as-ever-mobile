@@ -53,23 +53,28 @@ export function LoginScreen() {
   const [err, setErr] = useState<string | null>(null);
 
   const qaAutofillLogin = process.env.EXPO_PUBLIC_QA_AUTOFILL_LOGIN === 'true';
+  const qaCustomerPassword =
+    process.env.EXPO_PUBLIC_QA_CUSTOMER_PASSWORD?.trim() ?? '';
+  const qaMerchantPassword =
+    process.env.EXPO_PUBLIC_QA_MERCHANT_PASSWORD?.trim() ?? '';
 
   function qaMerchantCredentials(
     merchantHint?: 'bakehouse' | 'kumbuk',
-  ): { email: string; password: string } {
+  ): { email: string; password: string } | null {
+    if (!qaMerchantPassword) return null;
     const envEmail = process.env.EXPO_PUBLIC_QA_MERCHANT_EMAIL?.trim();
     if (envEmail) {
-      return { email: envEmail, password: 'TempMerchant#12345' };
+      return { email: envEmail, password: qaMerchantPassword };
     }
     if (merchantHint === 'kumbuk') {
       return {
         email: 'qa.kumbuk@freshasever.test',
-        password: 'TempMerchant#12345',
+        password: qaMerchantPassword,
       };
     }
     return {
       email: 'qa.merchant@freshasever.test',
-      password: 'TempMerchant#12345',
+      password: qaMerchantPassword,
     };
   }
 
@@ -80,12 +85,14 @@ export function LoginScreen() {
     if (!qaAutofillLogin) return;
     setUseEmailCustomer(true);
     if (hintedPortal === 'customer') {
+      if (!qaCustomerPassword) return;
       setEmail('qa.customer@freshasever.test');
-      setPassword('TempCustomer#12345');
+      setPassword(qaCustomerPassword);
       return;
     }
     if (hintedPortal === 'merchant') {
       const creds = qaMerchantCredentials(merchantHint);
+      if (!creds) return;
       setEmail(creds.email);
       setPassword(creds.password);
     }

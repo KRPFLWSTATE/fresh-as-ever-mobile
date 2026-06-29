@@ -80,6 +80,29 @@ Object.values(SS).forEach((d) => fs.mkdirSync(d, { recursive: true }));
 const LOG = path.join(ROOT, 'verify-log.jsonl');
 const RESULTS = path.join(ROOT, 'results.json');
 const MATRIX = path.join(ROOT, 'MATRIX.md');
+const F5_ORDER_BASELINE = path.join(ROOT, 'baseline', 'f5-test-order.json');
+
+function loadF5TestOrder() {
+  try {
+    return JSON.parse(fs.readFileSync(F5_ORDER_BASELINE, 'utf8'));
+  } catch {
+    return null;
+  }
+}
+
+async function openF5OrderDetail(d) {
+  const seed = loadF5TestOrder();
+  if (seed?.deeplink) {
+    await dl(seed.deeplink);
+    await wait(4500);
+    await dismissOverlays(d);
+    return true;
+  }
+  await dl('freshasever://orders');
+  await wait(4000);
+  await dismissOverlays(d);
+  return tryTap(d, 'label CONTAINS "Order" OR label CONTAINS "Pickup"', 3000);
+}
 
 const featureArg = process.argv.find((a) => a.startsWith('--feature='))?.slice(10)?.split(',') ?? [];
 const ONLY = new Set(
@@ -345,12 +368,15 @@ async function runCustomerPhase(d) {
 
   for (const id of ['F5-C01', 'F5-C02', 'F5-C03', 'F5-C04', 'F5-C05']) {
     await recordWithRetry(d, id, 'customer', async () => {
-      await dl('freshasever://orders');
-      await wait(4000);
-      await tryTap(d, 'label CONTAINS "Order" OR label CONTAINS "Pickup"', 3000);
+      const opened = await openF5OrderDetail(d);
       await wait(2000);
       const src = await discoverSrc();
-      const pass = /On my way|I'm at the outlet|at the outlet/i.test(src);
+      const hasTestIds =
+        (await d.$('~order.onMyWay').isExisting().catch(() => false)) ||
+        (await d.$('~order.arrival').isExisting().catch(() => false));
+      const pass =
+        opened &&
+        (hasTestIds || /On my way|I'm at the outlet|at the outlet|Available 2 hours/i.test(src));
       return { pass, detail: pass ? 'on-my-way CTAs visible' : 'no eligible order / CTAs absent' };
     });
   }
@@ -488,12 +514,45 @@ async function runCustomerPhase(d) {
     });
   }
 
-  for (const id of ['F5-X01', 'F5-X02', 'F5-X03', 'F5-X04']) {
+  await recordWithRetry(d, 'F5-X01', 'cross', async () => {
+    const opened = await openF5OrderDetail(d);
+    const tapped = await tryTap(d, 'name == "order.onMyWay" OR label == "On my way"', 6000);
+    await wait(1500);
+    await dismissOverlays(d);
+    await customerLogout(d);
+    const merchOk = await loginBakehouse(d);
+    if (!merchOk) {
+      return { pass: false, detail: 'merchant login failed' };
+    }
+    let seen = false;
+    const deadline = Date.now() + 10_000;
+    while (Date.now() < deadline) {
+      await dl('freshasever://merchant/live-monitor');
+      await wait(2000);
+      const src = await safePageSource(d);
+      if (/On the way|En route|Heading to you|merchant\.liveMonitor\.hero/i.test(src)) {
+        seen = true;
+        break;
+      }
+      await wait(2000);
+    }
+    await merchantLogout(d);
+    return {
+      pass: opened && tapped && seen,
+      detail: seen
+        ? 'merchant saw on-the-way tier within 10s'
+        : `cross-portal realtime miss (opened=${opened} tapped=${tapped})`,
+    };
+  });
+
+  for (const id of ['F5-X02', 'F5-X03', 'F5-X04']) {
     await recordWithRetry(d, id, 'cross', async () => {
-      await dl('freshasever://orders');
-      await wait(3000);
+      const opened = await openF5OrderDetail(d);
       const src = await discoverSrc();
-      return { pass: /Order|On my way|Pickup|No orders/i.test(src), detail: 'on-my-way cross customer leg' };
+      return {
+        pass: opened && /Order|On my way|Pickup|at the outlet/i.test(src),
+        detail: 'on-my-way cross customer leg',
+      };
     });
   }
 

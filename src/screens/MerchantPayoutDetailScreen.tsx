@@ -17,6 +17,10 @@ import { payoutIdParam } from '@/contracts/routeParams';
 import { useAuthContext } from '@/context/AuthContext';
 import { useMerchantContext } from '@/hooks/useMerchantContext';
 import { getSupabase } from '@/lib/supabase';
+import {
+  formatSettlementLkr,
+  parseSettlementBreakdown,
+} from '@/lib/merchantSettlementBreakdown';
 import type { RootStackParamList } from '@/navigation/types';
 import { useStitchTheme } from '@/theme/StitchThemeContext';
 import {
@@ -38,6 +42,8 @@ type PayoutDetailModel = {
   grossSub: string;
   commission: string;
   commissionSub: string;
+  cardFees: string | null;
+  cashCommissionDue: string | null;
   bankName: string;
   branch: string;
   acctMasked: string;
@@ -77,12 +83,18 @@ function buildDetailFromLive(args: {
       : settled
         ? `Settled ${fmtDate(typeof settlement.created_at === 'string' ? (settlement.created_at as string) : null)}`
         : 'Settlement window';
-  const fmtLkr = (n: number) =>
-    `Rs ${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const fmtLkr = (n: number) => formatSettlementLkr(n);
 
-  const net = fmtLkr(Number(settlement.net_payout ?? 0));
-  const gross = fmtLkr(Number(settlement.gross_sales ?? 0));
-  const commission = fmtLkr(Number(settlement.commission_amount ?? 0));
+  const breakdown = parseSettlementBreakdown(settlement);
+  const net = fmtLkr(breakdown.net);
+  const gross = fmtLkr(breakdown.gross);
+  const commission = fmtLkr(breakdown.commission);
+  const cardFees =
+    breakdown.cardFees > 0 ? fmtLkr(breakdown.cardFees) : null;
+  const cashCommissionDue =
+    breakdown.cashCommissionDue > 0
+      ? fmtLkr(breakdown.cashCommissionDue)
+      : null;
 
   const bankName =
     String((bankDetails?.bank_name ?? bankDetails?.bank ?? '') as string) || 'Bank on file';
@@ -126,6 +138,8 @@ function buildDetailFromLive(args: {
     grossSub: `${Number(settlement.total_orders ?? txRows.length)} settled orders`,
     commission,
     commissionSub: '15% platform fee (deducted at source)',
+    cardFees,
+    cashCommissionDue,
     bankName,
     branch,
     acctMasked,
@@ -167,7 +181,7 @@ export function MerchantPayoutDetailScreen() {
       const settlementRes = await sb
         .from('settlements')
         .select(
-          'id, status, net_payout, gross_sales, commission_amount, card_processing_fees, total_orders, card_orders_count, cash_orders_count, created_at, period_start, period_end, notes, merchant_id, merchant:merchants(payout_method, bank_details)',
+          'id, status, net_payout, gross_sales, commission_amount, card_processing_fees, cash_orders_commission_due, total_orders, card_orders_count, cash_orders_count, created_at, period_start, period_end, notes, merchant_id, merchant:merchants(payout_method, bank_details)',
         )
         .eq('id', id)
         .maybeSingle();
@@ -480,6 +494,49 @@ export function MerchantPayoutDetailScreen() {
         </View>
       </View>
 
+      {(detail.cardFees || detail.cashCommissionDue) ? (
+        <StitchSurface elevated padding="md" style={styles.cardBorder}>
+          <StitchText variant="label-caps" colorKey="textMuted">
+            Deductions
+          </StitchText>
+          {detail.cardFees ? (
+            <View
+              style={{
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                marginTop: spacing.sm,
+              }}
+            >
+              <StitchText variant="body-sm" colorKey="textMuted">
+                Card processing fees
+              </StitchText>
+              <StitchText variant="body-sm" colorKey="accent">
+                − {detail.cardFees}
+              </StitchText>
+            </View>
+          ) : null}
+          {detail.cashCommissionDue ? (
+            <View
+              style={{
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                marginTop: spacing.sm,
+              }}
+            >
+              <StitchText variant="body-sm" colorKey="textMuted">
+                Cash order commission due
+              </StitchText>
+              <StitchText variant="body-sm" colorKey="accent">
+                − {detail.cashCommissionDue}
+              </StitchText>
+            </View>
+          ) : null}
+          <StitchText variant="body-sm" colorKey="textFaint" style={{ marginTop: spacing.sm }}>
+            Net payout = gross − platform commission − card fees − cash commission due.
+          </StitchText>
+        </StitchSurface>
+      ) : null}
+
       <StitchSurface elevated padding="md" style={[styles.cardBorder, { flexDirection: 'row', gap: spacing.md }]}>
         <View style={styles.bankIconWrap}>
           <StitchIcon name="account_balance" size={22} colorKey="primaryContainer" />
@@ -656,6 +713,18 @@ export function MerchantPayoutDetailScreen() {
                 <StitchText variant="body-sm" colorKey="textMuted">Commission</StitchText>
                 <StitchText variant="body-sm" colorKey="text">− {detail.commission}</StitchText>
               </View>
+              {detail.cardFees ? (
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                  <StitchText variant="body-sm" colorKey="textMuted">Card fees</StitchText>
+                  <StitchText variant="body-sm" colorKey="text">− {detail.cardFees}</StitchText>
+                </View>
+              ) : null}
+              {detail.cashCommissionDue ? (
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                  <StitchText variant="body-sm" colorKey="textMuted">Cash commission</StitchText>
+                  <StitchText variant="body-sm" colorKey="text">− {detail.cashCommissionDue}</StitchText>
+                </View>
+              ) : null}
               <View
                 style={{
                   flexDirection: 'row',
@@ -692,6 +761,10 @@ export function MerchantPayoutDetailScreen() {
                       '',
                       `Gross:       ${detail.gross}`,
                       `Commission:  -${detail.commission}`,
+                      detail.cardFees ? `Card fees:   -${detail.cardFees}` : null,
+                      detail.cashCommissionDue
+                        ? `Cash comm.:  -${detail.cashCommissionDue}`
+                        : null,
                       `Net payout:  ${detail.net}`,
                       '',
                       detail.bankTransferLine,
@@ -704,7 +777,9 @@ export function MerchantPayoutDetailScreen() {
                           (t) =>
                             `  ${t.when} — ${t.item} (${t.orderId}) ${t.share}`,
                         ),
-                    ].join('\n'),
+                    ]
+                      .filter((line): line is string => line != null)
+                      .join('\n'),
                   );
                   Linking.openURL(`mailto:?subject=${subject}&body=${body}`).catch(() => {
                     Alert.alert(

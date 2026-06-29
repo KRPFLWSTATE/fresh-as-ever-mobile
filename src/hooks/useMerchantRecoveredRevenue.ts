@@ -50,8 +50,15 @@ function monthBounds(offsetMonths: number): { start: number; end: number } {
 }
 
 export function useMerchantRecoveredRevenue(env: AppEnv): MerchantRecoveredRevenueSnapshot {
-  const { outletScopeIds } = useMerchantContext(env);
+  const { outletScopeIds, activeOutlet } = useMerchantContext(env);
   const supabase = useMemo(() => getSupabase(env), [env]);
+  const scopeOutletIds = useMemo(
+    () =>
+      activeOutlet?.id != null
+        ? [String(activeOutlet.id)]
+        : outletScopeIds,
+    [activeOutlet?.id, outletScopeIds],
+  );
   const [thisMonth, setThisMonth] = useState(0);
   const [lastMonth, setLastMonth] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -66,7 +73,7 @@ export function useMerchantRecoveredRevenue(env: AppEnv): MerchantRecoveredReven
   }, []);
 
   const fetchMetrics = useCallback(async () => {
-    if (!outletScopeIds.length) {
+    if (!scopeOutletIds.length) {
       setThisMonth(0);
       setLastMonth(0);
       setLoading(false);
@@ -84,10 +91,15 @@ export function useMerchantRecoveredRevenue(env: AppEnv): MerchantRecoveredReven
           quantity,
           created_at,
           order_status,
-          bag:rescue_bags(retail_value_estimate)
+          shelf_id,
+          bag:rescue_bags(retail_value_estimate),
+          order_items(
+            quantity,
+            clearance_shelf_items(retail_price)
+          )
         `,
         )
-        .in('outlet_id', outletScopeIds)
+        .in('outlet_id', scopeOutletIds)
         .gte('created_at', earliest)
         .limit(8000);
 
@@ -111,6 +123,12 @@ export function useMerchantRecoveredRevenue(env: AppEnv): MerchantRecoveredReven
       const toSurplusRow = (r: (typeof rows)[number]) => ({
         quantity: r.quantity as number | null,
         bag: normalizeBagJoin(r.bag),
+        order_items: Array.isArray(r.order_items)
+          ? (r.order_items as {
+              quantity?: number | null;
+              clearance_shelf_items?: { retail_price?: number | null } | null;
+            }[])
+          : null,
       });
 
       setThisMonth(sumSurplusRecovered(thisRows.map(toSurplusRow)));
@@ -125,7 +143,7 @@ export function useMerchantRecoveredRevenue(env: AppEnv): MerchantRecoveredReven
     }
   }, [
     supabase,
-    outletScopeIds,
+    scopeOutletIds,
     thisBounds.start,
     thisBounds.end,
     lastBounds.start,

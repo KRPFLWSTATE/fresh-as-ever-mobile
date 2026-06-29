@@ -3,6 +3,7 @@ import { getSupabase } from '@/lib/supabase';
 import type { AppEnv } from '@/config/env';
 import type { ShelfItemDraft } from '@/lib/merchantShelfForm';
 import { mapSupabaseError } from '@/lib/supabaseError';
+import { utcShelfDate } from '@/lib/utcShelfDate';
 
 export function useMerchantShelves(env: AppEnv, outletId: string | null) {
   const supabase = useMemo(() => getSupabase(env), [env]);
@@ -21,7 +22,7 @@ export function useMerchantShelves(env: AppEnv, outletId: string | null) {
     try {
       setLoading(true);
       setError(null);
-      const today = new Date().toISOString().slice(0, 10);
+      const today = utcShelfDate();
       const { data, error: qErr } = await supabase
         .from('clearance_shelves')
         .select(`*, items:clearance_shelf_items (*)`)
@@ -82,7 +83,7 @@ export function useMerchantShelves(env: AppEnv, outletId: string | null) {
       removedItemIds?: string[];
     }) => {
       if (!outletId) throw new Error('No outlet selected');
-      const today = new Date().toISOString().slice(0, 10);
+      const today = utcShelfDate();
       let shelfId =
         typeof todayShelf?.id === 'string' ? todayShelf.id : undefined;
 

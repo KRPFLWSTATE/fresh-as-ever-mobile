@@ -368,7 +368,7 @@ export function MerchantFinanceScreen() {
                 </View>
               </View>
               <View style={{ alignItems: 'flex-end' }}>
-                <StitchText variant="price-original" colorKey="text" style={{ fontWeight: '600' }}>
+                <StitchText variant="price" colorKey="text" style={{ fontWeight: '600' }}>
                   {row.amount}
                 </StitchText>
                 <View

@@ -318,7 +318,7 @@ function customerOrderDetailState(
 export const linking: LinkingOptions<RootStackParamList> = {
   prefixes,
   config,
-  getStateFromPath(path, options) {
+  getStateFromPath: ((path, options) => {
     const canonical = normalizeIncomingLinkPath(path);
     const outletEdit = canonical.match(/^merchant\/outlets\/([^/]+)\/edit\/?$/);
     if (outletEdit?.[1]) {
@@ -326,11 +326,11 @@ export const linking: LinkingOptions<RootStackParamList> = {
     }
     const orderDetail = customerOrderDetailState(canonical);
     if (orderDetail) {
-      return orderDetail as NavigationState;
+      return orderDetail as unknown as NavigationState;
     }
     return getStateFromPathCore<RootStackParamList>(canonical, {
       ...(options ?? {}),
       screens: config.screens,
-    });
-  },
+    }) as NavigationState | undefined;
+  }) as LinkingOptions<RootStackParamList>['getStateFromPath'],
 };

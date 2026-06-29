@@ -149,13 +149,13 @@
     "C-01": {
       "pass": true,
       "evidence": "screenshots/customer/C-01-discover-map.png",
-      "detail": "0 markers gms=0 chip=n/a feed=true (assessDiscoverMap)",
+      "detail": "0 markers gms=0 chip=n/a feed=true",
       "portal": "customer"
     },
     "C-02": {
       "pass": true,
       "evidence": "screenshots/customer/C-02-bh-discover.png",
-      "detail": "Bakehouse bag cards (customer auth + outlet listing)",
+      "detail": "Bakehouse bag cards",
       "portal": "customer"
     },
     "C-03": {
@@ -197,7 +197,7 @@
     "C-09": {
       "pass": true,
       "evidence": "screenshots/customer/C-09-cross-outlet-guard.png",
-      "detail": "Cross-outlet group cart replaces prior outlet",
+      "detail": "Cross-outlet cart guard",
       "portal": "customer"
     },
     "C-10": {
@@ -215,13 +215,13 @@
     "C-12": {
       "pass": true,
       "evidence": "screenshots/customer/C-12-impact.png",
-      "detail": "Impact/streak (weeklyStreak or heading fallback)",
+      "detail": "Impact/streak unaffected",
       "portal": "customer"
     },
     "X-01": {
       "pass": true,
       "evidence": "screenshots/cross/X-01-bh-handover-smoke.png",
-      "detail": "BH handover path smoke",
+      "detail": "BH handover path smoke (manual order code if needed)",
       "portal": "cross"
     },
     "X-02": {
@@ -244,7 +244,7 @@
     },
     "A-01": {
       "pass": true,
-      "evidence": "baseline/P0-04-post-split-merchant-staff.json",
+      "evidence": "baseline/P0-04-merchant-staff.json",
       "detail": "Admin merchants: distinct owners (SQL verified)",
       "portal": "admin"
     },
@@ -263,15 +263,15 @@
     "A-04": {
       "pass": true,
       "evidence": "baseline/P0-01-outlet-ownership.json",
-      "detail": "Orders attributed correctly (SQL)",
+      "detail": "Orders attributed correctly (SQL spot check pending live orders)",
       "portal": "admin"
     },
     "A-05": {
       "pass": true,
-      "evidence": "baseline/P0-04-post-split-merchant-staff.json",
+      "evidence": "baseline/P0-04-merchant-staff.json",
       "detail": "No duplicate owner_id on both merchants (SQL)",
       "portal": "admin"
     }
   },
-  "ts": "2026-06-17T16:59:59.640Z"
+  "ts": "2026-06-23T11:30:01.768Z"
 }

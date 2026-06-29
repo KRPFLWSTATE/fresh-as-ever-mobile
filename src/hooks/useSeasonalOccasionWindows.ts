@@ -1,26 +1,25 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { AppEnv } from '@/config/env';
 import { isSeasonalBadgesEnabled } from '@/config/featureFlags';
+import type { SeasonalOccasionWindow } from '@/domain/seasonalOccasion';
 import {
   getActiveSeasonalWindows,
   parseSeasonalOccasionKind,
-  type SeasonalOccasionWindow,
 } from '@/domain/seasonalOccasion';
 import { getSupabase } from '@/lib/supabase';
 
 function mapWindowRows(rows: Record<string, unknown>[] | null | undefined): SeasonalOccasionWindow[] {
-  if (!rows?.length) return [];
-  return rows
-    .map((row) => {
-      const occasion = parseSeasonalOccasionKind(row.occasion);
-      if (occasion === 'none') return null;
-      const starts_on = String(row.starts_on ?? '').slice(0, 10);
-      const ends_on = String(row.ends_on ?? '').slice(0, 10);
-      const label = String(row.label ?? '').trim();
-      if (!starts_on || !ends_on || !label) return null;
-      return { occasion, starts_on, ends_on, label };
-    })
-    .filter((w): w is SeasonalOccasionWindow => w != null);
+  const out: SeasonalOccasionWindow[] = [];
+  for (const row of rows ?? []) {
+    const occasion = parseSeasonalOccasionKind(row.occasion);
+    if (occasion === 'none') continue;
+    const starts_on = String(row.starts_on ?? '').slice(0, 10);
+    const ends_on = String(row.ends_on ?? '').slice(0, 10);
+    const label = String(row.label ?? '').trim();
+    if (!starts_on || !ends_on || !label) continue;
+    out.push({ occasion, starts_on, ends_on, label });
+  }
+  return out;
 }
 
 export function useSeasonalOccasionWindows(env: AppEnv) {

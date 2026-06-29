@@ -49,6 +49,7 @@ import { formatDiscoverCardSubtitle } from '@/lib/landmarkDisplay';
 import {
   getActiveSeasonalWindows,
   listingMatchesOccasionFilter,
+  parseSeasonalOccasionKind,
   type SeasonalOccasionKind,
 } from '@/domain/seasonalOccasion';
 import { useSeasonalOccasionWindows } from '@/hooks/useSeasonalOccasionWindows';
@@ -429,7 +430,9 @@ export function SearchResultsScreen(): React.ReactElement {
           .filter((r) =>
             matchesDistanceFilter(r, distance, scopedLat, scopedLng),
           )
-          .filter((r) => listingMatchesOccasionFilter(r.occasion_kind, selectedOccasion)),
+          .filter((r) =>
+            listingMatchesOccasionFilter(parseSeasonalOccasionKind(r.occasion_kind), selectedOccasion),
+          ),
         selectedNeighbourhoods,
       ),
     [rows, category, price, pickup, distance, scopedLat, scopedLng, selectedNeighbourhoods, selectedOccasion],

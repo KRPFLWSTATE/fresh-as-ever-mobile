@@ -18,6 +18,7 @@ export type MerchantBagRow = {
   image_url: string | null;
   pickup_start: string | null;
   pickup_end: string | null;
+  seed_demo?: boolean | null;
 };
 
 export type CreateMerchantBagPayload = {
@@ -56,6 +57,7 @@ function mapBag(b: Record<string, unknown>): MerchantBagRow {
     pickup_start:
       typeof b.pickup_start === 'string' ? b.pickup_start : null,
     pickup_end: typeof b.pickup_end === 'string' ? b.pickup_end : null,
+    seed_demo: b.seed_demo === true,
   };
 }
 

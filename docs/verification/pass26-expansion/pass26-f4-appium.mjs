@@ -23,6 +23,7 @@ import {
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const SHOTS = path.join(ROOT, 'screenshots', 'f4');
 const APPIUM = { hostname: '127.0.0.1', port: 4723, path: '/' };
+const PORTAL = process.env.PORTAL || 'all';
 
 const BAKEHOUSE_BAG1 = '00000000-0000-0000-0000-000000000004';
 const BAKEHOUSE_BAG2 = '00000000-0000-0000-0000-000000000014';
@@ -145,11 +146,14 @@ async function main() {
   const all = [];
   try {
     await relaunchApp(d);
+    if (PORTAL === 'all' || PORTAL === 'customer') {
     await loginCustomer(d);
     await dismissOverlays(d);
     all.push(...(await runCustomerCases(d)));
-
     await merchantLogout(d);
+    }
+
+    if (PORTAL === 'all' || PORTAL === 'bakehouse') {
     const bhOk = await loginBakehouse(d);
     if (bhOk) {
       all.push(...(await runBakehouseMerchantCases(d)));
@@ -161,11 +165,15 @@ async function main() {
     }
 
     await merchantLogout(d);
+    }
+
+    if (PORTAL === 'all' || PORTAL === 'kumbuk') {
     const kbOk = await loginKumbuk(d);
     if (kbOk) {
       all.push(await runKumbukMerchantCase(d));
     } else {
       all.push({ id: 'F4-M03', pass: false, detail: 'kumbuk login failed' });
+    }
     }
   } finally {
     await d.deleteSession().catch(() => {});

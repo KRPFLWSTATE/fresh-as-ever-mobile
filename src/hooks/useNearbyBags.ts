@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { isBagCustomerVisible } from '@/domain/listingVisibility';
 import { parseOutletCoords } from '@/lib/parseOutletCoords';
 import { fetchPublishedShelves, mergeDiscoverFeed } from '@/lib/discoverFeed';
 import { getSupabase } from '@/lib/supabase';
@@ -38,6 +39,29 @@ export type DiscoverBag = {
   no_show_rate_pct?: number | null;
   occasion_kind?: string | null;
 };
+
+const BAG_OUTLET_SELECT = `
+  id,
+  name,
+  category,
+  landmark,
+  location,
+  trust_score,
+  average_rating,
+  total_reviews,
+  collection_rate_pct,
+  complaint_rate_pct,
+  no_show_rate_pct,
+  is_active,
+  use_demo_listings,
+  merchant:merchants (status)
+`;
+
+function filterCustomerVisibleBagRows(
+  rows: Record<string, unknown>[],
+): Record<string, unknown>[] {
+  return rows.filter((row) => isBagCustomerVisible(row));
+}
 
 async function enrichBagsWithOutletCoords(
   supabase: ReturnType<typeof getSupabase>,
@@ -308,33 +332,31 @@ async function fetchBagsForOutlets(
           image_url,
           quantity_remaining,
           outlet_id,
+          status,
+          seed_demo,
           outlet:outlets (
-            id,
-            name,
-            category,
-            landmark,
-            location,
-            trust_score,
-            average_rating,
-            total_reviews,
-            collection_rate_pct,
-            complaint_rate_pct,
-            no_show_rate_pct
+            ${BAG_OUTLET_SELECT}
           )
         `,
     )
     .in('outlet_id', uniqueIds)
-    .in('status', ['live', 'draft']);
+    .eq('status', 'live');
   if (!includeSoldOut) {
     query = query.gt('quantity_remaining', 0);
   }
+  const nowIso = new Date().toISOString();
+  query = query.gt('pickup_end', nowIso);
   const { data, error } = await query.order('created_at', { ascending: false });
   if (error) {
     logSupabaseError(error, 'useNearbyBags.fetchBagsForOutlets');
     return [];
   }
 
-  return (data ?? []).map((raw) => {
+  const visibleRows = filterCustomerVisibleBagRows(
+    (data ?? []) as Record<string, unknown>[],
+  );
+
+  return visibleRows.map((raw) => {
     const mapped = mapRow(raw as Record<string, unknown>);
     const outlet = (raw as Record<string, unknown>).outlet as
       | Record<string, unknown>
@@ -406,6 +428,7 @@ export async function fetchScopedNearbyBags(
   let next = (data as Record<string, unknown>[] | null)?.map(mapRow) ?? [];
 
   if (next.length === 0) {
+    const nowIso = new Date().toISOString();
     let fallbackQuery = supabase
       .from('rescue_bags')
       .select(
@@ -421,22 +444,15 @@ export async function fetchScopedNearbyBags(
           image_url,
           quantity_remaining,
           occasion_kind,
+          status,
+          seed_demo,
           outlet:outlets (
-            id,
-            name,
-            category,
-            landmark,
-            location,
-            trust_score,
-            average_rating,
-            total_reviews,
-            collection_rate_pct,
-            complaint_rate_pct,
-            no_show_rate_pct
+            ${BAG_OUTLET_SELECT}
           )
         `,
       )
-      .in('status', ['live', 'draft']);
+      .eq('status', 'live')
+      .gt('pickup_end', nowIso);
     if (!includeSoldOut) {
       fallbackQuery = fallbackQuery.gt('quantity_remaining', 0);
     }
@@ -448,7 +464,11 @@ export async function fetchScopedNearbyBags(
       throw fbErr;
     }
 
-    next = (fallback ?? []).map((raw) => {
+    const visibleFallback = filterCustomerVisibleBagRows(
+      (fallback ?? []) as Record<string, unknown>[],
+    );
+
+    next = visibleFallback.map((raw) => {
       const mapped = mapRow(raw as Record<string, unknown>);
       const outlet = (raw as Record<string, unknown>).outlet as
         | Record<string, unknown>

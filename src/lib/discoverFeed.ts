@@ -2,6 +2,12 @@ import { calcItemSavingsPercent } from '@/lib/shelfDisplay';
 import { resolveShelfItemCategory } from '@/lib/shelfBrowse';
 import { isClearanceShelvesEnabled } from '@/config/clearanceShelves';
 import {
+  isDemoListingVisible,
+  isOutletDiscoverVisible,
+} from '@/domain/listingVisibility';
+
+export { isOutletDiscoverVisible } from '@/domain/listingVisibility';
+import {
   canPublishClearanceShelves,
   canPublishRescueBags,
 } from '@/lib/outletListingMode';
@@ -40,6 +46,8 @@ export type DiscoverFeedItem =
       shelfCategories?: string[];
       savingsPercentMin?: number;
       savingsPercentMax?: number;
+      occasion_kind?: string;
+      pickup_window_kind?: string;
       payload: Record<string, unknown>;
     };
 
@@ -178,25 +186,6 @@ export async function fetchPublishedShelves(
         Number((i as Record<string, unknown>).quantity_remaining) > 0,
     );
   }) as Record<string, unknown>[];
-}
-
-/** Hide listings from paused outlets or merchants that ops suspended/rejected. */
-export function isOutletDiscoverVisible(
-  outlet: Record<string, unknown> | undefined,
-): boolean {
-  if (!outlet) return false;
-  if (outlet.is_active === false) return false;
-  const merchant = outlet.merchant as Record<string, unknown> | undefined;
-  if (!merchant?.status) return false;
-  return String(merchant.status) === 'approved';
-}
-
-function isDemoListingVisible(
-  seedDemo: unknown,
-  outlet: Record<string, unknown> | undefined,
-): boolean {
-  if (seedDemo !== true) return true;
-  return outlet?.use_demo_listings !== false;
 }
 
 export function filterDiscoverFeedByMerchantStatus(

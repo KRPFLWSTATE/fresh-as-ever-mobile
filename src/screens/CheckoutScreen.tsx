@@ -33,6 +33,7 @@ import { logError } from '@/observability/logError';
 import { ERROR } from '@/lib/messages/errors';
 import { mapCheckoutError } from '@/lib/messages/rpc';
 import { mapSupabaseError } from '@/lib/supabaseError';
+import { isBagCustomerVisible, isShelfCustomerVisible } from '@/domain/listingVisibility';
 import { randomReservationCode } from '@/lib/secureRandom';
 import { useStitchTheme } from '@/theme/StitchThemeContext';
 import {
@@ -194,12 +195,16 @@ export function CheckoutScreen() {
         }
         const { data: shelfRow, error: shelfErr } = await sb
           .from('clearance_shelves')
-          .select(`*, outlet:outlets (id, name), items:clearance_shelf_items (*)`)
+          .select(
+            `*, shelf_date, seed_demo, outlet:outlets (id, name, is_active, use_demo_listings, merchant:merchants(status)), items:clearance_shelf_items (*)`,
+          )
           .eq('id', shelfId)
           .eq('status', 'published')
           .maybeSingle();
         if (shelfErr) throw shelfErr;
-        if (!shelfRow) throw new Error('Shelf not found');
+        if (!shelfRow || !isShelfCustomerVisible(shelfRow as Record<string, unknown>)) {
+          throw new Error('Shelf not found');
+        }
         const byId = new Map(
           ((shelfRow.items ?? []) as Record<string, unknown>[]).map((i) => [String(i.id), i]),
         );
@@ -258,7 +263,7 @@ export function CheckoutScreen() {
       const { data: rows, error } = await sb
         .from('rescue_bags')
         .select(
-          `*, outlet:outlets ( id, name, address, landmark, merchant:merchants(business_name) )`,
+          `*, outlet:outlets ( id, name, address, landmark, is_active, use_demo_listings, merchant:merchants(business_name, status) )`,
         )
         .in('id', [...new Set(groupBagIds)]);
       if (error) throw error;
@@ -268,7 +273,7 @@ export function CheckoutScreen() {
       const list: Record<string, unknown>[] = [];
       for (const id of groupBagIds) {
         const row = byId.get(id);
-        if (!row) {
+        if (!row || !isBagCustomerVisible(row)) {
           throw new Error('One or more bags are no longer available.');
         }
         list.push(row);
@@ -787,6 +792,25 @@ export function CheckoutScreen() {
     }
   }
 
+  const allowPaymentWebViewRequest = useCallback((requestUrl: string) => {
+    if (requestUrl === 'about:blank') return true;
+    try {
+      const parsed = new URL(requestUrl);
+      if (parsed.protocol !== 'https:') return false;
+      const host = parsed.hostname.toLowerCase();
+      if (host.endsWith('payhere.lk')) return true;
+      if (host.endsWith('freshasever.com') || host.endsWith('freshasever.lk')) {
+        return true;
+      }
+      if (__DEV__ && (host === 'localhost' || host.endsWith('.test'))) {
+        return true;
+      }
+      return false;
+    } catch {
+      return false;
+    }
+  }, []);
+
   const pickupOverlapIssue = useMemo(() => {
     if (!isGroupCheckout) return null;
     return describePickupOverlapIssue(
@@ -1281,8 +1305,17 @@ export function CheckoutScreen() {
           {payHtml ? (
             <WebView
               style={{ flex: 1, backgroundColor: colors.surface }}
-              originWhitelist={__DEV__ ? ['https://*', 'http://*'] : ['https://*']}
-              source={{ html: payHtml }}
+              originWhitelist={['https://*']}
+              source={{ html: payHtml, baseUrl: 'https://freshasever.com' }}
+              javaScriptEnabled
+              domStorageEnabled={false}
+              geolocationEnabled={false}
+              setSupportMultipleWindows={false}
+              mixedContentMode="never"
+              allowsInlineMediaPlayback={false}
+              onShouldStartLoadWithRequest={(event) =>
+                allowPaymentWebViewRequest(event.url)
+              }
               onNavigationStateChange={(navState) =>
                 onPaymentNavState(navState.url)
               }

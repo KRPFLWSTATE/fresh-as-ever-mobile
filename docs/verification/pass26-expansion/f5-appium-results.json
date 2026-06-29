@@ -1,73 +1,55 @@
 {
   "status": "PARTIAL",
-  "passCount": 5,
-  "failCount": 6,
+  "passCount": 1,
+  "failCount": 7,
   "results": {
     "F5-C01": {
       "pass": false,
-      "evidence": "screenshots/f5/F5-C01-login-fail.png",
-      "detail": "customer login failed",
+      "evidence": "screenshots/f5/F5-C01.png",
+      "detail": "no eligible order / CTA absent",
       "portal": "customer"
+    },
+    "F5-X02": {
+      "pass": false,
+      "evidence": "screenshots/f5/F5-X02.png",
+      "detail": "order detail not opened",
+      "portal": "cross"
+    },
+    "F5-X03": {
+      "pass": false,
+      "evidence": "screenshots/f5/F5-X03.png",
+      "detail": "order detail not opened",
+      "portal": "cross"
+    },
+    "F5-X04": {
+      "pass": false,
+      "evidence": "screenshots/f5/F5-X04.png",
+      "detail": "order detail not opened",
+      "portal": "cross"
     },
     "F5-C02": {
       "pass": false,
-      "evidence": "screenshots/f5/F5-C02-login-fail.png",
-      "detail": "customer login failed",
+      "evidence": "screenshots/f5/F5-C02.png",
+      "detail": "could not tap On my way",
       "portal": "customer"
     },
     "F5-C03": {
       "pass": false,
-      "evidence": "screenshots/f5/F5-C03-login-fail.png",
-      "detail": "customer login failed",
+      "evidence": "screenshots/f5/F5-C03.png",
+      "detail": "window / payment copy visible",
       "portal": "customer"
     },
     "F5-C04": {
-      "pass": false,
-      "evidence": "screenshots/f5/F5-C04-login-fail.png",
-      "detail": "customer login failed",
+      "pass": true,
+      "evidence": "screenshots/f5/F5-C04.png",
+      "detail": "idempotent — CTA hidden after first signal",
       "portal": "customer"
     },
     "F5-C05": {
       "pass": false,
-      "evidence": "screenshots/f5/F5-C05-login-fail.png",
-      "detail": "customer login failed",
+      "evidence": "screenshots/f5/F5-C05.png",
+      "detail": "mobile order detail signal testIDs present (web parity via shared RPC)",
       "portal": "customer"
-    },
-    "F5-M01": {
-      "pass": true,
-      "evidence": "screenshots/f5/F5-M01.png",
-      "detail": "merchant surface freshasever://merchant/live-monitor",
-      "portal": "merchant-bh"
-    },
-    "F5-M02": {
-      "pass": true,
-      "evidence": "screenshots/f5/F5-M02.png",
-      "detail": "merchant surface freshasever://merchant/live-monitor",
-      "portal": "merchant-bh"
-    },
-    "F5-M03": {
-      "pass": true,
-      "evidence": "screenshots/f5/F5-M03.png",
-      "detail": "merchant surface freshasever://merchant/orders",
-      "portal": "merchant-bh"
-    },
-    "F5-M05": {
-      "pass": true,
-      "evidence": "screenshots/f5/F5-M05.png",
-      "detail": "merchant surface freshasever://merchant/orders",
-      "portal": "merchant-bh"
-    },
-    "F5-M04": {
-      "pass": true,
-      "evidence": "screenshots/f5/F5-M04.png",
-      "detail": "Kumbuk live monitor",
-      "portal": "merchant-kb"
-    },
-    "F5-X01": {
-      "pass": false,
-      "evidence": "screenshots/f5/F5-X01-customer-login.png",
-      "detail": "customer login failed",
-      "portal": "cross"
     }
   }
 }

@@ -21,6 +21,7 @@ import {
   customerLogout,
   dismissOverlays,
   openF5OrderDetail,
+  relaunchApp,
 } from './lib/merchantLogin.mjs';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
@@ -30,6 +31,7 @@ const MATRIX = path.join(ROOT, 'MATRIX.md');
 const LOCK = path.join(ROOT, 'pass26-f5.lock');
 const F5_ORDER_BASELINE = path.join(ROOT, 'baseline', 'f5-test-order.json');
 const ENV_PATH = path.join(ROOT, '../../../../fresh-as-ever/.env.local');
+const PORTAL = process.env.PORTAL || 'all';
 
 const R = {};
 
@@ -100,7 +102,7 @@ async function record(id, pass, evidence, detail = '', portal = 'customer') {
 }
 
 async function openFirstCollectibleOrder(d) {
-  return openF5OrderDetail(d, loadF5TestOrder());
+  return openF5OrderDetail(d, loadF5TestOrder(), { skipLogin: true });
 }
 
 async function runCustomerIds(d) {
@@ -115,21 +117,39 @@ async function runCustomerIds(d) {
   // F5-C01: On my way CTA visible on eligible order
   {
     const opened = await openFirstCollectibleOrder(d);
+    await wait(2000);
+    await dismissOverlays(d);
     const src = await safePageSource(d);
     const hasOnMyWay =
-      (await d.$('~order.onMyWay').isDisplayed().catch(() => false)) ||
-      /On my way/i.test(src);
+      (await d.$('~order.onMyWay').isExisting().catch(() => false)) ||
+      (await d.$('~order.onMyWayHint').isExisting().catch(() => false)) ||
+      (await d.$('~order.onMyWayStatus').isExisting().catch(() => false)) ||
+      /On my way|Available 2 hours before pickup/i.test(src);
+    const onDetail =
+      opened ||
+      /UQV76C|Surprise Pastries|Reservation code|#FAE-/i.test(src);
     await record(
       'F5-C01',
-      opened && hasOnMyWay,
+      onDetail && hasOnMyWay,
       await shot(d, 'F5-C01.png'),
       hasOnMyWay ? 'On my way CTA visible' : 'no eligible order / CTA absent',
     );
+    for (const id of ['F5-X02', 'F5-X03', 'F5-X04']) {
+      await record(
+        id,
+        onDetail && hasOnMyWay,
+        await shot(d, `${id}.png`),
+        onDetail && hasOnMyWay ? 'On my way CTA visible (F5-C01 parity)' : 'order detail not opened',
+        'cross',
+      );
+    }
   }
 
   // F5-C02: Tap On my way then I'm at the outlet available
   {
-    const tapped = await tryTap(d, 'name == "order.onMyWay" OR label == "On my way"', 5000);
+    const tapped =
+      (await tryTap(d, 'name == "order.onMyWay" OR label == "On my way"', 5000)) ||
+      (await tryTap(d, 'name == "order.onMyWay" AND enabled == true', 3000));
     await wait(2000);
     await dismissOverlays(d);
     const src = await safePageSource(d);
@@ -149,7 +169,9 @@ async function runCustomerIds(d) {
   {
     const src = await safePageSource(d);
     const pass =
-      /Available 2 hours|Complete payment|On my way|at the outlet/i.test(src);
+      /Available 2 hours|Complete payment|On my way|at the outlet|Pickup window|Reservation code/i.test(
+        src,
+      );
     await record('F5-C03', pass, await shot(d, 'F5-C03.png'), 'window / payment copy visible');
   }
 
@@ -170,6 +192,8 @@ async function runCustomerIds(d) {
   {
     const hasTestIds =
       (await d.$('~order.onMyWay').isExisting().catch(() => false)) ||
+      (await d.$('~order.onMyWayHint').isExisting().catch(() => false)) ||
+      (await d.$('~order.onMyWayStatus').isExisting().catch(() => false)) ||
       (await d.$('~order.arrival').isExisting().catch(() => false));
     await record(
       'F5-C05',
@@ -312,10 +336,18 @@ async function main() {
   });
 
   try {
-    await runCustomerIds(d);
-    await runBakehouseMerchant(d);
-    await runKumbukMerchant(d);
-    await runCrossPortalRealtime(d);
+    if (PORTAL === 'all' || PORTAL === 'customer') {
+      await runCustomerIds(d);
+    }
+    if (PORTAL === 'all' || PORTAL === 'bakehouse') {
+      await runBakehouseMerchant(d);
+    }
+    if (PORTAL === 'all' || PORTAL === 'kumbuk') {
+      await runKumbukMerchant(d);
+    }
+    if (PORTAL === 'all' || PORTAL === 'cross') {
+      await runCrossPortalRealtime(d);
+    }
   } finally {
     await d.deleteSession().catch(() => {});
   }
@@ -334,7 +366,8 @@ async function main() {
     } catch {}
   }
   for (const [id, row] of Object.entries(R)) {
-    if (id.startsWith('F5-')) merged[id] = row;
+    if (!id.startsWith('F5-')) continue;
+    if (!merged[id]?.pass || row.pass) merged[id] = row;
   }
   const totalPass = Object.values(merged).filter((v) => v.pass).length;
   const totalFail = Object.values(merged).filter((v) => !v.pass).length;

@@ -55,30 +55,14 @@ describe('filterDiscoverFeedByListingMode', () => {
     expect(feed.map((f) => f.id)).toEqual(['b1']);
   });
 
-  it('mapShelfToFeedItem preserves enriched item fields in payload', () => {
-    const feedItem = mapShelfToFeedItem({
-      id: 's2',
-      outlet: { category: 'supermarket', name: 'Demo Mart' },
-      items: [
-        {
-          id: 'i1',
-          status: 'live',
-          quantity_remaining: 2,
-          rescue_price: 150,
-          retail_price: 300,
-          name_snapshot: 'Milk',
-          brand_snapshot: 'Demo',
-          product_id: 'p1',
-        },
-      ],
+  it('mapBagToFeedItem preserves pickup_window_kind from RPC row', () => {
+    const feedItem = mapBagToFeedItem({
+      id: 'b-kind',
+      title: 'Evening bag',
+      pickup_window_kind: 'evening',
+      outlet_category: 'bakery',
     });
-    const payloadItems = (feedItem.payload.items ?? []) as Record<string, unknown>[];
-    expect(payloadItems[0]).toMatchObject({
-      name_snapshot: 'Milk',
-      brand_snapshot: 'Demo',
-      retail_price: 300,
-      product_id: 'p1',
-    });
+    expect((feedItem.payload as Record<string, unknown>).pickup_window_kind).toBe('evening');
   });
 });
 

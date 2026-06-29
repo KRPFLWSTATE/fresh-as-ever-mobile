@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -7,7 +7,7 @@ import {
   type TextStyle,
   type ViewStyle,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -119,6 +119,12 @@ export function MerchantDashboardScreen() {
     useMerchantDashboard(env);
   const recovered = useMerchantRecoveredRevenue(env);
   const { colors, spacing, radii } = useStitchTheme();
+
+  useFocusEffect(
+    useCallback(() => {
+      void refetch();
+    }, [refetch]),
+  );
 
   const venueLabel =
     String(activeOutlet?.name ?? merchant?.business_name ?? 'your outlet').trim() ||
@@ -443,7 +449,7 @@ export function MerchantDashboardScreen() {
                 {recovered.thisMonthLabelFormatted}
               </StitchText>
               <StitchText variant="body-sm" colorKey="textMuted" style={{ marginTop: spacing.xs }}>
-                Food you would have thrown away · {recovered.thisMonthLabel}
+                Retail value of collected food — not rescue order totals · {recovered.thisMonthLabel}
               </StitchText>
               {recovered.trendPercent != null ? (
                 <View

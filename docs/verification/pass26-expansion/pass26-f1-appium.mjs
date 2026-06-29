@@ -25,6 +25,7 @@ const SS_DIR = path.join(ROOT, 'screenshots', 'f1');
 const LOG = path.join(ROOT, 'verify-log.jsonl');
 const MATRIX = path.join(ROOT, 'MATRIX.md');
 const RESULTS = path.join(ROOT, 'results.json');
+const PORTAL = process.env.PORTAL || 'all';
 
 const BAKEHOUSE_BAG1 = '00000000-0000-0000-0000-000000000004';
 const BAKEHOUSE_BAG2 = '00000000-0000-0000-0000-000000000014';
@@ -67,11 +68,14 @@ function updateMatrix() {
 }
 
 function mergeResults() {
-  let merged = { ...R };
+  let merged = {};
   if (fs.existsSync(RESULTS)) {
     try {
-      merged = { ...JSON.parse(fs.readFileSync(RESULTS, 'utf8')).results, ...R };
+      merged = { ...JSON.parse(fs.readFileSync(RESULTS, 'utf8')).results };
     } catch {}
+  }
+  for (const [id, row] of Object.entries(R)) {
+    if (!merged[id]?.pass || row.pass) merged[id] = row;
   }
   const pass = Object.values(merged).filter((v) => v.pass).length;
   const fail = Object.values(merged).filter((v) => !v.pass).length;
@@ -97,6 +101,7 @@ async function main() {
 
   try {
     // Customer F1-C01..C05
+    if (PORTAL === 'all' || PORTAL === 'customer') {
     if (await loginCustomer(d)) {
       await dl('freshasever://discover');
       await wait(4000);
@@ -124,8 +129,10 @@ async function main() {
         await record(d, id, false, 'customer login failed', 'customer');
       }
     }
+    }
 
     // Bakehouse merchant F1-M01, M02, M03, M05
+    if (PORTAL === 'all' || PORTAL === 'bakehouse') {
     if (await loginBakehouse(d)) {
       for (const [id, chip] of [
         ['F1-M01', 'Morning Bake'],
@@ -147,8 +154,10 @@ async function main() {
         await record(d, id, false, 'bakehouse login failed', 'merchant-bh');
       }
     }
+    }
 
     // Kumbuk merchant F1-M04, M06
+    if (PORTAL === 'all' || PORTAL === 'kumbuk') {
     if (await loginKumbuk(d)) {
       await dl('freshasever://merchant/tabs/shelves');
       await wait(4000);
@@ -167,6 +176,7 @@ async function main() {
       for (const id of ['F1-M04', 'F1-M06']) {
         await record(d, id, false, 'kumbuk login failed', 'merchant-kb');
       }
+    }
     }
   } finally {
     await d.deleteSession().catch(() => {});

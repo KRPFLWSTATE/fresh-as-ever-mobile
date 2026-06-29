@@ -206,8 +206,8 @@ function watchPositionOptions(): Parameters<typeof Geolocation.watchPosition>[2]
       enableHighAccuracy: true,
       distanceFilter: 0,
       maximumAge: 0,
-      interval: 2_000,
-      fastestInterval: 500,
+      interval: 3_000,
+      fastestInterval: 3_000,
       useSignificantChanges: false,
     };
   }

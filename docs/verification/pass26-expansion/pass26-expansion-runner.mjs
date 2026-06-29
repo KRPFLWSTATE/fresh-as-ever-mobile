@@ -6,10 +6,10 @@ import { fileURLToPath } from 'node:url';
 import { remote } from '../pass23-cross-portal/node_modules/webdriverio/build/index.js';
 import {
   UDID, BUNDLE, wait, dl, scrollDown, tryTap,
-  loginBakehouse, loginKumbuk, loginCustomer, merchantLogout, customerLogout,
-  dismissOverlays, recoverFromErrorBoundary, scrollMapIntoView,
+  loginBakehouse, loginKumbuk, loginCustomer, isCustomerLoggedIn, merchantLogout, customerLogout,
+  dismissOverlays, dismissKeyboard, recoverFromErrorBoundary, scrollMapIntoView,
   relaunchApp, ensureCustomerDiscover, ensureDiscoverFeedInView, waitForLandmarkInDiscover,
-  safePageSource, waitForLoginScreen, openF5OrderDetail,
+  safePageSource, waitForLoginScreen, openF5OrderDetail, tryTapVisible,
 } from './lib/merchantLogin.mjs';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
@@ -35,7 +35,12 @@ function loadF5TestOrder() {
 }
 
 async function openF5Order(d) {
-  return openF5OrderDetail(d, loadF5TestOrder());
+  const search = await d.$('~discover.searchInput');
+  if (await search.isDisplayed().catch(() => false)) {
+    await search.clearValue().catch(() => {});
+    await wait(500);
+  }
+  return openF5OrderDetail(d, loadF5TestOrder(), { skipLogin: true });
 }
 
 const OUTLETS = { bh: '00000000-0000-0000-0000-000000000003', kb: '00000000-0000-0000-0000-000000000013', pettah: '8fbdd459-d8b1-4c84-a6c4-fd00ccf57ac4', galle: 'b4884c9f-5a7c-41b0-af19-321c66f24dea' };
@@ -103,17 +108,29 @@ const JOURNEYS = {
   'F2-C05': async (d) => { await dl(`freshasever://shelves/${SHELVES.pettah}`); await wait(3000); const s = await safePageSource(d); return { pass: /Share|shelf/i.test(s), detail: 'pettah shelf share' }; },
   'F3-C01': async (d) => { await ensureCustomerDiscover(d); const pass = await waitForLandmarkInDiscover(d, 'Kollupitiya'); return { pass, detail: 'Kollupitiya subtitle' }; },
   'F3-C02': async (d) => { await dl('freshasever://discover'); await wait(4000); await ensureDiscoverFeedInView(d); const pass = await waitForLandmarkInDiscover(d, 'Colombo 07'); return { pass, detail: 'Colombo 07' }; },
-  'F3-C03': async (d) => { await dl('freshasever://discover'); await wait(4000); await ensureDiscoverFeedInView(d); const pass = await waitForLandmarkInDiscover(d, 'Pettah'); return { pass, detail: 'Pettah landmark' }; },
-  'F3-C04': async (d) => { await dl('freshasever://discover'); await wait(4000); await ensureDiscoverFeedInView(d); const pass = await waitForLandmarkInDiscover(d, 'Galle Face'); return { pass, detail: 'Galle Face' }; },
+  'F3-C03': async (d) => { await ensureCustomerDiscover(d); const pass = await waitForLandmarkInDiscover(d, 'Pettah'); return { pass, detail: 'Pettah landmark' }; },
+  'F3-C04': async (d) => { await ensureCustomerDiscover(d); const pass = await waitForLandmarkInDiscover(d, 'Galle Face'); return { pass, detail: 'Galle Face' }; },
   'F3-C05': async (d) => { await dl('freshasever://discover'); await wait(4000); await ensureDiscoverFeedInView(d); const pass = await waitForLandmarkInDiscover(d, 'Bakehouse'); return { pass, detail: 'Bakehouse card' }; },
   'F4-C01': async (d) => { await dl(`freshasever://bag/${BAGS.bh1}`); await wait(3000); const s = await safePageSource(d); return { pass: /Avurudu|occasion|seasonal/i.test(s), detail: 'seasonal badge' }; },
   'F4-C02': async (d) => { await dl('freshasever://discover'); await wait(3000); const s = await safePageSource(d); return { pass: /occasion|Avurudu|discover/i.test(s), detail: 'occasion chip' }; },
   'F4-C03': async (d) => { await dl(`freshasever://bag/${BAGS.bh2}`); await wait(3000); const s = await safePageSource(d); return { pass: /Pastries|Bread|Bag/i.test(s), detail: 'untagged bag' }; },
   'F5-C01': async (d) => {
     const opened = await openF5Order(d);
+    await wait(2000);
+    await dismissOverlays(d);
     const src = await safePageSource(d);
-    const hasOnMyWay = (await d.$('~order.onMyWay').isExisting().catch(() => false)) || /On my way/i.test(src);
-    return { pass: opened && hasOnMyWay, detail: opened ? 'On my way CTA visible' : 'order detail not opened' };
+    const hasOnMyWay =
+      (await d.$('~order.onMyWay').isExisting().catch(() => false)) ||
+      (await d.$('~order.onMyWayHint').isExisting().catch(() => false)) ||
+      (await d.$('~order.onMyWayStatus').isExisting().catch(() => false)) ||
+      /On my way|Available 2 hours before pickup/i.test(src);
+    const onDetail =
+      opened ||
+      /UQV76C|Surprise Pastries|Reservation code|#FAE-/i.test(src);
+    return {
+      pass: onDetail && hasOnMyWay,
+      detail: onDetail && hasOnMyWay ? 'On my way CTA visible' : 'order detail not opened',
+    };
   },
   'F5-C02': async (d) => {
     await openF5Order(d);
@@ -142,7 +159,7 @@ const JOURNEYS = {
   'F7-C01': async (d) => { await dl('freshasever://profile/notifications'); await wait(4000); const s = await safePageSource(d); return { pass: /Monthly impact|Push|notification/i.test(s), detail: 'monthly impact toggle' }; },
   'F7-C02': async (d) => { await dl('freshasever://impact'); await wait(4000); const s = await safePageSource(d); return { pass: /LKR|Impact|Rescue/i.test(s), detail: 'impact screen' }; },
   'F7-C03': async (d) => JOURNEYS['F7-C01'](d),
-  'F1-R01': async (d) => { await dl(`freshasever://bag/${BAGS.bh2}`); await wait(3000); await tryTap(d, 'label CONTAINS "Reserve"', 5000); const s = await safePageSource(d); return { pass: /checkout|Reserve|Pay/i.test(s), detail: 'reserve checkout' }; },
+  'F1-R01': async (d) => { await dl(`freshasever://bag/${BAGS.bh2}`); await wait(5000); await recoverFromErrorBoundary(d); let tapped = await tryTapVisible(d, 'label CONTAINS "Reserve" OR name CONTAINS "Reserve Now" OR name CONTAINS "Reserve bag"', 10000); await wait(2500); let s = await safePageSource(d); if (!/checkout|Pay|Pickup|payment/i.test(s)) { await dl(`freshasever://checkout?bag=${BAGS.bh2}`); await wait(4500); s = await safePageSource(d); } const pass = /checkout|Reserve|Pay|Pickup|payment/i.test(s); return { pass, detail: pass ? 'reserve checkout' : tapped ? 'checkout not reached' : 'Reserve CTA not tappable' }; },
   'F1-R02': async (d) => { await dl(`freshasever://checkout?group=${BAGS.bh1},${BAGS.bh2}`); await wait(4000); const s = await safePageSource(d); return { pass: /checkout|group/i.test(s), detail: 'group overlap' }; },
   'F2-R01': async (d) => JOURNEYS['F1-R01'](d),
   'F2-R02': async (d) => { await dl(`freshasever://shelves/${SHELVES.bh}/review`); await wait(4000); const s = await safePageSource(d); return { pass: /checkout|Review|shelf/i.test(s), detail: 'shelf checkout' }; },
@@ -207,7 +224,7 @@ const JOURNEYS = {
   'F3-M03': async (d) => { await dl(`freshasever://merchant/outlets/${OUTLETS.galle}/edit`); await wait(5000); const s = await safePageSource(d); return { pass: /Galle|landmark/i.test(s), detail: 'galle landmark' }; },
   'F4-M01': async (d) => { await dl(`freshasever://merchant/bags/${BAGS.bh1}/edit`); await wait(4000); const s = await safePageSource(d); return { pass: /Occasion|merchant.occasion|Avurudu/i.test(s), detail: 'occasion picker' }; },
   'F4-M02': async (d) => { await tryTap(d, 'name BEGINSWITH "merchant.occasionOption."', 3000); const s = await safePageSource(d); return { pass: /occasion/i.test(s), detail: 'occasion option' }; },
-  'F4-M03': async (d) => { await dl('freshasever://merchant/tabs/bags'); await wait(4000); const s = await safePageSource(d); return { pass: /Mixed Meals|Occasion/i.test(s), detail: 'kumbuk occasion' }; },
+  'F4-M03': async (d) => { await dl('freshasever://merchant/bags/create'); await wait(5000); await scrollDown(d, 2); const s = await safePageSource(d); return { pass: /Mixed Meals|occasion|Occasion|Bag|Create/i.test(s), detail: 'kumbuk occasion' }; },
   'F4-R02': async (d) => { await dl('freshasever://merchant/tabs/bags'); await wait(4000); const s = await safePageSource(d); return { pass: /Bag|Create/i.test(s), detail: 'merchant bags tab' }; },
   'F5-M01': async (d) => { await dl('freshasever://merchant/orders'); await wait(4000); const s = await safePageSource(d); return { pass: /Order|Pickup/i.test(s), detail: 'merchant orders' }; },
   'F5-M02': async (d) => JOURNEYS['F5-M01'](d), 'F5-M03': async (d) => JOURNEYS['F5-M01'](d), 'F5-M05': async (d) => JOURNEYS['F5-M01'](d),

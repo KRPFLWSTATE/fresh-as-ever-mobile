@@ -53,14 +53,33 @@ export function sumRevenue(
   return rows.reduce((sum, r) => sum + Number(r.total ?? 0), 0);
 }
 
+type SurplusShelfItemRow = {
+  quantity?: number | null;
+  retail_price?: number | string | null;
+  clearance_shelf_items?: { retail_price?: number | string | null } | null;
+};
+
 export function sumSurplusRecovered(
   rows: {
     quantity?: number | null;
     bag?: { retail_value_estimate?: number | string | null } | null;
+    order_items?: SurplusShelfItemRow[] | null;
   }[],
 ): number {
   let total = 0;
   for (const row of rows) {
+    const lineItems = Array.isArray(row.order_items) ? row.order_items : [];
+    if (lineItems.length > 0) {
+      for (const item of lineItems) {
+        const retail = Number(
+          item.retail_price ?? item.clearance_shelf_items?.retail_price ?? 0,
+        );
+        if (!Number.isFinite(retail) || retail <= 0) continue;
+        const qty = Math.max(1, Number(item.quantity ?? 1) || 1);
+        total += retail * qty;
+      }
+      continue;
+    }
     const retail = Number(row.bag?.retail_value_estimate ?? 0);
     if (!Number.isFinite(retail) || retail <= 0) continue;
     const qty = Math.max(1, Number(row.quantity ?? 1) || 1);

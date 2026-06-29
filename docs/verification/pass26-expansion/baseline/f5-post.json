@@ -1,8 +1,8 @@
 {
   "migration": "20260620150000_customer_on_the_way",
-  "applied_at": "2026-06-20T15:00:00.000Z",
   "column": "customer_on_the_way_at",
   "rpc": "customer_signal_on_the_way",
+  "applied_at": "2026-06-20T15:00:00.000Z",
   "collect_clears": [
     "merchant_collect_order",
     "admin_collect_order",

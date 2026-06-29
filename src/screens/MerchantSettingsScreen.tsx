@@ -16,6 +16,7 @@ import { useAuthContext } from '@/context/AuthContext';
 import { useMerchantContext } from '@/hooks/useMerchantContext';
 import { getSupabase } from '@/lib/supabase';
 import type { RootStackParamList } from '@/navigation/types';
+import { preferenceLabel } from '@/screens/ProfileThemeScreen';
 import { useStitchTheme } from '@/theme/StitchThemeContext';
 import {
   StitchButton,
@@ -40,7 +41,7 @@ export function MerchantSettingsScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { env, signOut } = useAuthContext();
   const { merchant } = useMerchantContext(env);
-  const { colors, radii, spacing } = useStitchTheme();
+  const { colors, radii, spacing, themePreference } = useStitchTheme();
   const [sound, setSound] = useState(true);
   const [quiet, setQuiet] = useState(false);
   const [pwToggle, setPwToggle] = useState(false);
@@ -454,6 +455,21 @@ export function MerchantSettingsScreen() {
           <StitchText variant="body-md" colorKey="text">
             Help & support
           </StitchText>
+          <StitchIcon name="chevron_right" size={22} colorKey="textFaint" />
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => navigation.navigate('ProfileTheme')}
+          style={({ pressed }) => [styles.row, { opacity: pressed ? 0.88 : 1 }]}
+        >
+          <View style={{ flex: 1 }}>
+            <StitchText variant="body-md" colorKey="text">
+              Appearance
+            </StitchText>
+            <StitchText variant="body-sm" colorKey="textMuted" style={{ marginTop: 4 }}>
+              {preferenceLabel(themePreference)}
+            </StitchText>
+          </View>
           <StitchIcon name="chevron_right" size={22} colorKey="textFaint" />
         </Pressable>
         <Pressable

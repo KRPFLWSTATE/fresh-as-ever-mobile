@@ -95,4 +95,25 @@ describe('merchantAnalytics', () => {
       sumSurplusRecovered([{ quantity: 3, bag: { retail_value_estimate: 100 } }]),
     ).toBe(300);
   });
+
+  it('sumSurplusRecovered sums shelf line retail prices', () => {
+    expect(
+      sumSurplusRecovered([
+        {
+          quantity: 1,
+          bag: null,
+          order_items: [
+            {
+              quantity: 1,
+              clearance_shelf_items: { retail_price: 320 },
+            },
+            {
+              quantity: 2,
+              clearance_shelf_items: { retail_price: 220 },
+            },
+          ],
+        },
+      ]),
+    ).toBe(760);
+  });
 });

@@ -17,6 +17,8 @@ import {
   dismissSavePassword,
   dismissSystemPrompts,
   safePageSource,
+  ensureCustomerAuthForOutlet,
+  waitForOutletBagsLoaded,
 } from './lib/merchantLogin.mjs';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
@@ -77,16 +79,16 @@ try {
   const custLogin = await loginCustomer(d);
   await dismissSavePassword(d);
   await dismissSystemPrompts(d);
-  if (!custLogin) console.warn('Customer login may have failed — continuing');
+  const authed = await ensureCustomerAuthForOutlet(d);
+  if (!custLogin && !authed) console.warn('Customer login may have failed — continuing');
 
   if (shouldRun('C-02')) {
     await dl(`freshasever://outlet/${BAKEHOUSE_OUTLET}`);
     await wait(6000);
     await recoverFromErrorBoundary(d);
-    const bhDiscSrc = await safePageSource(d);
-    const bhHasBags =
-      !/0 listed/.test(bhDiscSrc) ||
-      /Pastries|Bread|Croissant|Evening|Surprise|\[Demo\].*LKR/i.test(bhDiscSrc);
+    const bhWait = await waitForOutletBagsLoaded(d);
+    const bhDiscSrc = bhWait.src;
+    const bhHasBags = bhWait.pass;
     await record('C-02', bhHasBags, await shot(d, 'C-02-bh-discover.png'), 'Bakehouse bag cards');
   }
 
@@ -94,15 +96,13 @@ try {
     await dl(`freshasever://outlet/${KUMBUK_OUTLET}`);
     await wait(6000);
     await recoverFromErrorBoundary(d);
-    let kbDiscSrc = await safePageSource(d);
-    let kbDiscPass =
-      (!/0 listed/.test(kbDiscSrc) &&
-        /Mixed Meals|Savory|Sandwich|Family Box|Cafe Sandwich|Rice & Curry/i.test(kbDiscSrc)) ||
-      /Mixed Meals|Savory|Sandwich|Family Box|Reserve Now|LKR/i.test(kbDiscSrc);
+    let kbWait = await waitForOutletBagsLoaded(d);
+    let kbDiscPass = kbWait.pass;
     if (!kbDiscPass) {
       await dl(`freshasever://bag/${KUMBUK_BAG}`);
       await wait(5000);
-      kbDiscSrc = await safePageSource(d);
+      await recoverFromErrorBoundary(d);
+      const kbDiscSrc = await safePageSource(d);
       kbDiscPass = /Mixed Meals|Savory|Sandwich|Family Box|Reserve|LKR/i.test(kbDiscSrc);
     }
     await record('C-03', kbDiscPass, await shot(d, 'C-03-kb-discover.png'), 'Kumbuk bag cards');

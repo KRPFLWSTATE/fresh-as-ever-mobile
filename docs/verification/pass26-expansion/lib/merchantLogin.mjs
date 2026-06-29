@@ -174,6 +174,16 @@ export async function tryTap(d, pred, timeout = 8000) {
 }
 
 /** Fast tap for system sheets — no long waitForExist poll. */
+export async function tryTapVisible(d, pred, timeout = 10000) {
+  const deadline = Date.now() + timeout;
+  while (Date.now() < deadline) {
+    if (await quickTap(d, pred)) return true;
+    await scrollDown(d, 1);
+    await wait(500);
+  }
+  return false;
+}
+
 export async function quickTap(d, pred) {
   try {
     const els = await d.$$(`-ios predicate string:${pred}`);
@@ -420,9 +430,21 @@ export async function dismissDiscoverSheets(d) {
   await tryTap(d, 'label == "Not now" OR label == "Not Now"', 1500);
 }
 
+const LANDMARK_ALIASES = {
+  Pettah: ['Pettah', 'Pettah Green', 'Colombo 11'],
+  'Galle Face': ['Galle Face', 'Galle Face Bites'],
+};
+
+function landmarkPatterns(landmark) {
+  const aliases = LANDMARK_ALIASES[landmark] || [landmark];
+  return aliases.map((token) => {
+    const esc = String(token).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return new RegExp(esc, 'i');
+  });
+}
+
 export async function landmarkVisibleInDiscover(d, landmark) {
-  const esc = String(landmark).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const re = new RegExp(esc, 'i');
+  const patterns = landmarkPatterns(landmark);
   const subs = await d.$$('-ios predicate string:name BEGINSWITH "discover.card.subtitle."');
   for (const el of subs) {
     const label =
@@ -430,12 +452,11 @@ export async function landmarkVisibleInDiscover(d, landmark) {
       (await el.getAttribute('label').catch(() => '')) ||
       (await el.getAttribute('name').catch(() => '')) ||
       '';
-    if (re.test(label)) return true;
-    if (label.includes('·') && re.test(label)) return true;
+    if (patterns.some((re) => re.test(label))) return true;
   }
   const src = await safePageSource(d);
-  if (new RegExp(`·\\s*${esc}`, 'i').test(src)) return true;
-  return re.test(src);
+  if (patterns.some((re) => re.test(src))) return true;
+  return false;
 }
 
 export async function scrollDiscoverListFeed(d, times = 1) {
@@ -483,9 +504,17 @@ export async function ensureDiscoverFeedInView(d) {
   return true;
 }
 
-export async function waitForLandmarkInDiscover(d, landmark, { timeoutMs = 35000, maxScrolls = 14 } = {}) {
+export async function waitForLandmarkInDiscover(d, landmark, { timeoutMs = 45000, maxScrolls = 22 } = {}) {
   const deadline = Date.now() + timeoutMs;
   let scrolls = 0;
+  const searchInput = await d.$('~discover.searchInput');
+  if (await searchInput.isDisplayed().catch(() => false)) {
+    await searchInput.click().catch(() => {});
+    await searchInput.setValue(String(landmark));
+    await wait(2800);
+    await dismissKeyboard(d);
+    await dismissDiscoverSheets(d);
+  }
   while (Date.now() < deadline) {
     if (!(await isSessionAlive(d))) return false;
     await recoverFromErrorBoundary(d);
@@ -1198,8 +1227,8 @@ async function customerLoginTapPath(d) {
   await wait(2000);
   await ensureEmailLoginForm(d, 'customer');
   await tapSignIn(d, { portal: 'customer' });
-  for (let i = 0; i < 25; i++) {
-    await wait(2000);
+  for (let i = 0; i < 10; i++) {
+    await wait(1500);
     await dismissSavePassword(d);
     if (await isCustomerLoggedIn(d)) return true;
     const tabDiscover = await d.$('~tab.discover');
@@ -1253,7 +1282,7 @@ export async function loginCustomer(d) {
 }
 
 async function customerLoginSucceeded(d) {
-  if (await confirmCustomerAuth(d)) return true;
+  await ensureCustomerDiscover(d);
   return isCustomerLoggedIn(d);
 }
 
@@ -1333,13 +1362,12 @@ export async function customerLogout(d) {
 }
 
 /** Open F5 QA order detail — login, Appium deepLink, wait for testIDs, Orders-tab fallback. */
-export async function openF5OrderDetail(d, seed = null) {
+export async function openF5OrderDetail(d, seed = null, { skipLogin = false } = {}) {
   const code = seed?.reservation_code || 'UQV76C';
   const orderId = seed?.order_id || 'a1ba7758-7290-4ece-804d-15585f7da9eb';
   const outlet = seed?.outlet_name || '';
   const orderRef = `#FAE-${code}`;
-  const deeplink =
-    seed?.deeplink || `freshasever://orders/${orderId}`;
+  const deeplink = seed?.deeplink || `freshasever://orders/${orderId}`;
 
   async function onOrderDetail() {
     const src = await safePageSource(d);
@@ -1356,47 +1384,60 @@ export async function openF5OrderDetail(d, seed = null) {
     );
   }
 
-  async function waitForOrderSurface(timeoutMs = 30_000) {
+  async function waitForOrderSurface(timeoutMs = 12_000) {
     const deadline = Date.now() + timeoutMs;
     while (Date.now() < deadline) {
       await dismissOverlays(d);
       if (await onOrderDetail()) return true;
-      if (await d.$('~order.onMyWay').isExisting().catch(() => false)) return true;
       await wait(1000);
     }
     return false;
   }
 
   async function openViaDeeplink() {
+    await dismissOverlays(d);
     try {
       await d.execute('mobile: deepLink', { url: deeplink });
     } catch {
       await dl(deeplink);
     }
-    await wait(3500);
+    await wait(4500);
     await dismissOverlays(d);
-    return waitForOrderSurface(30_000);
+    if (await waitForOrderSurface(12_000)) return true;
+    await dl(deeplink);
+    await wait(4500);
+    return waitForOrderSurface(12_000);
   }
 
   async function openViaOrdersTab() {
+    await dl('freshasever://orders');
+    await wait(3500);
+    await dismissOverlays(d);
+    for (const tabLabel of ['Active', 'Upcoming', 'Past']) {
+      await tryTap(d, `label == "${tabLabel}"`, 2500);
+      await wait(1500);
+      if (await onOrderDetail()) return true;
+    }
     const tab = await d.$('~tab.orders');
     if (await tab.isDisplayed().catch(() => false)) {
       await tab.click();
     } else {
       await tryTap(d, 'name == "tab.orders" OR label CONTAINS "Orders, tab"', 5000);
     }
-    await wait(4500);
+    await wait(3500);
     await dismissOverlays(d);
     await tryTap(d, 'label == "Active"', 4000);
     await wait(2000);
-    for (let scroll = 0; scroll < 6; scroll += 1) {
+    for (let scroll = 0; scroll < 8; scroll += 1) {
       if (await onOrderDetail()) return true;
       const tapped =
         (await tryTap(d, `label CONTAINS "${code}"`, 4000)) ||
         (orderRef && (await tryTap(d, `label CONTAINS "${orderRef}"`, 4000))) ||
-        (orderId && (await tryTap(d, `label CONTAINS "${orderId.slice(0, 8)}"`, 4000)));
+        (orderId && (await tryTap(d, `label CONTAINS "${orderId.slice(0, 8)}"`, 4000))) ||
+        (await tryTap(d, 'label CONTAINS "Surprise Pastries"', 3000)) ||
+        (await tryTap(d, 'label CONTAINS "Bakehouse Kollupitiya"', 3000));
       if (tapped) {
-        await wait(4000);
+        await wait(4500);
         await dismissOverlays(d);
         if (await onOrderDetail()) return true;
       }
@@ -1406,6 +1447,12 @@ export async function openF5OrderDetail(d, seed = null) {
     return onOrderDetail();
   }
 
+  if (skipLogin) {
+    if (!(await isCustomerLoggedIn(d)) && !(await loginCustomer(d))) return false;
+    await dismissOverlays(d);
+    if (await openViaOrdersTab()) return true;
+    return openViaDeeplink();
+  }
   if (!(await loginCustomer(d))) return false;
   if (await openViaDeeplink()) return true;
   return openViaOrdersTab();

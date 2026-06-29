@@ -14,9 +14,13 @@ import {
   wait,
   dl,
   loginCustomer,
+  loginBakehouse,
+  loginKumbuk,
+  merchantLogout,
   dismissOverlays,
   recoverFromErrorBoundary,
   safePageSource,
+  tryTap,
 } from './lib/merchantLogin.mjs';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
@@ -24,6 +28,7 @@ const SS = path.join(ROOT, 'screenshots', 'f2');
 const LOG = path.join(ROOT, 'verify-log.jsonl');
 const MATRIX = path.join(ROOT, 'MATRIX.md');
 const LOCK = path.join(ROOT, 'pass26-runner.lock');
+const PORTAL = process.env.PORTAL || 'all';
 
 const BAKEHOUSE_BAG1 = '00000000-0000-0000-0000-000000000004';
 const BAKEHOUSE_BAG2 = '00000000-0000-0000-0000-000000000014';
@@ -32,9 +37,9 @@ const KUMBUK_BAG = '00000000-0000-0000-0000-000000000105';
 const PETTAH_SHELF = '87e99daa-ef1f-494a-874d-da8a4abf40d3';
 
 const CASES = [
-  { id: 'F2-C01', route: `freshasever://bag/${BAKEHOUSE_BAG1}`, testId: 'bagDetail.whatsappShare', kind: 'bag', listingId: BAKEHOUSE_BAG1, outletName: 'Bakehouse', title: 'Demo bag', price: 450 },
-  { id: 'F2-C02', route: `freshasever://bag/${BAKEHOUSE_BAG2}`, testId: 'bagDetail.whatsappShare', kind: 'bag', listingId: BAKEHOUSE_BAG2, outletName: 'Bakehouse', title: 'Demo bag', price: 350 },
-  { id: 'F2-C03', route: `freshasever://bag/${KUMBUK_BAG}`, testId: 'bagDetail.whatsappShare', kind: 'bag', listingId: KUMBUK_BAG, outletName: 'Kumbuk', title: 'Demo bag', price: 300 },
+  { id: 'F2-C01', route: `freshasever://bags/${BAKEHOUSE_BAG1}`, testId: 'bagDetail.whatsappShare', kind: 'bag', listingId: BAKEHOUSE_BAG1, outletName: 'Bakehouse', title: 'Demo bag', price: 450 },
+  { id: 'F2-C02', route: `freshasever://bags/${BAKEHOUSE_BAG2}`, testId: 'bagDetail.whatsappShare', kind: 'bag', listingId: BAKEHOUSE_BAG2, outletName: 'Bakehouse', title: 'Demo bag', price: 350 },
+  { id: 'F2-C03', route: `freshasever://bags/${KUMBUK_BAG}`, testId: 'bagDetail.whatsappShare', kind: 'bag', listingId: KUMBUK_BAG, outletName: 'Kumbuk', title: 'Demo bag', price: 300 },
   { id: 'F2-C04', route: `freshasever://shelves/${BAKEHOUSE_SHELF}`, testId: 'shelfDetail.whatsappShare', kind: 'shelf', listingId: BAKEHOUSE_SHELF, outletName: 'Bakehouse' },
   { id: 'F2-C05', route: `freshasever://shelves/${PETTAH_SHELF}`, testId: 'shelfDetail.whatsappShare', kind: 'shelf', listingId: PETTAH_SHELF, outletName: 'Pettah' },
 ];
@@ -171,17 +176,103 @@ async function main() {
   try {
     await dismissOverlays(d);
     await recoverFromErrorBoundary(d);
+    if (PORTAL === 'all' || PORTAL === 'customer') {
     const loggedIn = await loginCustomer(d);
     if (!loggedIn) {
       console.error('Customer login failed');
-    }
-    await dismissOverlays(d);
+      for (const c of CASES) {
+        const evidence = await shot(d, `${c.id}.png`);
+        R[c.id] = { pass: false, detail: 'Customer login failed', portal: 'customer', evidence };
+      }
+      for (const id of ['F2-X01', 'F2-X02', 'F2-X03', 'F2-R01', 'F2-R02']) {
+        const evidence = await shot(d, `${id}.png`);
+        R[id] = { pass: false, detail: 'Customer login failed', portal: id.startsWith('F2-R') ? 'customer' : 'cross', evidence };
+      }
+    } else {
+      await dismissOverlays(d);
+      for (const c of CASES) {
+        await runCase(d, c);
+      }
 
-    for (const c of CASES) {
-      await runCase(d, c);
+      for (const [id, c] of [
+        ['F2-X01', CASES[0]],
+        ['F2-X02', CASES[2]],
+        ['F2-X03', CASES[3]],
+      ]) {
+        await runCase(d, { ...c, id });
+      }
+
+      await dl(`freshasever://bags/${BAKEHOUSE_BAG2}`);
+      await wait(3500);
+      await dismissOverlays(d);
+      await tryTap(d, 'label CONTAINS "Reserve"', 6000);
+      await wait(2000);
+      {
+        const src = await safePageSource(d);
+        const pass = /checkout|Reserve|Pay/i.test(src);
+        const evidence = await shot(d, 'F2-R01.png');
+        R['F2-R01'] = { pass, detail: pass ? 'Reserve checkout after bag detail' : 'Reserve/checkout missing', portal: 'customer', evidence };
+        log({ id: 'F2-R01', tool: 'appium.f2', result: pass ? 'PASS' : 'FAIL', detail: R['F2-R01'].detail, evidence });
+        console.log(`F2-R01: ${pass ? 'PASS' : 'FAIL'} — ${R['F2-R01'].detail}`);
+      }
+
+      await dl(`freshasever://shelves/${BAKEHOUSE_SHELF}/review`);
+      await wait(4000);
+      await dismissOverlays(d);
+      {
+        const src = await safePageSource(d);
+        const pass = /checkout|Review|shelf/i.test(src);
+        const evidence = await shot(d, 'F2-R02.png');
+        R['F2-R02'] = { pass, detail: pass ? 'Shelf checkout review surface' : 'Shelf checkout missing', portal: 'customer', evidence };
+        log({ id: 'F2-R02', tool: 'appium.f2', result: pass ? 'PASS' : 'FAIL', detail: R['F2-R02'].detail, evidence });
+        console.log(`F2-R02: ${pass ? 'PASS' : 'FAIL'} — ${R['F2-R02'].detail}`);
+      }
+    }
     }
 
-    R['F2-P0'] = { pass: true, detail: 'LISTING_WHATSAPP_SHARE=true in .env; Metro restarted; sim Colombo', portal: 'Setup', evidence: 'local env' };
+    if (PORTAL === 'all' || PORTAL === 'bakehouse') {
+    const bhOk = await loginBakehouse(d);
+    if (!bhOk) {
+      const evidence = await shot(d, 'F2-M01-login-fail.png');
+      R['F2-M01'] = { pass: false, detail: 'bakehouse login failed', portal: 'merchant-bh', evidence };
+      log({ id: 'F2-M01', tool: 'appium.f2', result: 'FAIL', detail: R['F2-M01'].detail, evidence });
+      console.log('F2-M01: FAIL — bakehouse login failed');
+    } else {
+      await dl(`freshasever://merchant/bags/${BAKEHOUSE_BAG1}/edit`);
+      await wait(4000);
+      await dismissOverlays(d);
+      const src = await safePageSource(d);
+      const pass = /Bakehouse|Kollupitiya/i.test(src);
+      const evidence = await shot(d, 'F2-M01.png');
+      R['F2-M01'] = { pass, detail: pass ? 'Bakehouse share context on bag edit' : 'Missing Bakehouse context', portal: 'merchant-bh', evidence };
+      log({ id: 'F2-M01', tool: 'appium.f2', result: pass ? 'PASS' : 'FAIL', detail: R['F2-M01'].detail, evidence });
+      console.log(`F2-M01: ${pass ? 'PASS' : 'FAIL'} — ${R['F2-M01'].detail}`);
+    }
+    await merchantLogout(d);
+    }
+
+    if (PORTAL === 'all' || PORTAL === 'kumbuk') {
+    const kbOk = await loginKumbuk(d);
+    if (!kbOk) {
+      const evidence = await shot(d, 'F2-M02-login-fail.png');
+      R['F2-M02'] = { pass: false, detail: 'kumbuk login failed', portal: 'merchant-kb', evidence };
+      log({ id: 'F2-M02', tool: 'appium.f2', result: 'FAIL', detail: R['F2-M02'].detail, evidence });
+      console.log('F2-M02: FAIL — kumbuk login failed');
+    } else {
+      await dl(`freshasever://shelves/${PETTAH_SHELF}`);
+      await wait(4000);
+      await dismissOverlays(d);
+      const src = await safePageSource(d);
+      const pass = /Pettah|Share|WhatsApp/i.test(src);
+      const evidence = await shot(d, 'F2-M02.png');
+      R['F2-M02'] = { pass, detail: pass ? 'Pettah shelf share cross-check' : 'Pettah/share missing', portal: 'merchant-kb', evidence };
+      log({ id: 'F2-M02', tool: 'appium.f2', result: pass ? 'PASS' : 'FAIL', detail: R['F2-M02'].detail, evidence });
+      console.log(`F2-M02: ${pass ? 'PASS' : 'FAIL'} — ${R['F2-M02'].detail}`);
+    }
+    await merchantLogout(d);
+    }
+
+    R['F2-P0'] = { pass: true, detail: 'LISTING_WHATSAPP_SHARE=true native build; sim Colombo', portal: 'Setup', evidence: 'local env' };
     log({ id: 'F2-P0', tool: 'appium.f2', result: 'PASS', detail: R['F2-P0'].detail });
 
     updateMatrix();

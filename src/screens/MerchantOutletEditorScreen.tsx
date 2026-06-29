@@ -16,7 +16,7 @@
  *     `update outlets set location = ST_SetSRID(ST_MakePoint(lng, lat), 4326)::geography
  *     where id = $1` (we verified `outlets.location` is `geography`).
  */
-import React, { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -115,7 +115,8 @@ export function MerchantOutletEditorScreen(): React.ReactElement {
   const navigation = useNavigation<Nav>();
   const route = useRoute<R>();
   const { env } = useAuthContext();
-  const { refetch: refetchMerchantContext, setActiveOutletId } = useMerchantContext(env);
+  const { refetch: refetchMerchantContext, activeOutletId, setActiveOutletId } =
+    useMerchantContext(env);
   const { colors, radii, spacing } = useStitchTheme();
   const outletId = String(route.params?.outletId ?? '').trim();
 
@@ -141,12 +142,16 @@ export function MerchantOutletEditorScreen(): React.ReactElement {
     () => outletCategoryWarnings(name, category),
     [name, category],
   );
+  const isCurrentOutlet = activeOutletId != null && String(activeOutletId) === outletId;
 
-  useLayoutEffect(() => {
-    if (outletId) {
-      setActiveOutletId(outletId);
-    }
-  }, [outletId, setActiveOutletId]);
+  const onSwitchToOutlet = useCallback(() => {
+    if (!outletId || isCurrentOutlet) return;
+    setActiveOutletId(outletId);
+    Alert.alert(
+      'Outlet switched',
+      `${name.trim() || 'This outlet'} is now your active outlet for bags, orders, and dashboard.`,
+    );
+  }, [isCurrentOutlet, name, outletId, setActiveOutletId]);
 
   useEffect(() => {
     let alive = true;
@@ -654,6 +659,44 @@ export function MerchantOutletEditorScreen(): React.ReactElement {
           style={{ flex: 1 }}
         />
       </View>
+
+      <View style={styles.switchOutletBlock}>
+        {isCurrentOutlet ? (
+          <StitchSurface
+            elevated
+            padding="md"
+            style={[styles.cardBorder, styles.currentOutletSurface]}
+          >
+            <View style={styles.currentOutletRow}>
+              <StitchIcon name="check_circle" size={22} colorKey="accent" />
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <StitchText variant="label" colorKey="text">
+                  Current outlet
+                </StitchText>
+                <StitchText variant="body-sm" colorKey="textMuted" style={{ marginTop: 2 }}>
+                  Bags, orders, and dashboard use this outlet. To switch, go back to Business
+                  profile and tap Switch on another outlet — or open a different outlet here to
+                  use the button below.
+                </StitchText>
+              </View>
+            </View>
+          </StitchSurface>
+        ) : (
+          <>
+            <StitchButton
+              testID="outlet.switchToThis"
+              title="Switch to this outlet"
+              variant="secondary"
+              onPress={onSwitchToOutlet}
+              disabled={saving}
+            />
+            <StitchText variant="body-sm" colorKey="textFaint" style={styles.switchOutletHint}>
+              Makes this outlet active for bags, orders, and dashboard without saving profile
+              edits.
+            </StitchText>
+          </>
+        )}
+      </View>
     </StitchScreen>
   );
 }
@@ -734,6 +777,21 @@ function createStyles(props: {
       flexDirection: 'row',
       gap: spacing.md,
       marginTop: spacing.md,
+    },
+    switchOutletBlock: {
+      gap: spacing.sm,
+      marginTop: spacing.md,
+    },
+    switchOutletHint: {
+      textAlign: 'center',
+    },
+    currentOutletSurface: {
+      backgroundColor: colors.accentHighlight,
+    },
+    currentOutletRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
     },
   });
 }

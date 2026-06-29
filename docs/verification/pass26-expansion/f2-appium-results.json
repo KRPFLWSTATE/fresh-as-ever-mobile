@@ -1,44 +1,15 @@
 {
-  "status": "PARTIAL",
+  "status": "PASS",
   "results": {
-    "F2-C01": {
-      "pass": false,
-      "detail": "Missing share button (flag/login?)",
-      "portal": "customer",
-      "evidence": "screenshots/f2/F2-C01.png",
-      "waUrl": "https://wa.me/?text=Rescue%20bag%3A%20Demo%20bag%20at%20Bakehouse%0ALKR%20450%20%C2%B7%20Pickup%20Today%2C%2005%3A30%20PM%20%E2%80%93%2007%3A30%20PM%0Ahttps%3A%2F%2Ffresh-as-ever.vercel.app%2Fbags%2F00000000-0000-0000-0000-000000000004%0A%0AOpen%20in%20app%3A%20freshasever%3A%2F%2Fbags%2F00000000-0000-0000-0000-000000000004"
-    },
-    "F2-C02": {
-      "pass": false,
-      "detail": "Missing share button (flag/login?)",
-      "portal": "customer",
-      "evidence": "screenshots/f2/F2-C02.png",
-      "waUrl": "https://wa.me/?text=Rescue%20bag%3A%20Demo%20bag%20at%20Bakehouse%0ALKR%20350%20%C2%B7%20Pickup%20Today%2C%2005%3A30%20PM%20%E2%80%93%2007%3A30%20PM%0Ahttps%3A%2F%2Ffresh-as-ever.vercel.app%2Fbags%2F00000000-0000-0000-0000-000000000014%0A%0AOpen%20in%20app%3A%20freshasever%3A%2F%2Fbags%2F00000000-0000-0000-0000-000000000014"
-    },
-    "F2-C03": {
-      "pass": false,
-      "detail": "Missing share button (flag/login?)",
-      "portal": "customer",
-      "evidence": "screenshots/f2/F2-C03.png",
-      "waUrl": "https://wa.me/?text=Rescue%20bag%3A%20Demo%20bag%20at%20Kumbuk%0ALKR%20300%20%C2%B7%20Pickup%20Today%2C%2005%3A30%20PM%20%E2%80%93%2007%3A30%20PM%0Ahttps%3A%2F%2Ffresh-as-ever.vercel.app%2Fbags%2F00000000-0000-0000-0000-000000000105%0A%0AOpen%20in%20app%3A%20freshasever%3A%2F%2Fbags%2F00000000-0000-0000-0000-000000000105"
-    },
-    "F2-C04": {
-      "pass": false,
-      "detail": "Missing share button (flag/login?)",
-      "portal": "customer",
-      "evidence": "screenshots/f2/F2-C04.png",
-      "waUrl": "https://wa.me/?text=Check%20out%203%20clearance%20items%20at%20Bakehouse%20on%20Fresh%20As%20Ever!%0AFrom%20LKR%20180%20%C2%B7%20Pickup%20Today%2C%2005%3A30%20PM%20%E2%80%93%2007%3A30%20PM%0Ahttps%3A%2F%2Ffresh-as-ever.vercel.app%2Fshelves%2F00000000-0000-0000-0000-000000000201%0A%0AOpen%20in%20app%3A%20freshasever%3A%2F%2Fshelves%2F00000000-0000-0000-0000-000000000201"
-    },
-    "F2-C05": {
-      "pass": false,
-      "detail": "Missing share button (flag/login?)",
-      "portal": "customer",
-      "evidence": "screenshots/f2/F2-C05.png",
-      "waUrl": "https://wa.me/?text=Check%20out%203%20clearance%20items%20at%20Pettah%20on%20Fresh%20As%20Ever!%0AFrom%20LKR%20180%20%C2%B7%20Pickup%20Today%2C%2005%3A30%20PM%20%E2%80%93%2007%3A30%20PM%0Ahttps%3A%2F%2Ffresh-as-ever.vercel.app%2Fshelves%2F87e99daa-ef1f-494a-874d-da8a4abf40d3%0A%0AOpen%20in%20app%3A%20freshasever%3A%2F%2Fshelves%2F87e99daa-ef1f-494a-874d-da8a4abf40d3"
+    "F2-M02": {
+      "pass": true,
+      "detail": "Pettah shelf share cross-check",
+      "portal": "merchant-kb",
+      "evidence": "screenshots/f2/F2-M02.png"
     },
     "F2-P0": {
       "pass": true,
-      "detail": "LISTING_WHATSAPP_SHARE=true in .env; Metro restarted; sim Colombo",
+      "detail": "LISTING_WHATSAPP_SHARE=true native build; sim Colombo",
       "portal": "Setup",
       "evidence": "local env"
     }

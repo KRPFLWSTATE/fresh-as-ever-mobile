@@ -28,6 +28,7 @@ const SS = path.join(ROOT, 'screenshots', 'f3');
 const LOG = path.join(ROOT, 'verify-log.jsonl');
 const MATRIX = path.join(ROOT, 'MATRIX.md');
 const LOCK = path.join(ROOT, 'pass26-runner.lock');
+const PORTAL = process.env.PORTAL || 'all';
 
 const BAKEHOUSE_OUTLET = '00000000-0000-0000-0000-000000000003';
 const KUMBUK_OUTLET = '00000000-0000-0000-0000-000000000013';
@@ -97,6 +98,7 @@ async function main() {
     await recoverFromErrorBoundary(d);
 
     let f3DiscoverPrepped = false;
+    if (PORTAL === 'all' || PORTAL === 'customer') {
     const landmarks = [
       ['F3-C01', 'Kollupitiya'],
       ['F3-C02', 'Colombo 07'],
@@ -123,7 +125,9 @@ async function main() {
       const ev = await shot(d, `${id}.png`);
       await record(id, pass, `neighbourhood subtitle ${lm}`, 'customer', ev);
     }
+    }
 
+    if (PORTAL === 'all' || PORTAL === 'bakehouse') {
     const bhOk = await loginBakehouse(d);
     if (!bhOk) {
       await record('F3-M01', false, 'bakehouse login failed', 'merchant-bh');
@@ -144,7 +148,9 @@ async function main() {
       }
       await merchantLogout(d);
     }
+    }
 
+    if (PORTAL === 'all' || PORTAL === 'kumbuk') {
     const kbOk = await loginKumbuk(d);
     if (!kbOk) {
       await record('F3-M02', false, 'kumbuk login failed', 'merchant-kb');
@@ -157,6 +163,7 @@ async function main() {
       await record('F3-M02', pass, 'Kumbuk landmark edit', 'merchant-kb', ev);
       await merchantLogout(d);
     }
+    }
   } finally {
     await d.deleteSession().catch(() => {});
   }
@@ -165,6 +172,7 @@ async function main() {
   const entries = Object.entries(R);
   const passCount = entries.filter(([, v]) => v.pass).length;
   const failCount = entries.filter(([, v]) => !v.pass).length;
+  fs.writeFileSync(path.join(ROOT, 'f3-appium-results.json'), JSON.stringify({ status: failCount ? 'PARTIAL' : 'PASS', results: R }, null, 2));
   const payload = {
     status: failCount ? 'PARTIAL' : 'PASS',
     passCount,

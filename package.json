@@ -5,6 +5,11 @@
   "scripts": {
     "android": "react-native run-android",
     "ios": "react-native run-ios",
+    "refresh-demo": "node docs/verification/refresh-demo-listings.mjs",
+    "refresh-demo:dev": "DEMO_REFRESH_SOFT=1 node docs/verification/refresh-demo-listings.mjs",
+    "preios": "npm run refresh-demo:dev",
+    "prestart": "npm run refresh-demo:dev",
+    "preandroid": "npm run refresh-demo:dev",
     "lint": "eslint .",
     "ci": "npm run typecheck && npm run lint -- --max-warnings 9999 && npm test",
     "test:maestro": "maestro test .maestro/gate_b_bundle.yaml",

@@ -65,6 +65,7 @@ import { featureFlags, isNeighbourhoodBrowseEnabled, isPickupWindowPresetsEnable
 import {
   getActiveSeasonalWindows,
   listingMatchesOccasionFilter,
+  parseSeasonalOccasionKind,
   type SeasonalOccasionKind,
 } from '@/domain/seasonalOccasion';
 import { useSeasonalOccasionWindows } from '@/hooks/useSeasonalOccasionWindows';
@@ -1066,7 +1067,7 @@ export function DiscoverScreen() {
    * flips it back on. Persisted across launches (`fae.discoverMapFollowUser.v1`);
    * only explicit `'false'` restores a non-following cold start.
    */
-  const [followingUser, setFollowingUser] = useState(true);
+  const [followingUser, setFollowingUser] = useState(() => !isRunningInSimulator());
   /**
    * What the map is currently centred on (driven by `onRegionChangeComplete`). When this
    * drifts >SEARCH_AREA_KM_THRESHOLD from `center`, the "Search this area" CTA appears.
@@ -1135,7 +1136,7 @@ export function DiscoverScreen() {
       displayBags
         .filter((b) => bagMatchesChip(b, selectedChip))
         .filter((b) =>
-          listingMatchesOccasionFilter(b.occasion_kind, selectedOccasion),
+          listingMatchesOccasionFilter(parseSeasonalOccasionKind(b.occasion_kind), selectedOccasion),
         ),
     [displayBags, selectedChip, selectedOccasion],
   );
@@ -1172,8 +1173,8 @@ export function DiscoverScreen() {
           const kind =
             item.kind === 'shelf'
               ? (item as { occasion_kind?: string | null }).occasion_kind
-              : (item as DiscoverBag).occasion_kind;
-          return listingMatchesOccasionFilter(kind, selectedOccasion);
+              : (item as unknown as DiscoverBag).occasion_kind;
+          return listingMatchesOccasionFilter(parseSeasonalOccasionKind(kind), selectedOccasion);
         }),
     [displayFeed, selectedChip, selectedOccasion],
   );
@@ -1240,27 +1241,7 @@ export function DiscoverScreen() {
 
   const simulatorLocationMode = isRunningInSimulator();
 
-  useEffect(() => {
-    if (!__DEV__) return;
-    // eslint-disable-next-line no-console -- simulator location QA
-    console.log('[DiscoverScreen] location state', {
-      simulatorLocationMode,
-      hasLiveUserLocation,
-      locationStatus,
-      isUsingFallback,
-      lat: userLocation.lat,
-      lng: userLocation.lng,
-      timestamp: userLocation.timestamp,
-    });
-  }, [
-    simulatorLocationMode,
-    hasLiveUserLocation,
-    locationStatus,
-    isUsingFallback,
-    userLocation.lat,
-    userLocation.lng,
-    userLocation.timestamp,
-  ]);
+  const mapBlockInViewRef = useRef(true);
 
   useEffect(() => {
     if (!hasLiveUserLocation) {
@@ -1592,6 +1573,8 @@ export function DiscoverScreen() {
    * Only fires once — gated on `isUsingFallback` flipping false.
    */
   const bootstrappedToUserRef = useRef(false);
+  /** Last centre we animated to in follow mode — suppresses simulator GPS jitter. */
+  const lastFollowCameraRef = useRef<LatLng | null>(null);
   useEffect(() => {
     if (!bootstrappedToUserRef.current && hasLiveUserLocation) {
       bootstrappedToUserRef.current = true;
@@ -1637,16 +1620,29 @@ export function DiscoverScreen() {
     ) {
       return;
     }
-    // `animateCamera` (vs `animateToRegion`) preserves the user's 2D/3D
-    // pitch choice. With `animateToRegion` this effect would fire on every
-    // location update and snap pitch back to 0°, defeating the 3D toggle
-    // while follow mode is on.
+    const last = lastFollowCameraRef.current;
+    if (last != null) {
+      const driftKm = haversineKm(
+        last.lat,
+        last.lng,
+        userLocation.lat,
+        userLocation.lng,
+      );
+      // Simulator GPS jitters a few metres — each tick queued a 450ms animateCamera
+      // and blocked the JS thread (mouse scroll / taps felt delayed).
+      const minDriftKm = simulatorLocationMode ? 0.02 : 0.004;
+      if (Number.isFinite(driftKm) && driftKm < minDriftKm) return;
+    }
+    lastFollowCameraRef.current = {
+      lat: userLocation.lat,
+      lng: userLocation.lng,
+    };
     mapRef.current?.animateCamera(
       {
         center: { latitude: userLocation.lat, longitude: userLocation.lng },
         pitch: map3DEnabled ? PITCHED_CAMERA_DEGREES : FLAT_CAMERA_DEGREES,
       },
-      { duration: 450 },
+      { duration: simulatorLocationMode ? 0 : 450 },
     );
   }, [
     followingUser,
@@ -1677,7 +1673,8 @@ export function DiscoverScreen() {
       .then(([raw3d, rawFollow]) => {
         if (cancelled) return;
         if (raw3d === 'false') setMap3DEnabled(false);
-        if (rawFollow === 'false') setFollowingUser(false);
+        if (rawFollow === 'true') setFollowingUser(true);
+        else if (rawFollow === 'false') setFollowingUser(false);
       })
       .catch((err: unknown) =>
         logError(err, { context: 'DiscoverScreen.hydrateMapPrefs' }),
@@ -2119,17 +2116,26 @@ export function DiscoverScreen() {
   );
 
   const locationPulseActive =
-    isFocused && !feedScrolling && mapBlockInView && hasLiveUserLocation;
+    isFocused &&
+    !feedScrolling &&
+    mapBlockInView &&
+    hasLiveUserLocation &&
+    !simulatorLocationMode;
 
   const onFeedScrollBegin = useCallback(() => setFeedScrolling(true), []);
   const onFeedScrollEnd = useCallback(() => setFeedScrolling(false), []);
   const onFeedScroll = useCallback(
     (e: NativeSyntheticEvent<NativeScrollEvent>) => {
       const y = e.nativeEvent.contentOffset.y;
-      setMapBlockInView(y < mapHeight * 0.65);
+      const inView = y < mapHeight * 0.65;
+      if (mapBlockInViewRef.current === inView) return;
+      mapBlockInViewRef.current = inView;
+      setMapBlockInView(inView);
     },
     [mapHeight],
   );
+
+  const mapGesturesEnabled = !feedScrolling;
 
   const movingFast =
     !simulatorLocationMode &&
@@ -2369,7 +2375,7 @@ export function DiscoverScreen() {
                   ]}
                 >
                   <StitchIcon
-                    name="celebration"
+                    name="star"
                     size={18}
                     colorKey={active ? 'onPrimary' : 'onSurface'}
                   />
@@ -2422,15 +2428,18 @@ export function DiscoverScreen() {
             provider={discoverMapProvider}
             style={styles.map}
             mapType={discoverMapType}
-            zoomEnabled
-            rotateEnabled
+            zoomEnabled={mapGesturesEnabled}
+            rotateEnabled={mapGesturesEnabled}
             /**
              * Map-first touch zone: one-finger pan, pinch, rotate and pitch all
              * belong to the map now. The Discover page still scrolls naturally
              * from the chrome above and the feed below — the map is no longer
              * a dead rectangle you can only look at.
+             *
+             * While the feed scrolls (common with mouse wheel on Simulator), pause
+             * map gestures so the nested scroll view wins without touch delay.
              */
-            scrollEnabled
+            scrollEnabled={mapGesturesEnabled}
             initialCamera={initialCamera}
             /**
              * Branded Fresh As Ever surface via Google Maps JSON styles
@@ -2665,7 +2674,7 @@ export function DiscoverScreen() {
           initialNumToRender={5}
           updateCellsBatchingPeriod={50}
           onScroll={onFeedScroll}
-          scrollEventThrottle={32}
+          scrollEventThrottle={simulatorLocationMode ? 64 : 32}
           onScrollBeginDrag={onFeedScrollBegin}
           onScrollEndDrag={onFeedScrollEnd}
           onMomentumScrollEnd={onFeedScrollEnd}
