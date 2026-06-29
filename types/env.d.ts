@@ -11,6 +11,7 @@ declare module '@env' {
   /** Staging only — never commit real passwords; set in local `.env` or CI secrets. */
   export const EXPO_PUBLIC_QA_CUSTOMER_PASSWORD: string | undefined;
   export const EXPO_PUBLIC_QA_MERCHANT_PASSWORD: string | undefined;
+  export const EXPO_PUBLIC_QA_ADMIN_PASSWORD: string | undefined;
   /**
    * When exactly the string `true` (after trim; case-sensitive), enables isolated
    * merchant demo fixtures. Add to project-root `.env` — never ship `true` in production.

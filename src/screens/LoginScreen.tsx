@@ -15,6 +15,7 @@ import {
   StitchText,
 } from '@/ui/stitch';
 import { SocialAuthButtons } from '@/ui/auth/SocialAuthButtons';
+import { qaPortalCredentials } from '@/lib/qaLoginCredentials';
 
 type Portal = 'customer' | 'merchant' | 'admin';
 
@@ -53,49 +54,19 @@ export function LoginScreen() {
   const [err, setErr] = useState<string | null>(null);
 
   const qaAutofillLogin = process.env.EXPO_PUBLIC_QA_AUTOFILL_LOGIN === 'true';
-  const qaCustomerPassword =
-    process.env.EXPO_PUBLIC_QA_CUSTOMER_PASSWORD?.trim() ?? '';
-  const qaMerchantPassword =
-    process.env.EXPO_PUBLIC_QA_MERCHANT_PASSWORD?.trim() ?? '';
-
-  function qaMerchantCredentials(
-    merchantHint?: 'bakehouse' | 'kumbuk',
-  ): { email: string; password: string } | null {
-    if (!qaMerchantPassword) return null;
-    const envEmail = process.env.EXPO_PUBLIC_QA_MERCHANT_EMAIL?.trim();
-    if (envEmail) {
-      return { email: envEmail, password: qaMerchantPassword };
-    }
-    if (merchantHint === 'kumbuk') {
-      return {
-        email: 'qa.kumbuk@freshasever.test',
-        password: qaMerchantPassword,
-      };
-    }
-    return {
-      email: 'qa.merchant@freshasever.test',
-      password: qaMerchantPassword,
-    };
-  }
 
   function applyQaAutofill(
     hintedPortal: Portal,
     merchantHint?: 'bakehouse' | 'kumbuk',
   ) {
     if (!qaAutofillLogin) return;
-    setUseEmailCustomer(true);
     if (hintedPortal === 'customer') {
-      if (!qaCustomerPassword) return;
-      setEmail('qa.customer@freshasever.test');
-      setPassword(qaCustomerPassword);
-      return;
+      setUseEmailCustomer(true);
     }
-    if (hintedPortal === 'merchant') {
-      const creds = qaMerchantCredentials(merchantHint);
-      if (!creds) return;
-      setEmail(creds.email);
-      setPassword(creds.password);
-    }
+    const creds = qaPortalCredentials(hintedPortal, merchantHint);
+    if (!creds) return;
+    setEmail(creds.email);
+    setPassword(creds.password);
   }
 
   useEffect(() => {
@@ -340,8 +311,7 @@ export function LoginScreen() {
                 onPress={() => {
                   setPortal('customer');
                   setErr(null);
-                  setEmail('');
-                  setPassword('');
+                  applyQaAutofill('customer');
                 }}
               >
                 <StitchText variant="label" colorKey="primary">
@@ -729,10 +699,9 @@ export function LoginScreen() {
               onPress={() => {
                 setPortal('admin');
                 setErr(null);
-                setEmail('');
-                setPassword('');
                 setOtpSent(false);
                 setOtp('');
+                applyQaAutofill('admin');
               }}
               disabled={busy}
             />
