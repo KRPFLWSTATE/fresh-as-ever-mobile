@@ -1,7 +1,9 @@
 source 'https://rubygems.org'
 
 # CocoaPods + activesupport 7.2.3.1+ (CVE-2026-33169/70/76) require Ruby >= 3.1.
-# Use Homebrew ruby@3.4 or rbenv; macOS system Ruby 2.6 is unsupported for bundle install.
+# macOS system Ruby 2.6 will not work. First-time setup:
+#   brew install ruby@3.4
+#   npm run setup:ios-ruby && npm run pod-install
 ruby ">= 3.1.0"
 
 # Exclude problematic versions of cocoapods and activesupport that causes build failures.

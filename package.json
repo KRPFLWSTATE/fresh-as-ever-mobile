@@ -5,6 +5,8 @@
   "scripts": {
     "android": "react-native run-android",
     "ios": "react-native run-ios",
+    "setup:ios-ruby": "bash scripts/with-ruby.sh bundle install",
+    "pod-install": "bash scripts/with-ruby.sh bash -c 'cd ios && bundle exec pod install'",
     "refresh-demo": "node docs/verification/refresh-demo-listings.mjs",
     "refresh-demo:dev": "DEMO_REFRESH_SOFT=1 node docs/verification/refresh-demo-listings.mjs",
     "preios": "npm run refresh-demo:dev",
