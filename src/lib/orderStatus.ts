@@ -1,5 +1,7 @@
 /** Mirrors `fresh-as-ever/src/lib/utils` order status helpers for merchant flows. */
 
+import { NO_SHOW_GRACE_MS } from '../domain/pickupWindow';
+
 const ORDER_STATUS_ALIASES: Record<string, string> = {
   awaiting_pickup: 'ready_for_pickup',
   confirmed: 'paid',
@@ -21,8 +23,6 @@ export function normalizeOrderStatus(status: string | null | undefined): string 
     .toLowerCase();
   return ORDER_STATUS_ALIASES[value] || value || 'reserved';
 }
-
-const NO_SHOW_GRACE_MS = 30 * 60 * 1000;
 
 const NO_SHOW_MERCHANT_NORMALIZED = new Set(['paid', 'ready_for_pickup']);
 

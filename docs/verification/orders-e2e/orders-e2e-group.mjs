@@ -197,19 +197,26 @@ async function main() {
       }
       await record(d, `WS7-12g-group-preview-${attempt}`, true, 'Group preview sheet shown (2 bags)');
       let confirmed = false;
-      const confirmTestId = await d.$('~merchant.orders.confirmGroupCollect');
-      if (await confirmTestId.isDisplayed().catch(() => false)) {
-        await confirmTestId.click();
-        confirmed = true;
-      }
-      if (!confirmed) {
-        const btn = await d.$(
-          '-ios predicate string:type == "XCUIElementTypeButton" AND (label CONTAINS "Confirm" OR name CONTAINS "Confirm")',
-        );
-        if (await btn.isDisplayed().catch(() => false)) {
-          await btn.click();
-          confirmed = true;
-        }
+      const confirmStrategies = [
+        () => d.$('~merchant.orders.confirmGroupCollect'),
+        () =>
+          d.$(
+            '-ios predicate string:type == "XCUIElementTypeButton" AND (label CONTAINS "Confirm all" OR name CONTAINS "Confirm all")',
+          ),
+        () =>
+          d.$(
+            '-ios predicate string:label CONTAINS "Confirm all" OR name CONTAINS "Confirm all"',
+          ),
+      ];
+      for (const getBtn of confirmStrategies) {
+        try {
+          const btn = await getBtn();
+          if (await btn.isDisplayed().catch(() => false)) {
+            await btn.click();
+            confirmed = true;
+            break;
+          }
+        } catch {}
       }
       await wait(1000);
       await wait(4500);

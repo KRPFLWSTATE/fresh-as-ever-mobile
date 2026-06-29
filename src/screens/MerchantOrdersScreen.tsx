@@ -436,9 +436,12 @@ function VerifyHandoverCard({
         visible={groupPreview != null}
         transparent
         animationType="fade"
+        accessibilityViewIsModal
         onRequestClose={() => setGroupPreview(null)}
       >
         <Pressable
+          accessible={false}
+          importantForAccessibility="no-hide-descendants"
           style={{
             flex: 1,
             backgroundColor: colors.scrim,
@@ -446,7 +449,9 @@ function VerifyHandoverCard({
           }}
           onPress={() => setGroupPreview(null)}
         >
-          <Pressable
+          <View
+            accessible={false}
+            importantForAccessibility="no-hide-descendants"
             style={{
               backgroundColor: colors.surface,
               borderTopLeftRadius: radii.xl,
@@ -455,7 +460,7 @@ function VerifyHandoverCard({
               paddingBottom: spacing.xxl,
               gap: spacing.sm,
             }}
-            onPress={(e) => e.stopPropagation()}
+            onStartShouldSetResponder={() => true}
           >
             <StitchText variant="h3" colorKey="text">
               Group pickup
@@ -507,7 +512,7 @@ function VerifyHandoverCard({
                 </StitchText>
               )}
             </Pressable>
-          </Pressable>
+          </View>
         </Pressable>
       </Modal>
     </StitchCard>
@@ -709,6 +714,7 @@ export function MerchantOrdersScreen() {
                 {canHandover ? (
                   <Pressable
                     accessibilityRole="button"
+                    accessibilityLabel="Verify pickup"
                     onPress={() => {
                       setLateVerifyOrder(item);
                       setLateVerifyCode('');
@@ -871,6 +877,7 @@ export function MerchantOrdersScreen() {
               {pickupSignalLabel ? (
                 <View
                   testID={`merchant.order.signal.${pickupSignal?.kind ?? 'none'}`}
+                  accessibilityLabel={pickupSignalLabel}
                   style={{
                     alignSelf: 'flex-start',
                     paddingHorizontal: spacing.sm,
@@ -935,6 +942,7 @@ export function MerchantOrdersScreen() {
       colors.outlineVariant,
       colors.primaryHighlight,
       colors.primaryContainer,
+      colors.secondary,
       colors.secondaryContainer,
       colors.surfaceBright,
       colors.surfaceContainer,
@@ -979,6 +987,7 @@ export function MerchantOrdersScreen() {
             <Pressable
               key={opt}
               accessibilityRole="button"
+              accessibilityLabel={`${label} orders`}
               accessibilityState={{ selected: active }}
               onPress={() => navigation.navigate('MerchantOrdersTab', { view: opt })}
               style={{
@@ -1099,7 +1108,9 @@ export function MerchantOrdersScreen() {
       </>
     ),
     [
-      authorizeHandoverByCode,
+      collectGroupHandover,
+      collectOrder,
+      lookupHandoverByCode,
       colors.accent,
       colors.accentHighlight,
       colors.divider,
@@ -1374,6 +1385,7 @@ export function MerchantOrdersScreen() {
             />
             <Pressable
               accessibilityRole="button"
+              accessibilityLabel="Authorize handover"
               onPress={() => {
                 const order = lateVerifyOrder;
                 if (!order) return;
