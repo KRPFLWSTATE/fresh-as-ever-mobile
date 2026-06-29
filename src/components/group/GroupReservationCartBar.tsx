@@ -11,6 +11,8 @@ export type GroupReservationCartBarProps = {
   visible: boolean;
   onPress: () => void;
   testID?: string;
+  /** Extra offset above safe area (e.g. when a fixed bottom bar sits below). */
+  bottomInsetExtra?: number;
 };
 
 export function GroupReservationCartBar({
@@ -18,6 +20,7 @@ export function GroupReservationCartBar({
   visible,
   onPress,
   testID = 'group.cartBar',
+  bottomInsetExtra = 0,
 }: GroupReservationCartBarProps): React.ReactElement | null {
   const { colors, spacing, radii } = useStitchTheme();
   const insets = useSafeAreaInsets();
@@ -53,7 +56,7 @@ export function GroupReservationCartBar({
           position: 'absolute',
           left: spacing.md,
           right: spacing.md,
-          bottom: insets.bottom + spacing.md,
+          bottom: insets.bottom + spacing.md + bottomInsetExtra,
           zIndex: 40,
         },
         bar: {
@@ -77,7 +80,7 @@ export function GroupReservationCartBar({
         },
         copy: { flex: 1, gap: 2 },
       }),
-    [colors.accent, colors.primaryContainer, insets.bottom, radii.xl, spacing.lg, spacing.md, spacing.sm],
+    [colors.accent, colors.primaryContainer, bottomInsetExtra, insets.bottom, radii.xl, spacing.lg, spacing.md, spacing.sm],
   );
 
   if (!visible && bags.length === 0) return null;
@@ -115,10 +118,14 @@ export function GroupReservationCartBar({
         </View>
         <View style={styles.copy}>
           <StitchText variant="label" colorKey="onPrimary">
-            {bags.length === 1 ? '1 bag reserved' : `${bags.length} bags in your group`}
+            {bags.length === 1
+              ? '1 bag in your group'
+              : `${bags.length} bags in your group`}
           </StitchText>
           <StitchText variant="body-sm" colorKey="onPrimary" style={{ opacity: 0.85 }}>
-            One pickup code · tap to checkout
+            {bags.length === 1
+              ? 'Add another bag · one pickup code'
+              : 'One pickup code · tap to checkout'}
           </StitchText>
         </View>
         <StitchIcon name="shopping_bag" size={24} colorKey="onPrimary" />

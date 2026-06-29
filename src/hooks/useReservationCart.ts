@@ -48,16 +48,30 @@ async function writeCart(state: ReservationCartState): Promise<void> {
   await AsyncStorage.setItem(CART_KEY, JSON.stringify(state));
 }
 
+/** Keeps every mounted `useReservationCart` hook in sync after cross-screen writes. */
+const cartListeners = new Set<(state: ReservationCartState) => void>();
+
+function notifyCartListeners(state: ReservationCartState): void {
+  for (const listener of cartListeners) {
+    listener(state);
+  }
+}
+
 export function useReservationCart() {
   const { user } = useAuthContext();
   const [cart, setCart] = useState<ReservationCartState>(EMPTY);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
+    const sync = (next: ReservationCartState) => setCart(next);
+    cartListeners.add(sync);
     void readCart().then((c) => {
       setCart(c);
       setReady(true);
     });
+    return () => {
+      cartListeners.delete(sync);
+    };
   }, []);
 
   useEffect(() => {
@@ -68,6 +82,7 @@ export function useReservationCart() {
   const persist = useCallback(async (next: ReservationCartState) => {
     setCart(next);
     await writeCart(next);
+    notifyCartListeners(next);
   }, []);
 
   const addBag = useCallback(
@@ -79,6 +94,9 @@ export function useReservationCart() {
         !options?.replaceOutlet
       ) {
         return { error: 'different_outlet' as const };
+      }
+      if (current.bagIds.includes(bag.id)) {
+        return { ok: true as const };
       }
       if (current.bagIds.length >= MAX_GROUP_BAGS) {
         return { error: 'cart_full' as const };

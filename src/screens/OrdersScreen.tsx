@@ -6,7 +6,7 @@ import {
   StyleSheet,
   View,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -187,6 +187,13 @@ export function OrdersScreen() {
     }
     void load();
   }, [load, session?.user.id]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!session?.user.id) return;
+      void load('refresh');
+    }, [load, session?.user.id]),
+  );
 
   const filtered = rows.filter((r) => {
     const n = normalizeOrderStatus(r.order_status);

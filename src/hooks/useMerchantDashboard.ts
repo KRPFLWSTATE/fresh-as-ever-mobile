@@ -7,6 +7,7 @@ import { orderDisplayTitle } from '@/lib/orderDisplay';
 import { outletListingMode, type OutletListingMode } from '@/lib/outletListingMode';
 import { useMerchantContext } from '@/hooks/useMerchantContext';
 import { isPickupWindowOpen } from '@/domain/pickupWindow';
+import { subscribeMerchantDataRevision } from '@/lib/merchantDataSync';
 import { logError } from '@/observability/logError';
 import { utcShelfDate } from '@/lib/utcShelfDate';
 
@@ -109,16 +110,23 @@ export function useMerchantDashboard(env: AppEnv) {
         throw ordersError;
       }
 
+      const { data: collectedTodayOrders, error: collectedTodayError } = await supabase
+        .from('orders')
+        .select('total, shelf_id, outlet_id, order_status, collected_at')
+        .in('outlet_id', outletScopeIds)
+        .gte('collected_at', today.toISOString())
+        .in('order_status', ['collected', 'completed']);
+
+      if (collectedTodayError) {
+        throw collectedTodayError;
+      }
+
       const rowsToday = (todayOrders ?? []).filter(filterRowForOutletMode);
-      const sales = rowsToday
-        .filter(
-          (o) =>
-            String((o as Record<string, unknown>).payment_status ?? '') === 'paid' ||
-            normalizeOrderStatus(
-              String((o as Record<string, unknown>).order_status ?? ''),
-            ) === 'collected',
-        )
-        .reduce((sum, o) => sum + Number((o as Record<string, unknown>).total ?? 0), 0);
+      const collectedToday = (collectedTodayOrders ?? []).filter(filterRowForOutletMode);
+      const sales = collectedToday.reduce(
+        (sum, o) => sum + Number((o as Record<string, unknown>).total ?? 0),
+        0,
+      );
 
       const activeRoots = ACTIVE_ORDER_STATUSES as readonly string[];
       const activeOrderCount = rowsToday.filter((order) => {
@@ -240,6 +248,18 @@ export function useMerchantDashboard(env: AppEnv) {
       // Yesterday counterpart values — used by the dashboard's day-over-day `%`
       // delta chips. We bucket `created_at` to the same 00:00..00:00 window
       // shifted back by one day, then compute the four KPI counts.
+      const { data: yesterdayCollected, error: yCollectedError } = await supabase
+        .from('orders')
+        .select('total, shelf_id, outlet_id, order_status, collected_at')
+        .in('outlet_id', outletScopeIds)
+        .gte('collected_at', yesterday.toISOString())
+        .lt('collected_at', today.toISOString())
+        .in('order_status', ['collected', 'completed']);
+
+      if (yCollectedError) {
+        throw yCollectedError;
+      }
+
       const { data: yesterdayOrders, error: yOrdersError } = await supabase
         .from('orders')
         .select('order_status, payment_status, total, shelf_id, outlet_id')
@@ -252,14 +272,8 @@ export function useMerchantDashboard(env: AppEnv) {
       }
 
       const yRowsYesterday = (yesterdayOrders ?? []).filter(filterRowForOutletMode);
-      const yesterdayRevenue = yRowsYesterday
-        .filter(
-          (o) =>
-            String((o as Record<string, unknown>).payment_status ?? '') === 'paid' ||
-            normalizeOrderStatus(
-              String((o as Record<string, unknown>).order_status ?? ''),
-            ) === 'collected',
-        )
+      const yesterdayRevenue = (yesterdayCollected ?? [])
+        .filter(filterRowForOutletMode)
         .reduce(
           (sum, o) => sum + Number((o as Record<string, unknown>).total ?? 0),
           0,
@@ -336,7 +350,7 @@ export function useMerchantDashboard(env: AppEnv) {
         .from('orders')
         .select(
           `
-          id, order_status, created_at, shelf_id, outlet_id,
+          id, order_status, created_at, updated_at, shelf_id, outlet_id,
           customer:profiles(full_name),
           bag:rescue_bags(title),
           order_items(name_snapshot, quantity),
@@ -344,6 +358,7 @@ export function useMerchantDashboard(env: AppEnv) {
         `,
         )
         .in('outlet_id', outletScopeIds)
+        .order('updated_at', { ascending: false })
         .order('created_at', { ascending: false })
         .limit(20);
 
@@ -435,18 +450,11 @@ export function useMerchantDashboard(env: AppEnv) {
             shelfItemsSoldToday += Math.max(0, total - remaining);
           }
         }
-        shelfRevenueToday = rowsToday
+        shelfRevenueToday = collectedToday
           .filter((o) => {
             const sid = (o as Record<string, unknown>).shelf_id;
             return sid != null && String(sid).length > 0;
           })
-          .filter(
-            (o) =>
-              String((o as Record<string, unknown>).payment_status ?? '') === 'paid' ||
-              normalizeOrderStatus(
-                String((o as Record<string, unknown>).order_status ?? ''),
-              ) === 'collected',
-          )
           .reduce((sum, o) => sum + Number((o as Record<string, unknown>).total ?? 0), 0);
       }
 
@@ -490,6 +498,14 @@ export function useMerchantDashboard(env: AppEnv) {
     }
     fetchDashboardData().catch((err) => logError(err, { context: 'useMerchantDashboard.fetchDashboardData' }));
   }, [fetchDashboardData, contextLoading]);
+
+  useEffect(() => {
+    return subscribeMerchantDataRevision(() => {
+      fetchDashboardData().catch((err) =>
+        logError(err, { context: 'useMerchantDashboard.revisionRefetch' }),
+      );
+    });
+  }, [fetchDashboardData]);
 
   return {
     stats,

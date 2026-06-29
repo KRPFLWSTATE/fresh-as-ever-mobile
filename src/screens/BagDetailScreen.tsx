@@ -37,6 +37,7 @@ import { formatPickupKindLabel } from '@/lib/pickupWindowPresets';
 import { SeasonalOccasionBadge } from '@/components/SeasonalOccasionBadge';
 import { useSeasonalOccasionWindows } from '@/hooks/useSeasonalOccasionWindows';
 import { useReservationCart } from '@/hooks/useReservationCart';
+import { GroupReservationCartBar } from '@/components/group/GroupReservationCartBar';
 import {
   buildBagWhatsAppMessage,
   openWhatsAppShare,
@@ -297,6 +298,19 @@ export function BagDetailScreen() {
   const showUrgent = qty != null && qty > 0 && qty <= 3;
 
   const bottomReserved = spacing.md + 52 + Math.max(insets.bottom, spacing.md);
+  const outletCartCount =
+    groupReservationsEnabled && outletId && cart.cart.outletId === outletId
+      ? cart.count
+      : 0;
+  const bagInGroupCart = outletCartCount > 0 && cart.isInCart(id);
+  const navigateGroupCheckout = useCallback(() => {
+    const ids = cart.cart.bagIds;
+    if (!ids.length) return;
+    navigation.navigate('Checkout', {
+      draft: ids[0]!,
+      group: ids.length > 1 ? ids.join(',') : undefined,
+    });
+  }, [cart.cart.bagIds, navigation]);
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
@@ -743,6 +757,10 @@ export function BagDetailScreen() {
               <Pressable
                 accessibilityRole="button"
                 onPress={() => {
+                  if (bagInGroupCart && outletCartCount >= 2) {
+                    navigateGroupCheckout();
+                    return;
+                  }
                   void cart.addBag({
                     id,
                     outletId,
@@ -763,14 +781,26 @@ export function BagDetailScreen() {
                 style={{ marginTop: spacing.xs }}
               >
                 <StitchText variant="body-sm" colorKey="primary">
-                  Add to group order
+                  {bagInGroupCart
+                    ? outletCartCount >= 2
+                      ? `${outletCartCount} bags in group · Checkout`
+                      : 'In your group — add another bag'
+                    : outletCartCount >= 1
+                      ? `Add to group (${outletCartCount} bag${outletCartCount === 1 ? '' : 's'} so far)`
+                      : 'Add to group order'}
                 </StitchText>
               </Pressable>
             ) : null}
           </View>
           <Pressable
             accessibilityRole="button"
-            onPress={() => navigation.navigate('Checkout', { draft: id })}
+            onPress={() => {
+              if (outletCartCount >= 2 && bagInGroupCart) {
+                navigateGroupCheckout();
+                return;
+              }
+              navigation.navigate('Checkout', { draft: id });
+            }}
             style={({ pressed }) => [
               styles.reserveCta,
               {
@@ -792,11 +822,22 @@ export function BagDetailScreen() {
               variant="label"
               colorKey={mode === 'dark' ? 'onPrimary' : 'onPrimaryContainer'}
             >
-              Reserve Now
+              {outletCartCount >= 2 && bagInGroupCart
+                ? `Checkout ${outletCartCount} bags`
+                : 'Reserve Now'}
             </StitchText>
           </Pressable>
         </View>
       </View>
+      {groupReservationsEnabled && user && outletCartCount >= 1 ? (
+        <GroupReservationCartBar
+          bags={cart.cart.bags}
+          visible
+          testID="bagDetail.groupCartBar"
+          bottomInsetExtra={bottomReserved - Math.max(insets.bottom, spacing.md)}
+          onPress={navigateGroupCheckout}
+        />
+      ) : null}
     </View>
   );
 }

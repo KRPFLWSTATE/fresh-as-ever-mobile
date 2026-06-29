@@ -201,6 +201,10 @@ export function MerchantFinanceScreen() {
         <StitchText variant="body-md" colorKey="textMuted" style={{ marginTop: 4 }}>
           Overview and payout history
         </StitchText>
+        <StitchText variant="body-sm" colorKey="textFaint" style={{ marginTop: 8 }}>
+          Settlement-driven payouts — not live handover revenue. Today&apos;s pickup totals on Home
+          update when you complete handovers.
+        </StitchText>
       </View>
 
       {loading ? (

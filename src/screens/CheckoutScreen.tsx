@@ -319,6 +319,7 @@ export function CheckoutScreen() {
         const m = path.match(/orders\/([^/?]+)/);
         if (m?.[1]) {
           setPayHtml(null);
+          void reservationCart.clear();
           navigation.replace('OrderCelebration', {
             orderId: m[1],
             variant: 'reservation',
@@ -592,6 +593,7 @@ export function CheckoutScreen() {
             .from('orders')
             .update({ payment_status: 'paid', order_status: 'paid' })
             .eq('group_id', groupId);
+          await reservationCart.clear();
           navigation.replace('OrderCelebration', {
             orderId: String(child?.id ?? groupId),
             variant: 'reservation',
@@ -781,6 +783,7 @@ export function CheckoutScreen() {
         const m = u.match(/orders\/([^/?]+)/);
         if (m?.[1]) {
           setPayHtml(null);
+          void reservationCart.clear();
           navigation.replace('OrderCelebration', {
             orderId: m[1],
             variant: 'reservation',

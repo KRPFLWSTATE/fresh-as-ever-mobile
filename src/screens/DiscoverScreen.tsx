@@ -2963,16 +2963,16 @@ export function DiscoverScreen() {
           </StitchSurface>
         </KeyboardAvoidingView>
       </Modal>
-      {groupReservationsEnabled && session?.user && reservationCart.count >= 2 ? (
+      {groupReservationsEnabled && session?.user && reservationCart.count >= 1 ? (
         <GroupReservationCartBar
           bags={reservationCart.cart.bags}
-          visible={reservationCart.count >= 2}
+          visible={reservationCart.count >= 1}
           onPress={() => {
             const ids = reservationCart.cart.bagIds;
             if (!ids.length) return;
             navigation.getParent()?.navigate('Checkout', {
               draft: ids[0],
-              group: ids.join(','),
+              group: ids.length > 1 ? ids.join(',') : undefined,
             });
           }}
         />

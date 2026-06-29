@@ -1073,11 +1073,13 @@ export async function loginKumbuk(d) {
 
   if (await isMerchantLoggedIn(d)) {
     await merchantLogout(d);
+    await relaunchApp(d);
     await waitForLoginScreen(d);
     await dismissOverlays(d);
   }
   if (await isCustomerLoggedIn(d)) {
     await customerLogout(d);
+    await relaunchApp(d);
     await waitForLoginScreen(d);
     await dismissOverlays(d);
     await dismissSystemPrompts(d);

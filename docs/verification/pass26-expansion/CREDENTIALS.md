@@ -59,3 +59,54 @@ Restart Metro / Next dev server after changing env. Set `MONTHLY_SAVINGS_PUSH=tr
 Pre-migration baseline: [`baseline/pre-migration.json`](./baseline/pre-migration.json) — landmark fill rate, demo outlet listing counts, `customer_arrived_at` orders, Appium/Xcode P0 gate.
 
 Legacy snapshot: [`baseline/pre-pass26.json`](./baseline/pre-pass26.json) (2026-06-18, pre-landmark backfill).
+
+## Merchant Orders scenario seed (WS1)
+
+Refreshed by `npm run refresh-demo` → [`refresh-demo-listings.mjs`](../refresh-demo-listings.mjs).  
+Customer: `qa.customer@freshasever.test` (`571aadc0-d2e6-43bf-bab7-03a35ce3ef7f`).
+
+### Scenario windows (relative to seeder run time)
+
+| Kind | Window | Merchant sub-tab |
+|------|--------|------------------|
+| `IN_WINDOW_WIDE` | now−1h → now+6h | Verification (Ready now) |
+| `ENDING_SOON` | now−30m → now+90m | Live monitor (Ending soon) |
+| `LATE_RECENT` | now−90m → now−10m | Late pickups — recent |
+| `LATE_CRITICAL` | now−3h → now−45m | Late pickups — critical / no-show eligible |
+| `FUTURE` | now+3h → now+7h | Review pending (not started) |
+
+Discover bags (`…004`, `…014`, `…105`, Pettah `87e99daa…`) keep `IN_WINDOW_WIDE` or `ENDING_SOON` so customer Discover stays usable. Past-window scenario bags (`…101`, `…102`) are excluded from Discover (`pickup_end < now`).
+
+### Scenario bags (`QA_SCENARIO_BAGS`)
+
+| Scenario | Bag ID | Outlet | Merchant login |
+|----------|--------|--------|----------------|
+| `IN_WINDOW_WIDE` | `00000000-0000-0000-0000-000000000004` | Bakehouse Kollupitiya | `qa.merchant@freshasever.test` |
+| `ENDING_SOON` | `00000000-0000-0000-0000-000000000014` | Bakehouse Kollupitiya | `qa.merchant@freshasever.test` |
+| `LATE_RECENT` | `00000000-0000-0000-0000-000000000101` | Bakehouse Kollupitiya | `qa.merchant@freshasever.test` |
+| `LATE_CRITICAL` | `00000000-0000-0000-0000-000000000102` | Kumbuk Colombo 07 | `qa.kumbuk@freshasever.test` |
+| `FUTURE` | `00000000-0000-0000-0000-000000000103` | Kumbuk Colombo 07 | `qa.kumbuk@freshasever.test` |
+
+Shelves: Bakehouse `…201` → `FUTURE`; Pettah `87e99daa…d3` → `IN_WINDOW_WIDE`.
+
+### Scenario orders (`QA_SCENARIO_ORDERS`)
+
+| Scenario | Order ID | Bag | `order_status` | `payment_status` | Code | Tab |
+|----------|----------|-----|----------------|-------------------|------|-----|
+| `IN_WINDOW_WIDE` | `a1ba7758-7290-4ece-804d-15585f7da9eb` | `…004` | `reserved` | `paid` | `UQV76C` | verification |
+| `ENDING_SOON` | `00000000-0000-0000-0000-000000000301` | `…014` | `reserved` | `paid` | `END2HR` | live-monitor |
+| `LATE_RECENT` | `00000000-0000-0000-0000-000000000302` | `…101` | `reserved` | `paid` | `LATREC` | late-pickups |
+| `LATE_CRITICAL` | `00000000-0000-0000-0000-000000000303` | `…102` | `reserved` | `paid` | `LATCRT` | late-pickups |
+| `FUTURE` (unpaid) | `00000000-0000-0000-0000-000000000304` | `…103` | `reserved` | `pending` | `FUTURE` | review-pending |
+
+### Scenario group (`QA_SCENARIO_GROUP`)
+
+| Field | Value |
+|-------|-------|
+| Group ID | `00000000-0000-0000-0000-000000000400` |
+| Code | `DV387Y` |
+| Outlet | Bakehouse Kollupitiya |
+| Child orders | `…321` (bag `…004`) + `…322` (bag `…014`) |
+| Status | `reserved` / `paid` — reset idempotently by seeder |
+
+Deeplinks: `freshasever://orders/<order_id>`. F5 baseline: [`baseline/f5-test-order.json`](./baseline/f5-test-order.json).

@@ -4,8 +4,7 @@ import {
   filterOrdersByView,
   isOrderCollectible,
 } from '@/domain/merchantOrderFilters';
-import { isApproachingWithin2h, isPickupWindowOpen } from '@/domain/pickupWindow';
-import { normalizeOrderStatus } from '@/lib/orderStatus';
+import { isPickupWindowOpen } from '@/domain/pickupWindow';
 
 /** Orders ready for handover inside the current pickup window. */
 export function countVerificationHandovers(rows: MerchantOrderRow[]): number {
@@ -13,15 +12,18 @@ export function countVerificationHandovers(rows: MerchantOrderRow[]): number {
   return filterOrdersByView(rows, 'verification', now).length;
 }
 
-/** Pickups whose window ends within the next 2 hours (any active collectible status). */
-export function countPickupWindowHandovers(rows: MerchantOrderRow[]): number {
-  const now = Date.now();
-  return rows.filter((o) => {
-    const st = normalizeOrderStatus(o.status);
-    if (!['reserved', 'paid', 'ready_for_pickup'].includes(st)) return false;
-    if (!isApproachingWithin2h(now, o.pickup_end)) return false;
-    return isOrderCollectible(o);
-  }).length;
+/**
+ * Pickups whose window ends within the next 2 hours ("Due in 2h").
+ *
+ * Single source of truth: this must always equal the Live monitor tab list
+ * length, so it delegates to `filterOrdersByView(..., 'live-monitor')` rather
+ * than re-deriving its own status/collectible predicate.
+ */
+export function countPickupWindowHandovers(
+  rows: MerchantOrderRow[],
+  nowMs: number = Date.now(),
+): number {
+  return countOrdersForView(rows, 'live-monitor', nowMs);
 }
 
 export function countLatePickups(rows: MerchantOrderRow[]): number {

@@ -10,9 +10,9 @@ export type MerchantOrdersView =
 export const MERCHANT_ORDERS_VIEWS: MerchantOrdersView[] = [
   'all',
   'verification',
+  'live-monitor',
   'review-pending',
   'late-pickups',
-  'live-monitor',
 ];
 
 export function parseMerchantOrdersView(raw: unknown): MerchantOrdersView {

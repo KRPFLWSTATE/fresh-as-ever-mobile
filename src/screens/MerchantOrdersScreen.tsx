@@ -103,18 +103,32 @@ function createStyles({ spacing, radii }: CreateStylesArgs) {
     },
     center: { padding: spacing.xl, alignItems: 'center' },
     verifyRow: {
-      flexDirection: 'column',
+      gap: spacing.md,
+    },
+    verifyStatsRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
       gap: spacing.sm,
+    },
+    verifyStatPill: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.xs,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      borderRadius: radii.full,
+      borderWidth: 1,
     },
     verifyInputRow: {
-      flexDirection: 'column',
+      flexDirection: 'row',
+      flexWrap: 'wrap',
       gap: spacing.sm,
+      alignItems: 'stretch',
     },
-    pendingAside: {
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingTop: spacing.lg,
-      marginTop: spacing.lg,
+    verifyCodeInput: {
+      flexGrow: 1,
+      flexBasis: 140,
+      minWidth: 120,
     },
     tabRow: {
       flexDirection: 'row',
@@ -122,20 +136,20 @@ function createStyles({ spacing, radii }: CreateStylesArgs) {
       marginBottom: spacing.md,
     },
     cardHero: {
-      height: 128,
+      height: 88,
       width: '100%',
     },
     cardBody: {
-      padding: spacing.md,
+      padding: spacing.sm + 4,
       flexGrow: 1,
-      gap: spacing.xs,
+      gap: 4,
     },
     cardFooter: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      marginTop: 'auto',
-      paddingTop: spacing.md,
+      marginTop: spacing.xs,
+      paddingTop: spacing.sm,
     },
     lateSection: {
       gap: spacing.sm,
@@ -198,11 +212,15 @@ function createStyles({ spacing, radii }: CreateStylesArgs) {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      gap: spacing.sm,
-      minHeight: 48,
+      gap: spacing.xs,
+      minHeight: 44,
       paddingVertical: spacing.sm,
       paddingHorizontal: spacing.md,
       borderRadius: radii.lg,
+    },
+    compactCta: {
+      minWidth: 44,
+      paddingHorizontal: spacing.sm,
     },
   });
 }
@@ -232,14 +250,20 @@ function VerifyHandoverCard({
   > | null>(null);
 
   const finishHandover = useCallback(
-    (result: { error?: string }) => {
+    (result: { error?: string }, opts?: { groupBagCount?: number }) => {
       if (result.error) {
         Alert.alert('Could not authorize', result.error);
         return;
       }
       setCode('');
       setGroupPreview(null);
-      Alert.alert('Handover complete', 'Order marked as collected.');
+      const bagCount = opts?.groupBagCount ?? 0;
+      Alert.alert(
+        'Handover complete',
+        bagCount > 1
+          ? `All ${bagCount} bags in this group are marked as collected.`
+          : 'Order marked as collected.',
+      );
     },
     [],
   );
@@ -262,7 +286,9 @@ function VerifyHandoverCard({
           return;
         }
         if (lookup.type === 'group') {
-          return onCollectGroup(lookup.groupId, lookup.code).then(finishHandover);
+          return onCollectGroup(lookup.groupId, lookup.code).then((result) =>
+            finishHandover(result, { groupBagCount: lookup.bagCount }),
+          );
         }
         return onCollectOrder(lookup.orderId, lookup.code).then(finishHandover);
       })
@@ -278,7 +304,9 @@ function VerifyHandoverCard({
     if (!groupPreview) return;
     setBusy(true);
     onCollectGroup(groupPreview.groupId, groupPreview.code)
-      .then(finishHandover)
+      .then((result) =>
+        finishHandover(result, { groupBagCount: groupPreview.bagCount }),
+      )
       .catch(() => {
         Alert.alert('Could not authorize', 'Something went wrong. Try again.');
       })
@@ -288,30 +316,66 @@ function VerifyHandoverCard({
   }, [groupPreview, onCollectGroup, finishHandover]);
 
   return (
-    <StitchCard style={{ marginBottom: spacing.lg }}>
+    <StitchCard style={{ marginBottom: spacing.md }}>
       <View style={styles.verifyRow}>
-        <View style={{ flex: 1 }}>
-          <StitchText variant="h2" colorKey="onBackground" style={{ marginBottom: spacing.xs }}>
-            Verify Customer Code
-          </StitchText>
-          <StitchText variant="body-sm" colorKey="textMuted" style={{ marginBottom: spacing.md }}>
-            Enter the 6-character code from the customer's order to authorize handover.
-          </StitchText>
-          <View style={styles.verifyInputRow}>
-            <TextInput
-              accessibilityLabel="Verification code"
-              value={code}
-              placeholder="e.g. 849201"
-              placeholderTextColor={colors.textFaint}
-              autoCapitalize="characters"
-              autoCorrect={false}
-              keyboardType="default"
-              maxLength={6}
-              onChangeText={(t) => setCode(t.toUpperCase().replace(/\s/g, '').slice(0, 6))}
-              editable={!busy}
-              style={{
-                width: '100%',
-                minHeight: 48,
+        <View style={styles.verifyStatsRow}>
+          <View
+            testID="merchant.orders.dueIn2h"
+            accessibilityLabel={`${pendingCount} due in 2h`}
+            style={[
+              styles.verifyStatPill,
+              {
+                backgroundColor: colors.primaryHighlight,
+                borderColor: colors.outlineVariant,
+              },
+            ]}
+          >
+            <StitchText variant="label" colorKey="primaryContainer">
+              {pendingCount}
+            </StitchText>
+            <StitchText variant="label-caps" colorKey="textMuted">
+              due in 2h
+            </StitchText>
+          </View>
+          {verificationTotal > pendingCount ? (
+            <View
+              style={[
+                styles.verifyStatPill,
+                {
+                  backgroundColor: colors.surface,
+                  borderColor: colors.outlineVariant,
+                },
+              ]}
+            >
+              <StitchText variant="label" colorKey="text">
+                {verificationTotal}
+              </StitchText>
+              <StitchText variant="label-caps" colorKey="textMuted">
+                active
+              </StitchText>
+            </View>
+          ) : null}
+        </View>
+        <StitchText variant="body-sm" colorKey="textMuted">
+          Enter the customer&apos;s 6-character code to authorize handover.
+        </StitchText>
+        <View style={styles.verifyInputRow}>
+          <TextInput
+            testID="merchant.orders.verifyCode"
+            accessibilityLabel="Verification code"
+            value={code}
+            placeholder="e.g. 849201"
+            placeholderTextColor={colors.textFaint}
+            autoCapitalize="characters"
+            autoCorrect={false}
+            keyboardType="default"
+            maxLength={6}
+            onChangeText={(t) => setCode(t.toUpperCase().replace(/\s/g, '').slice(0, 6))}
+            editable={!busy}
+            style={[
+              styles.verifyCodeInput,
+              {
+                minHeight: 44,
                 paddingHorizontal: spacing.md,
                 borderRadius: radii.lg,
                 borderWidth: 1,
@@ -320,72 +384,52 @@ function VerifyHandoverCard({
                 letterSpacing: 3.2,
                 color: colors.onBackground,
                 backgroundColor: colors.surface,
-              }}
-            />
-            <Pressable
-              accessibilityRole="button"
-              disabled={busy}
-              onPress={submit}
-              style={({ pressed }) => [
-                styles.primaryCtaInner,
-                {
-                  backgroundColor: colors.primaryContainer,
-                  opacity: pressed || busy ? 0.88 : 1,
-                },
-              ]}
-            >
-              {busy ? (
-                <ActivityIndicator color={colors.onPrimary} />
-              ) : (
-                <>
-                  <StitchIcon name="verified" size={20} colorKey="onPrimary" />
-                  <StitchText variant="label" colorKey="onPrimary">
-                    Authorize Handover
-                  </StitchText>
-                </>
-              )}
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              disabled={busy}
-              onPress={onScanQr}
-              style={({ pressed }) => [
-                styles.primaryCtaInner,
-                {
-                  backgroundColor: colors.surface,
-                  borderWidth: 1,
-                  borderColor: colors.outlineVariant,
-                  opacity: pressed || busy ? 0.88 : 1,
-                },
-              ]}
-            >
-              <StitchIcon name="qr_code_scanner" size={20} colorKey="primaryContainer" />
-              <StitchText variant="label" colorKey="primaryContainer">
-                Scan QR
-              </StitchText>
-            </Pressable>
-          </View>
-        </View>
-        <View
-          style={[
-            styles.pendingAside,
-            {
-              borderTopWidth: StyleSheet.hairlineWidth,
-              borderTopColor: colors.divider,
-            },
-          ]}
-        >
-          <StitchText variant="display" colorKey="primaryContainer" style={{ marginBottom: 2 }}>
-            {pendingCount}
-          </StitchText>
-          <StitchText variant="label-caps" colorKey="textMuted">
-            Due in next 2h
-          </StitchText>
-          {verificationTotal > pendingCount ? (
-            <StitchText variant="body-sm" colorKey="textMuted" style={{ marginTop: 4, textAlign: 'center' }}>
-              {verificationTotal} active handovers total
-            </StitchText>
-          ) : null}
+              },
+            ]}
+          />
+          <Pressable
+            testID="merchant.orders.authorizeHandover"
+            accessibilityRole="button"
+            accessibilityLabel="Authorize handover"
+            disabled={busy}
+            onPress={submit}
+            style={({ pressed }) => [
+              styles.primaryCtaInner,
+              {
+                backgroundColor: colors.primaryContainer,
+                opacity: pressed || busy ? 0.88 : 1,
+              },
+            ]}
+          >
+            {busy ? (
+              <ActivityIndicator color={colors.onPrimary} />
+            ) : (
+              <>
+                <StitchIcon name="verified" size={18} colorKey="onPrimary" />
+                <StitchText variant="label" colorKey="onPrimary">
+                  Authorize
+                </StitchText>
+              </>
+            )}
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Scan QR code"
+            disabled={busy}
+            onPress={onScanQr}
+            style={({ pressed }) => [
+              styles.primaryCtaInner,
+              styles.compactCta,
+              {
+                backgroundColor: colors.surface,
+                borderWidth: 1,
+                borderColor: colors.outlineVariant,
+                opacity: pressed || busy ? 0.88 : 1,
+              },
+            ]}
+          >
+            <StitchIcon name="qr_code_scanner" size={20} colorKey="primaryContainer" />
+          </Pressable>
         </View>
       </View>
       <Modal
@@ -397,7 +441,7 @@ function VerifyHandoverCard({
         <Pressable
           style={{
             flex: 1,
-            backgroundColor: 'rgba(0,0,0,0.45)',
+            backgroundColor: colors.scrim,
             justifyContent: 'flex-end',
           }}
           onPress={() => setGroupPreview(null)}
@@ -405,8 +449,8 @@ function VerifyHandoverCard({
           <Pressable
             style={{
               backgroundColor: colors.surface,
-              borderTopLeftRadius: 20,
-              borderTopRightRadius: 20,
+              borderTopLeftRadius: radii.xl,
+              borderTopRightRadius: radii.xl,
               padding: spacing.lg,
               paddingBottom: spacing.xxl,
               gap: spacing.sm,
@@ -414,10 +458,20 @@ function VerifyHandoverCard({
             onPress={(e) => e.stopPropagation()}
           >
             <StitchText variant="h3" colorKey="text">
-              Group pickup ({groupPreview?.bagCount ?? 0} bags)
+              Group pickup
+            </StitchText>
+            <StitchText variant="label" colorKey="primary">
+              {groupPreview?.bagCount ?? 0} bags · one shared pickup code
             </StitchText>
             <StitchText variant="body-sm" colorKey="textMuted">
-              {groupPreview?.customerName}
+              Customer: {groupPreview?.customerName}
+            </StitchText>
+            <StitchText variant="body-sm" colorKey="textMuted">
+              The customer showed a single code for every bag below. Hand over each bag before
+              confirming.
+            </StitchText>
+            <StitchText variant="label-caps" colorKey="textMuted" style={{ marginTop: spacing.xs }}>
+              Bags in this group
             </StitchText>
             {groupPreview?.bags.map((bag) => (
               <View
@@ -431,7 +485,9 @@ function VerifyHandoverCard({
               </View>
             ))}
             <Pressable
+              testID="merchant.orders.confirmGroupCollect"
               accessibilityRole="button"
+              accessibilityLabel={`Confirm all ${groupPreview?.bagCount ?? 0} bags collected`}
               disabled={busy}
               onPress={confirmGroupCollect}
               style={({ pressed }) => [
@@ -447,7 +503,7 @@ function VerifyHandoverCard({
                 <ActivityIndicator color={colors.onPrimary} />
               ) : (
                 <StitchText variant="label" colorKey="onPrimary">
-                  Collect all {groupPreview?.bagCount ?? 0} bags
+                  Confirm all {groupPreview?.bagCount ?? 0} bags collected
                 </StitchText>
               )}
             </Pressable>
@@ -809,8 +865,8 @@ export function MerchantOrdersScreen() {
                   LKR {Number(item.total ?? 0).toLocaleString()}
                 </StitchText>
               </View>
-              <StitchText variant="body-sm" colorKey="textMuted">
-                Customer: {item.customer_name}
+              <StitchText variant="body-md" colorKey="textMuted" numberOfLines={1}>
+                {item.customer_name}
               </StitchText>
               {pickupSignalLabel ? (
                 <View
@@ -834,14 +890,6 @@ export function MerchantOrdersScreen() {
                   </StitchText>
                 </View>
               ) : null}
-              {item.no_show_available ? (
-                <StitchText variant="body-sm" colorKey="secondary">
-                  No-show eligible
-                </StitchText>
-              ) : null}
-              <StitchText variant="body-sm" colorKey="textMuted">
-                Status: {item.status.replace(/_/g, ' ')}
-              </StitchText>
               <View
                 style={[
                   styles.cardFooter,
@@ -959,11 +1007,8 @@ export function MerchantOrdersScreen() {
   const header = useMemo(
     () => (
       <>
-        <StitchText variant="h1" colorKey="onBackground" style={{ marginBottom: spacing.xs }}>
+        <StitchText variant="h1" colorKey="onBackground" style={{ marginBottom: spacing.sm }}>
           Orders
-        </StitchText>
-        <StitchText variant="body-md" colorKey="textMuted" style={{ marginBottom: spacing.lg }}>
-          Manage handovers and verify customer pickups.
         </StitchText>
 
         <VerifyHandoverCard
@@ -977,17 +1022,11 @@ export function MerchantOrdersScreen() {
 
         {tabRow}
 
-        <StitchText variant="h3" colorKey="onBackground" style={{ marginBottom: 4 }}>
-          {MERCHANT_ORDERS_VIEW_LABELS[view].title}
-        </StitchText>
         <StitchText variant="body-sm" colorKey="textMuted" style={{ marginBottom: spacing.sm }}>
           {MERCHANT_ORDERS_VIEW_LABELS[view].subtitle}
         </StitchText>
         {view === 'late-pickups' ? (
           <View style={styles.lateSection}>
-            <StitchText variant="body-sm" colorKey="textMuted">
-              Orders past their scheduled collection window.
-            </StitchText>
             <View style={styles.lateFiltersRow}>
               <View
                 accessibilityRole="text"
@@ -1314,6 +1353,8 @@ export function MerchantOrdersScreen() {
               Enter the 6-character code from {lateVerifyOrder?.customer_name ?? 'the customer'}.
             </StitchText>
             <TextInput
+              testID="merchant.orders.lateVerifyCode"
+              accessibilityLabel="Verification code for late pickup"
               value={lateVerifyCode}
               onChangeText={(t) =>
                 setLateVerifyCode(t.toUpperCase().replace(/\s/g, '').slice(0, 6))

@@ -53,14 +53,21 @@ function customerInitials(name: string): string {
 
 function merchantStatusChip(normalized: string): {
   label: string;
-  bg: 'primaryHighlight' | 'accentHighlight';
-  fg: 'primaryContainer' | 'accent';
+  bg: 'primaryHighlight' | 'accentHighlight' | 'surfaceContainer';
+  fg: 'primaryContainer' | 'accent' | 'textMuted';
 } {
-  if (normalized === 'collected') {
+  if (normalized === 'collected' || normalized === 'completed') {
     return { label: 'Picked Up', bg: 'primaryHighlight', fg: 'primaryContainer' };
   }
-  if (normalized === 'ready_for_pickup') {
-    return { label: 'Pending', bg: 'accentHighlight', fg: 'accent' };
+  // Terminal states must not masquerade as "Pending" once the order is closed.
+  if (normalized === 'cancelled') {
+    return { label: 'Cancelled', bg: 'surfaceContainer', fg: 'textMuted' };
+  }
+  if (normalized === 'no_show') {
+    return { label: 'No-show', bg: 'surfaceContainer', fg: 'textMuted' };
+  }
+  if (normalized === 'expired') {
+    return { label: 'Expired', bg: 'surfaceContainer', fg: 'textMuted' };
   }
   return { label: 'Pending', bg: 'accentHighlight', fg: 'accent' };
 }
@@ -189,7 +196,7 @@ export function MerchantDashboardScreen() {
         label: 'Revenue (LKR)',
         icon: 'payments',
         value: stats.today_revenue.toFixed(0),
-        sub: 'Paid + collected today',
+        sub: 'Collected today',
         subColorKey: 'success',
         valueColorKey: 'primaryContainer',
         delta: buildDelta(

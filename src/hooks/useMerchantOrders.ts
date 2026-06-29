@@ -19,6 +19,7 @@ import { logError } from '@/observability/logError';
 import { mapSupabaseError, logSupabaseError } from '@/lib/supabaseError';
 import { mapHandoverError } from '@/lib/messages/rpc';
 import { ERROR } from '@/lib/messages/errors';
+import { bumpMerchantDataRevision } from '@/lib/merchantDataSync';
 
 export type { MerchantOrdersView } from '@/domain/merchantOrdersView';
 
@@ -49,22 +50,22 @@ export const MERCHANT_ORDERS_VIEW_LABELS: Record<
   MerchantOrdersView,
   { title: string; subtitle: string }
 > = {
-  all: { title: 'Active orders', subtitle: 'All open pickups' },
+  all: { title: 'All', subtitle: 'All open pickups' },
   verification: {
-    title: 'Orders verification',
+    title: 'Ready now',
     subtitle: 'Ready for handover now',
   },
+  'live-monitor': {
+    title: 'Ending soon',
+    subtitle: 'Ending in the next 2 hours',
+  },
   'review-pending': {
-    title: 'Review pending',
+    title: 'Upcoming',
     subtitle: 'Scheduled / awaiting payment',
   },
   'late-pickups': {
-    title: 'Late pickups',
+    title: 'Late',
     subtitle: 'Past pickup window',
-  },
-  'live-monitor': {
-    title: 'Live monitor',
-    subtitle: 'Ending in the next 2 hours',
   },
 };
 
@@ -300,6 +301,7 @@ export function useMerchantOrders(
         return { error: 'Handover was not completed.' };
       }
       await fetchOrders();
+      bumpMerchantDataRevision();
       return {};
     },
     [supabase, fetchOrders],
@@ -307,7 +309,7 @@ export function useMerchantOrders(
 
   const collectGroupHandover = useCallback(
     async (groupId: string, code?: string | null): Promise<{ error?: string }> => {
-      const { error: rpcError } = await supabase.rpc('merchant_collect_group', {
+      const { data, error: rpcError } = await supabase.rpc('merchant_collect_group', {
         p_group_id: groupId,
         p_code: code?.trim() ? code.replace(/\s/g, '').toUpperCase() : null,
       });
@@ -316,7 +318,11 @@ export function useMerchantOrders(
           error: mapSupabaseError(rpcError, 'Could not complete group handover.'),
         };
       }
+      if (data && typeof data === 'object' && 'ok' in (data as object) && !(data as { ok?: boolean }).ok) {
+        return { error: 'Group handover was not completed.' };
+      }
       await fetchOrders();
+      bumpMerchantDataRevision();
       return {};
     },
     [supabase, fetchOrders],

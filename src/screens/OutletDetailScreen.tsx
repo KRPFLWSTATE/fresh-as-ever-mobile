@@ -844,15 +844,16 @@ export function OutletDetailScreen(): React.ReactElement {
         </StitchSurface>
       </View>
     </ScrollView>
-    {groupReservationsEnabled && user && cart.count >= 2 && cart.cart.outletId === outletId ? (
+    {groupReservationsEnabled && user && cart.count >= 1 && cart.cart.outletId === outletId ? (
       <GroupReservationCartBar
         bags={cart.cart.bags}
         visible
         testID="outlet.groupCartBar"
         onPress={() =>
           navigation.navigate('Checkout', {
-            draft: selectedBagIds[0] ?? cart.cart.bagIds[0]!,
-            group: cart.cart.bagIds.join(','),
+            draft: cart.cart.bagIds[0]!,
+            group:
+              cart.cart.bagIds.length > 1 ? cart.cart.bagIds.join(',') : undefined,
           })
         }
       />
