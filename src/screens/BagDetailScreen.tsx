@@ -221,6 +221,22 @@ export function BagDetailScreen() {
     await openWhatsAppShare(message, { title: 'Share on WhatsApp' });
   }, [bag, env.apiBaseUrl, id]);
 
+  const outletCartCount =
+    groupReservationsEnabled && outletId && cart.cart.outletId === outletId
+      ? cart.count
+      : 0;
+  const bagInGroupCart = outletCartCount > 0 && cart.isInCart(id);
+  const navigateGroupCheckout = useCallback(() => {
+    const ids = cart.cart.bagIds;
+    if (!ids.length) return;
+    navigation.navigate('Checkout', {
+      draft: ids[0]!,
+      group: ids.length > 1 ? ids.join(',') : undefined,
+    });
+  }, [cart.cart.bagIds, navigation]);
+
+  const bottomReserved = spacing.md + 52 + Math.max(insets.bottom, spacing.md);
+
   if (!id || !parsed.success) {
     return null;
   }
@@ -296,21 +312,6 @@ export function BagDetailScreen() {
   const showHighValue =
     retail != null && rescuePrice > 0 && retail / rescuePrice >= 1.5;
   const showUrgent = qty != null && qty > 0 && qty <= 3;
-
-  const bottomReserved = spacing.md + 52 + Math.max(insets.bottom, spacing.md);
-  const outletCartCount =
-    groupReservationsEnabled && outletId && cart.cart.outletId === outletId
-      ? cart.count
-      : 0;
-  const bagInGroupCart = outletCartCount > 0 && cart.isInCart(id);
-  const navigateGroupCheckout = useCallback(() => {
-    const ids = cart.cart.bagIds;
-    if (!ids.length) return;
-    navigation.navigate('Checkout', {
-      draft: ids[0]!,
-      group: ids.length > 1 ? ids.join(',') : undefined,
-    });
-  }, [cart.cart.bagIds, navigation]);
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
